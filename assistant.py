@@ -14,6 +14,7 @@ import asyncio
 import io
 import argparse
 import subprocess
+import time
 import traceback
 import warnings
 from PIL import Image
@@ -67,6 +68,29 @@ def start_player():
 # Available voice options in Gemini Live
 VOICES = ["Aoede", "Puck", "Charon", "Kore", "Fenrir"]
 
+WAKE_WORD = "delta"
+
+def load_wakeword():
+    """Reconocedor Vosk local restringido a la palabra clave: nada sale a la red mientras duerme."""
+    try:
+        import json, vosk
+        vosk.SetLogLevel(-1)
+        model = vosk.Model(os.path.join(os.path.dirname(os.path.abspath(__file__)), "modelos", "vosk-model-small-es-0.42"))
+        rec = vosk.KaldiRecognizer(model, AUDIO_INPUT_RATE, json.dumps([WAKE_WORD, "[unk]"]))
+        rec.SetWords(True)
+        return rec
+    except Exception as e:
+        print(f"Palabra clave no disponible ({e}); usa Enter para activar.")
+        return None
+
+def wake_heard(rec, data) -> bool:
+    # Solo resultados finales con confianza alta: los parciales dan falsos positivos.
+    if not rec.AcceptWaveform(data):
+        return False
+    import json
+    return any(w["word"] == WAKE_WORD and w["conf"] >= 0.8
+               for w in json.loads(rec.Result()).get("result", []))
+
 def capture_screen_wayland(max_size=(1024, 1024), quality=60):
     """
     Captura la pantalla en Wayland usando spectacle con la opción -m (monitor activo).
@@ -106,12 +130,19 @@ async def audio_input_loop(session):
         stderr=subprocess.DEVNULL
     )
 
-    print("\n🎙️ Micrófono activo (PulseAudio/PipeWire). Puedes hablar en cualquier momento...")
+    print("\n🎙️ En espera: di «Delta» o pulsa Enter para activarme.")
+    ww = load_wakeword()
     try:
         while True:
             data = await asyncio.to_thread(recorder.stdout.read, AUDIO_CHUNK)
             if not data:
                 break
+            if not acciones.ST["activo"]:
+                # dormido: nada sale a la red; solo escucha local la palabra clave
+                if ww and wake_heard(ww, data):
+                    ww.Reset()
+                    acciones.activar()
+                continue
             audio_blob = types.Blob(data=data, mime_type="audio/pcm;rate=16000")
             await session.send_realtime_input(audio=audio_blob)
     except asyncio.CancelledError:
@@ -126,7 +157,7 @@ async def screen_capture_loop(session, interval=6.0):
     print(f"🖥️ Captura de pantalla en vivo activada (cada {interval}s)...")
     try:
         while True:
-            jpeg_bytes = await asyncio.to_thread(capture_screen_wayland)
+            jpeg_bytes = await asyncio.to_thread(capture_screen_wayland) if acciones.ST["activo"] else None
             if jpeg_bytes:
                 video_blob = types.Blob(data=jpeg_bytes, mime_type="image/jpeg")
                 await session.send_realtime_input(video=video_blob)
@@ -151,6 +182,8 @@ async def receive_and_play_loop(session):
                     asyncio.create_task(acciones.atender(session, response.tool_call))
                 server_content = response.server_content
                 if server_content is not None:
+                    if server_content.model_turn or server_content.turn_complete:
+                        acciones.ST["ultima"] = time.monotonic()
                     if getattr(server_content, 'output_transcription', None):
                         t = server_content.output_transcription.text
                         if t:
@@ -184,6 +217,14 @@ async def receive_and_play_loop(session):
         if player.stdin and not player.stdin.closed:
             player.stdin.close()
         player.terminate()
+
+async def vigilante():
+    """Vuelve a dormir tras INACTIVIDAD s sin que el modelo hable ni actúe."""
+    while True:
+        await asyncio.sleep(2)
+        st = acciones.ST
+        if st["activo"] and not st["pending"] and time.monotonic() - st["ultima"] > acciones.INACTIVIDAD:
+            acciones.dormir_ahora()
 
 async def main():
     parser = argparse.ArgumentParser(description="Gemini Live Screen & Voice Assistant")
@@ -231,16 +272,26 @@ async def main():
                     "Sé conciso, directo, natural y amigable al responder por voz. "
                     "Responde siempre en español. "
                     "Cuando el usuario pregunte por algo que ve en su pantalla, descríbeselo o guíale con claridad. "
-                    "Tienes herramientas: búsqueda web, abrir apps/URLs, scripts de WORMHOLE, shell y delegar en Claude Code. Úsalas cuando el usuario pida una acción, sin pedir permiso tú: la terminal ya le pregunta."
+                    "Tienes herramientas: búsqueda web, abrir apps/URLs, scripts de WORMHOLE y ciclo de verificación, shell, delegar en Claude Code, estado de proyectos, memoria (recordar/olvidar), volumen, brillo, portapapeles, ventanas y notificaciones. "
+                    "Úsalas cuando el usuario pida una acción, sin pedir permiso tú: la terminal ya le pregunta si es peligroso. "
+                    "Los trabajos largos corren en segundo plano y recibirás un [AVISO DEL SISTEMA] al acabar: díselo al usuario en una frase. "
+                    "Usa recordar cuando el usuario diga que recuerdes algo, y dormir cuando se despida. "
+                    "Notas guardadas del usuario:\n" + (acciones.leer_memoria() or "(ninguna todavía)")
                 )
             )]
         )
     )
 
+    loop = asyncio.get_running_loop()
+    if sys.stdin.isatty():
+        loop.add_reader(sys.stdin.fileno(), lambda: acciones.entrada_stdin(sys.stdin.readline()))
+    asyncio.create_task(vigilante())
+
     handle = None
     while True:
         try:
             async with client.aio.live.connect(model=model_id, config=make_config(handle)) as session:
+                acciones.ST["session"] = session
                 tasks = [
                     asyncio.create_task(audio_input_loop(session)),
                     asyncio.create_task(receive_and_play_loop(session))
@@ -253,6 +304,7 @@ async def main():
                     t.cancel()
                 await asyncio.gather(*pending, return_exceptions=True)
                 handle = SESSION_HANDLE.get("h", handle)
+            acciones.ST["session"] = None
             print("\n⚠️ Sesión cerrada, reconectando...")
         except Exception as e:
             print(f"\nError en la sesión Live: {e}")
