@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Delta</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#000;--fg:#f2f2f2;--dim:#5a5a5a;--faint:#1c1c1c;--red:#ff2d1f;--line:#262626;
+  --dot:"Doto","IBM Plex Mono",monospace;--mono:"IBM Plex Mono",ui-monospace,monospace}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--mono);overflow:hidden}
+body{display:grid;grid-template-rows:auto 1fr auto;gap:28px;padding:32px 40px}
+.dot{font-family:var(--dot);font-weight:900;letter-spacing:.04em}
+.lbl{font-size:12px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+#hora{font-size:92px;line-height:.9}
+#fecha{margin-top:8px}
+.meta{display:flex;gap:36px;text-align:right}
+.meta div{max-width:300px}
+.meta b{display:block;font-weight:500;font-size:15px;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ok{color:var(--fg)}.mal{color:var(--red)}
+main{display:grid;grid-template-columns:1.6fr 1fr;gap:28px;min-height:0}
+.card{border:1px solid var(--line);border-radius:22px;padding:22px 26px;position:relative;overflow:hidden;min-height:0}
+#hero{display:flex;flex-direction:column;justify-content:space-between}
+canvas{width:100%;flex:1;min-height:0;display:block}
+#estado{font-size:76px;line-height:1;margin-top:10px}
+#sub{color:var(--dim);font-size:14px;margin-top:8px;height:18px}
+#frases{display:flex;flex-direction:column;justify-content:flex-end;gap:22px}
+.fr{font-size:22px;line-height:1.35;color:var(--dim)}
+.fr:last-child{color:var(--fg)}
+.fr small{display:block;font-size:11px;letter-spacing:.2em;margin-bottom:4px;color:var(--red)}
+footer{display:grid;grid-template-columns:1.3fr 1fr 1fr 1.1fr;gap:28px}
+.big{font-size:54px;line-height:1;margin:10px 0}
+.row{display:flex;justify-content:space-between;font-size:13px;margin-top:8px;gap:12px}
+.row span:last-child{text-align:right}
+.bar{height:10px;background:radial-gradient(circle,var(--fg) 38%,transparent 42%) 0 0/10px 10px;
+  -webkit-mask:linear-gradient(90deg,#000 var(--p),transparent var(--p));mask:linear-gradient(90deg,#000 var(--p),transparent var(--p));margin-top:6px}
+.bar.r{background-image:radial-gradient(circle,var(--red) 38%,transparent 42%)}
+.vacio{color:var(--dim);font-size:13px;margin-top:10px}
+#cel{position:fixed;inset:0;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:9}
+#cel.on{display:flex}
+#cel canvas{position:absolute;inset:0;width:100%;height:100%;flex:none}
+#cel .dot{position:relative;font-size:150px;color:var(--red)}
+#cel p{position:relative;font-size:22px;margin-top:18px}
+</style>
+</head>
+<body>
+<header>
+  <div><div id="hora" class="dot">--:--</div><div id="fecha" class="lbl"></div></div>
+  <div class="meta">
+    <div><span class="lbl">Sesión</span><b id="conexion">—</b></div>
+    <div><span class="lbl">Voz</span><b id="voz">—</b></div>
+    <div><span class="lbl">Memoria</span><b id="memoria">—</b></div>
+    <div><span class="lbl">Última actividad</span><b id="ultima">—</b></div>
+  </div>
+</header>
+<main>
+  <section class="card" id="hero">
+    <canvas id="cv"></canvas>
+    <div><div id="estado" class="dot">DORMIDO</div><div id="sub"></div></div>
+  </section>
+  <section class="card" id="frases"></section>
+</main>
+<footer>
+  <section class="card" id="imp"></section>
+  <section class="card" id="trab"></section>
+  <section class="card" id="sis"></section>
+  <section class="card" id="clima"></section>
+</footer>
+<div id="cel"><canvas id="cv2"></canvas><div class="dot">LISTO</div><p id="celtxt"></p></div>
+
+<script>
+const $=i=>document.getElementById(i), esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let S={estado:'dormido'};
+const bar=(p,r)=>`<div class="bar${r?' r':''}" style="--p:${Math.max(0,Math.min(100,p))}%"></div>`;
+const mmss=s=>s==null?'—':s<90?`${Math.round(s)} s`:s<5400?`${Math.round(s/60)} min`:`${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
+
+function pintar(d){
+  S=d;
+  $('hora').textContent=d.hora; $('fecha').textContent=d.fecha;
+  const c=$('conexion'); c.textContent=d.conexion.toUpperCase(); c.className=d.conexion==='conectado'?'ok':'mal';
+  $('voz').textContent=d.voz;
+  $('memoria').textContent=`${d.memoria.n} notas`+(d.memoria.ultima?` · ${d.memoria.ultima}`:'');
+  $('ultima').textContent=d.ultima<5?'ahora':`hace ${mmss(d.ultima)}`;
+  $('estado').textContent=d.estado.toUpperCase();
+  $('estado').style.color=d.estado==='dormido'?'var(--dim)':'var(--fg)';
+  $('sub').textContent=d.herramienta?`usando: ${d.herramienta}`:d.sueno!=null?`duerme en ${d.sueno} s`:'di «Delta» o pulsa Enter';
+  $('frases').innerHTML=d.frases.length?d.frases.map(f=>`<div class="fr"><small>${esc(f.rol).toUpperCase()}</small>${esc(f.t)}</div>`).join(''):'<div class="vacio">Sin conversación todavía.</div>';
+
+  const p=d.impresora;
+  $('imp').innerHTML=`<span class="lbl">Impresora · Klipper</span>`+(!p||!p.online?'<div class="big dot" style="color:var(--dim)">SIN CONEXIÓN</div>':
+   `<div class="big dot">${p.estado==='printing'||p.estado==='paused'?p.prog+'%':p.estado.toUpperCase()}</div>`+bar(p.prog,p.estado==='printing')+
+   (p.archivo?`<div class="row"><span>${esc(p.archivo)}</span><span>${p.quedan!=null?'quedan '+mmss(p.quedan):''}</span></div>`:'')+
+   `<div class="row"><span>Boquilla</span><span>${p.boquilla[0]}/${p.boquilla[1]} °C</span></div><div class="row"><span>Cama</span><span>${p.cama[0]}/${p.cama[1]} °C</span></div>`);
+
+  const j=Object.entries(d.trabajos), cl=Object.entries(d.claude), li=a=>a.map(([n,e])=>`<div class="row"><span>${esc(n)}</span><span class="${e==='en curso'?'ok':''}">${esc(e)}</span></div>`).join('');
+  $('trab').innerHTML=`<span class="lbl">Trabajos</span>${li(j)||'<div class="vacio">Ninguno.</div>'}<div class="lbl" style="margin-top:20px">Claude Code</div>${li(cl)||'<div class="vacio">Ninguna tarea.</div>'}`;
+
+  const s=d.sistema||{};
+  $('sis').innerHTML=`<span class="lbl">Sistema</span>`+[['RAM',s.ram,'%'],['SWAP',s.swap,'%'],['CPU',s.cpu,'%'],['TEMP',s.temp,' °C']].map(([n,v,u])=>
+   `<div class="row"><span>${n}</span><span>${v==null?'—':v+u}</span></div>`+bar(n==='TEMP'?v:v,v>85)).join('');
+
+  const w=d.clima;
+  $('clima').innerHTML=`<span class="lbl">Tiempo · ${w?esc(w.ciudad):''}</span>`+(w?`<div class="big dot">${w.temp}°</div><div class="row"><span>${esc(w.desc)}</span><span>${w.min}° / ${w.max}°</span></div><div class="row"><span>Sensación ${w.sens}°</span><span>Hum ${w.hum}%</span></div>`:'<div class="vacio">Sin datos.</div>');
+
+  if(d.evento&&d.evento.id!==(window._ev||0)){window._ev=d.evento.id;celebrar(d.evento)}
+}
+
+/* ---------- matriz de puntos ---------- */
+const cv=$('cv'),cx=cv.getContext('2d');let W,H,cols,rows,G=16;
+function fit(){const r=cv.getBoundingClientRect(),k=devicePixelRatio||1;cv.width=r.width*k;cv.height=r.height*k;W=cv.width;H=cv.height;G=16*k;cols=Math.floor(W/G);rows=Math.floor(H/G)}
+addEventListener('resize',fit);
+function nivel(e,x,y,t){ // 0..1 por estado
+  const cxn=cols/2,cyn=rows/2,dx=x-cxn,dy=y-cyn,d=Math.hypot(dx,dy*1.4);
+  if(e==='dormido')return Math.max(0,Math.sin(t*.8-d*.25))*.35*Math.exp(-d*.07)+((x*7+y*13)%29===0?.12:0);
+  if(e==='escuchando')return Math.max(0,Math.sin(d*.55-t*3))*Math.exp(-d*.045)*.95;
+  if(e==='hablando'){const a=.35+.65*Math.abs(Math.sin(x*.35+t*6)*Math.sin(x*.13-t*2.3)),h=a*rows/2*.9;return Math.abs(dy)<h?1:0}
+  const ang=Math.atan2(dy,dx),f=((ang-t*3)%(2*Math.PI)+2*Math.PI)%(2*Math.PI); // trabajando: barrido radar
+  return d<Math.min(cols,rows*1.4)*.46&&d>2?Math.pow(1-f/(2*Math.PI),3):0}
+function dibuja(t){
+  cx.clearRect(0,0,W,H);const e=S.estado,col=e==='dormido'?'255,255,255':e==='escuchando'||e==='trabajando'?'255,45,31':'255,255,255';
+  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const v=Math.min(1,nivel(e,x,y,t)),a=.09+.91*v;
+    cx.fillStyle=`rgba(${v>.15?col:'255,255,255'},${a})`;cx.beginPath();cx.arc(x*G+G/2,y*G+G/2,G*(.12+.2*v),0,7);cx.fill()}
+  requestAnimationFrame(t=>dibuja(t/1000))}
+
+/* ---------- celebración de impresión ---------- */
+function celebrar(ev){
+  $('celtxt').textContent=`${ev.archivo} · ${ev.total}`;$('cel').classList.add('on');
+  const c=$('cv2'),k=c.getContext('2d');c.width=innerWidth;c.height=innerHeight;const g=22,t0=performance.now();
+  (function f(){const t=(performance.now()-t0)/1000;if(t>25){$('cel').classList.remove('on');return}
+    k.clearRect(0,0,c.width,c.height);
+    for(let y=0;y<c.height/g;y++)for(let x=0;x<c.width/g;x++){const d=Math.hypot(x-c.width/g/2,y-c.height/g/2),v=Math.max(0,Math.sin(d*.5-t*5))*Math.exp(-d*.03)*Math.min(1,t);
+      k.fillStyle=`rgba(255,45,31,${.08+.9*v})`;k.beginPath();k.arc(x*g+g/2,y*g+g/2,g*(.1+.3*v),0,7);k.fill()}
+    requestAnimationFrame(f)})();
+}
+window.demo=(e='hablando')=>pintar({...S,estado:e}); // prueba en consola: demo('trabajando')
+if(location.hash==='#celebra')setTimeout(()=>celebrar({archivo:'demo.gcode',total:'3 h 12 min'}),500);
+
+/* ---------- conexión ---------- */
+function ws(){const w=new WebSocket(`ws://${location.host}/ws`);
+  w.onmessage=m=>pintar(JSON.parse(m.data));
+  w.onclose=()=>{$('conexion').textContent='PANEL SIN ENLACE';$('conexion').className='mal';setTimeout(ws,2000)}}
+fit();ws();requestAnimationFrame(t=>dibuja(t/1000));
+</script>
+</body>
+</html>

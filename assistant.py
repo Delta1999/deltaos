@@ -26,6 +26,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # El servidor de Google Live gestiona su propio heartbeat; enviar pings locales
 # causa timeout 1011 cuando el ancho de banda está copado por audio y vídeo.
 import acciones
+import panel
 import google.genai.live as genai_live
 _original_ws_connect = genai_live.ws_connect
 
@@ -191,6 +192,11 @@ async def receive_and_play_loop(session):
                         t = server_content.output_transcription.text
                         if t:
                             print(t, end="", flush=True)
+                            panel.texto("delta", t)
+                    if getattr(server_content, 'input_transcription', None):
+                        t = server_content.input_transcription.text
+                        if t:
+                            panel.texto("tú", t)
 
                     if getattr(server_content, 'interrupted', False):
                         player.kill()
@@ -204,6 +210,7 @@ async def receive_and_play_loop(session):
                             if part.inline_data:
                                 audio_data = part.inline_data.data
                                 if player.stdin and not player.stdin.closed:
+                                    panel.habla()
                                     try:
                                         player.stdin.write(audio_data)
                                         player.stdin.flush()
@@ -211,6 +218,7 @@ async def receive_and_play_loop(session):
                                         pass
                     if server_content.turn_complete:
                         print("\n---")
+                        panel.fin_turno()
     except asyncio.CancelledError:
         pass
     except Exception as e:
@@ -231,6 +239,7 @@ async def vigilante():
 
 async def main():
     parser = argparse.ArgumentParser(description="Gemini Live Screen & Voice Assistant")
+    parser.add_argument("--sin-panel", action="store_true", help="No arrancar el panel web de estado")
     parser.add_argument("--voice", default="Aoede", choices=VOICES, help="Voz del asistente (30 disponibles, p.ej. Orus, Zephyr, Algieba)")
     parser.add_argument("--interval", type=float, default=6.0, help="Intervalo de capturas de pantalla en segundos (def: 6)")
     parser.add_argument("--no-screen", action="store_true", help="Desactiva la captura de pantalla (solo voz)")
@@ -267,6 +276,7 @@ async def main():
             )
         ),
         output_audio_transcription=types.AudioTranscriptionConfig(),
+        input_audio_transcription=types.AudioTranscriptionConfig(),
         system_instruction=types.Content(
             parts=[types.Part.from_text(
                 text=(
@@ -290,6 +300,8 @@ async def main():
     if sys.stdin.isatty():
         loop.add_reader(sys.stdin.fileno(), lambda: acciones.entrada_stdin(sys.stdin.readline()))
     asyncio.create_task(vigilante())
+    if not args.sin_panel:
+        await panel.start(acciones.ST, args.voice)
     asyncio.create_task(acciones.vigilar_impresora())
 
     handle = None

@@ -462,9 +462,12 @@ async def atender(session, tool_call):
     ST["ultima"] = time.monotonic()
     for fc in tool_call.function_calls:
         print(f"\n🔧 {fc.name}({dict(fc.args or {})})")
+        ST["herramienta"] = fc.name
         try:
             out = await HANDLERS[fc.name](**(fc.args or {}))
         except Exception as e:
             out = f"Error: {e}"
+        finally:
+            ST["herramienta"] = None
         await session.send_tool_response(function_responses=[
             types.FunctionResponse(id=fc.id, name=fc.name, response={"output": out})])
