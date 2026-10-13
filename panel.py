@@ -146,10 +146,19 @@ async def _poll_clima():
                 lugar = ""  # sin posición del navegador: wttr.in usa la IP
             async with httpx.AsyncClient(timeout=10) as c:
                 j = (await c.get(f"https://wttr.in/{lugar}?format=j1")).json()
-            cur = j["current_condition"][0]
+            cur, hoy = j["current_condition"][0], j["weather"][0]
+            def min24(s):  # "06:30 AM" -> minutos desde medianoche
+                h, m = time.strptime(s, "%I:%M %p")[3:5]
+                return h * 60 + m
             S["clima"] = {"temp": int(cur["temp_C"]), "sens": int(cur["FeelsLikeC"]), "hum": int(cur["humidity"]),
                           "desc": cur["weatherDesc"][0]["value"], "ciudad": j["nearest_area"][0]["areaName"][0]["value"],
-                          "max": int(j["weather"][0]["maxtempC"]), "min": int(j["weather"][0]["mintempC"])}
+                          "max": int(hoy["maxtempC"]), "min": int(hoy["mintempC"]), "code": int(cur["weatherCode"]),
+                          "viento": int(cur["windspeedKmph"]), "dir": cur["winddir16Point"], "uv": int(cur["uvIndex"]),
+                          "lluvia": max(int(h["chanceofrain"]) for h in hoy["hourly"]),
+                          "sale": min24(hoy["astronomy"][0]["sunrise"]), "pone": min24(hoy["astronomy"][0]["sunset"]),
+                          # horas de hoy y mañana: k = horas desde las 00:00 de hoy
+                          "horas": [{"k": d * 24 + int(h["time"]) // 100, "t": int(h["tempC"]), "c": int(h["weatherCode"])}
+                                    for d, w in enumerate(j["weather"][:2]) for h in w["hourly"]]}
         except Exception:
             pass  # conserva el último clima; 15 min es poco para que caduque
         try:
