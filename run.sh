@@ -19,7 +19,7 @@ ORIG_SINK="$(pactl get-default-sink 2>/dev/null)"
 if ! pactl list short sources | grep -q echo-cancel-source; then
   pactl load-module module-echo-cancel aec_method=webrtc \
     source_name=echo-cancel-source sink_name=echo-cancel-sink \
-    aec_args="high_pass_filter=1 noise_suppression=1" >/dev/null 2>&1
+    aec_args="analog_gain_control=0 digital_gain_control=1 high_pass_filter=1 noise_suppression=1" >/dev/null 2>&1
 fi
 
 # Configurar echo-cancel-sink como salida por defecto para que todo el audio del sistema
