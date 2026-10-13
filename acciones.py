@@ -418,7 +418,7 @@ DECLARATIONS = [
     _fn("ejecutar_shell", "Ejecuta un comando de shell (pide confirmación al usuario en la terminal, máx 60 s).",
         {"comando": _s("comando completo")}),
     _fn("preguntar_a_claude",
-        "Delega en Claude Code (en segundo plano, repo WORMHOLE, puede editar archivos; pide confirmación). Avisa al terminar.",
+        "Lanza una tarea suelta de Claude Code SIN memoria (un solo disparo, pide confirmación). Para conversar o encadenar peticiones usa hablar_con_claude.",
         {"tarea": _s("instrucción completa y autocontenida")}),
     _fn("estado_impresora", "Temperaturas, estado y progreso de la impresión actual (Klipper/Moonraker, solo lectura)."),
     _fn("programar_aviso_impresora",

@@ -26,6 +26,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # El servidor de Google Live gestiona su propio heartbeat; enviar pings locales
 # causa timeout 1011 cuando el ancho de banda está copado por audio y vídeo.
 import acciones
+import claude_acp  # noqa: F401  (registra sus herramientas en acciones)
 import panel
 import google.genai.live as genai_live
 _original_ws_connect = genai_live.ws_connect

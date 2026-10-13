@@ -85,6 +85,9 @@ let S={estado:'cargando',nivel:0};
 const bar=(p,r)=>`<div class="bar${r?' r':''}" style="--p:${Math.max(0,Math.min(100,p))}%"></div>`;
 const mmss=s=>s==null?'—':s<90?`${Math.round(s)} s`:s<5400?`${Math.round(s/60)} min`:`${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
 
+function claude(c){if(!c||!c.tarea)return '<div class="vacio">Ninguna tarea.</div>';
+  const pasos=c.pasos.map(p=>`<div class="row"><span>${esc(p.t).slice(0,46)}</span><span class="${p.e==='en curso'?'ok':p.e==='falló'?'mal':''}">${p.e==='hecho'?'✓':p.e==='falló'?'✗':'…'}</span></div>`).join('');
+  return `<div class="row"><span>${esc(c.tarea).slice(0,60)}</span></div>${c.permiso?`<div class="row mal"><span>¿Permitir? ${esc(c.permiso).slice(0,50)}</span></div>`:''}${pasos}`}
 function pintar(d){
   S=d;
   $('hora').textContent=d.hora; $('fecha').textContent=d.fecha;
@@ -103,8 +106,8 @@ function pintar(d){
    (p.archivo?`<div class="row"><span>${esc(p.archivo)}</span><span>${p.quedan!=null?'quedan '+mmss(p.quedan):''}</span></div>`:'')+
    `<div class="row"><span>Boquilla</span><span>${p.boquilla[0]}/${p.boquilla[1]} °C</span></div><div class="row"><span>Cama</span><span>${p.cama[0]}/${p.cama[1]} °C</span></div>`);
 
-  const j=Object.entries(d.trabajos), cl=Object.entries(d.claude), li=a=>a.map(([n,e])=>`<div class="row"><span>${esc(n)}</span><span class="${e==='en curso'?'ok':''}">${esc(e)}</span></div>`).join('');
-  $('trab').innerHTML=`<span class="lbl">Trabajos</span>${li(j)||'<div class="vacio">Ninguno.</div>'}<div class="lbl" style="margin-top:20px">Claude Code</div>${li(cl)||'<div class="vacio">Ninguna tarea.</div>'}`;
+  const j=Object.entries(d.trabajos), li=a=>a.map(([n,e])=>`<div class="row"><span>${esc(n)}</span><span class="${e==='en curso'?'ok':''}">${esc(e)}</span></div>`).join('');
+  $('trab').innerHTML=`<span class="lbl">Trabajos</span>${li(j)||'<div class="vacio">Ninguno.</div>'}<div class="lbl" style="margin-top:20px">Claude Code · ${esc(d.claude?d.claude.estado:'—')}</div>${claude(d.claude)}`;
 
   const s=d.sistema||{};
   $('sis').innerHTML=`<span class="lbl">Sistema</span>`+[['RAM',s.ram,'%'],['SWAP',s.swap,'%'],['CPU',s.cpu,'%'],['TEMP',s.temp,' °C']].map(([n,v,u])=>

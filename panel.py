@@ -53,7 +53,7 @@ def _estado(ST):
         return "dormido"
     if time.monotonic() < _hablando_hasta:
         return "hablando"
-    if ST.get("herramienta") or any(v == "en curso" for v in ST["trabajos"].values()):
+    if ST.get("herramienta") or any(v == "en curso" for v in ST["trabajos"].values()) or ST.get("claude", {}).get("estado") in ("trabajando", "esperando permiso"):
         return "trabajando"
     return "escuchando"
 
@@ -84,14 +84,13 @@ def _sistema():
 
 def snapshot(ST):
     ahora = time.monotonic()
-    claude = {n: e for n, e in ST["trabajos"].items() if n.startswith("claude")}
     return {
         **S,
         "estado": _estado(ST),
         "conexion": "conectado" if ST["session"] else "reconectando",
         "herramienta": ST.get("herramienta"),
-        "trabajos": {n: e for n, e in ST["trabajos"].items() if n not in claude},
-        "claude": claude,
+        "trabajos": ST["trabajos"],
+        "claude": ST.get("claude"),
         "memoria": _memoria(),
         "sueno": max(0, round(acciones.INACTIVIDAD - (ahora - ST["ultima"]))) if ST["activo"] else None,
         "ultima": round(ahora - ST["ultima"]),
