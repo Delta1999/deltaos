@@ -41,4 +41,10 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+case " $* " in *" --sin-panel "*) ;; *)
+  [ -n "$WAYLAND_DISPLAY$DISPLAY" ] && { "$DIR/panel/ventana.sh" >/dev/null 2>&1 & VENTANA=$!; } ;;
+esac
+cleanup_ventana() { [ -n "$VENTANA" ] && pkill -f "user-data-dir=$DIR/panel/.chrome" 2>/dev/null; }
+trap 'cleanup_ventana; cleanup' EXIT INT TERM
+
 "$DIR/.venv/bin/python3" "$DIR/assistant.py" "$@"

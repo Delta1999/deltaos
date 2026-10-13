@@ -171,6 +171,11 @@ async def screen_capture_loop(session, interval=6.0):
     except Exception as e:
         print(f"Error en captura de pantalla: {e}")
 
+def nivel_audio(pcm: bytes) -> float:
+    """Amplitud RMS 0..1 de PCM int16 (submuestreado: basta para animar)."""
+    m = memoryview(pcm[: len(pcm) // 2 * 2]).cast("h")[::8]
+    return min(1.0, (sum(x * x for x in m) / max(1, len(m))) ** 0.5 / 9000)
+
 async def receive_and_play_loop(session):
     """Recibe la respuesta de audio y la reproduce por paplay nativo."""
     player = start_player()
@@ -210,7 +215,7 @@ async def receive_and_play_loop(session):
                             if part.inline_data:
                                 audio_data = part.inline_data.data
                                 if player.stdin and not player.stdin.closed:
-                                    panel.habla()
+                                    panel.habla(nivel_audio(audio_data))
                                     try:
                                         player.stdin.write(audio_data)
                                         player.stdin.flush()

@@ -4,8 +4,12 @@
 <meta charset="utf-8">
 <title>Delta</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+@font-face{font-family:Doto;font-weight:400;src:url(/fonts/doto-400.ttf)}
+@font-face{font-family:Doto;font-weight:900;src:url(/fonts/doto-900.ttf)}
+@font-face{font-family:"IBM Plex Mono";font-weight:400;src:url(/fonts/plexmono-400.ttf)}
+@font-face{font-family:"IBM Plex Mono";font-weight:500;src:url(/fonts/plexmono-500.ttf)}
+body{cursor:none}
 :root{--bg:#000;--fg:#f2f2f2;--dim:#5a5a5a;--faint:#1c1c1c;--red:#ff2d1f;--line:#262626;
   --dot:"Doto","IBM Plex Mono",monospace;--mono:"IBM Plex Mono",ui-monospace,monospace}
 *{box-sizing:border-box;margin:0}
@@ -58,7 +62,7 @@ footer{display:grid;grid-template-columns:1.3fr 1fr 1fr 1.1fr;gap:28px}
 <main>
   <section class="card" id="hero">
     <canvas id="cv"></canvas>
-    <div><div id="estado" class="dot">DORMIDO</div><div id="sub"></div></div>
+    <div><div id="estado" class="dot">CARGANDO</div><div id="sub"></div></div>
   </section>
   <section class="card" id="frases"></section>
 </main>
@@ -72,7 +76,7 @@ footer{display:grid;grid-template-columns:1.3fr 1fr 1fr 1.1fr;gap:28px}
 
 <script>
 const $=i=>document.getElementById(i), esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-let S={estado:'dormido'};
+let S={estado:'cargando',nivel:0};
 const bar=(p,r)=>`<div class="bar${r?' r':''}" style="--p:${Math.max(0,Math.min(100,p))}%"></div>`;
 const mmss=s=>s==null?'—':s<90?`${Math.round(s)} s`:s<5400?`${Math.round(s/60)} min`:`${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
 
@@ -108,17 +112,19 @@ function pintar(d){
 }
 
 /* ---------- matriz de puntos ---------- */
-const cv=$('cv'),cx=cv.getContext('2d');let W,H,cols,rows,G=16;
+const cv=$('cv'),cx=cv.getContext('2d');let W,H,cols,rows,G=16,NV=0;
 function fit(){const r=cv.getBoundingClientRect(),k=devicePixelRatio||1;cv.width=r.width*k;cv.height=r.height*k;W=cv.width;H=cv.height;G=16*k;cols=Math.floor(W/G);rows=Math.floor(H/G)}
 addEventListener('resize',fit);
 function nivel(e,x,y,t){ // 0..1 por estado
+  if(e==='cargando'){const v=((x+y*3)%24===Math.floor(t*10)%24)?1:0;return v*.5}
   const cxn=cols/2,cyn=rows/2,dx=x-cxn,dy=y-cyn,d=Math.hypot(dx,dy*1.4);
   if(e==='dormido')return Math.max(0,Math.sin(t*.8-d*.25))*.35*Math.exp(-d*.07)+((x*7+y*13)%29===0?.12:0);
   if(e==='escuchando')return Math.max(0,Math.sin(d*.55-t*3))*Math.exp(-d*.045)*.95;
-  if(e==='hablando'){const a=.35+.65*Math.abs(Math.sin(x*.35+t*6)*Math.sin(x*.13-t*2.3)),h=a*rows/2*.9;return Math.abs(dy)<h?1:0}
+  if(e==='hablando'){const a=(.08+.92*NV)*(.55+.45*Math.abs(Math.sin(x*.35+t*6)*Math.sin(x*.13-t*2.3))),h=a*rows/2*.95;return Math.abs(dy)<h?1:0}
   const ang=Math.atan2(dy,dx),f=((ang-t*3)%(2*Math.PI)+2*Math.PI)%(2*Math.PI); // trabajando: barrido radar
   return d<Math.min(cols,rows*1.4)*.46&&d>2?Math.pow(1-f/(2*Math.PI),3):0}
 function dibuja(t){
+  NV+=(S.nivel-NV)*.25;
   cx.clearRect(0,0,W,H);const e=S.estado,col=e==='dormido'?'255,255,255':e==='escuchando'||e==='trabajando'?'255,45,31':'255,255,255';
   for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const v=Math.min(1,nivel(e,x,y,t)),a=.09+.91*v;
     cx.fillStyle=`rgba(${v>.15?col:'255,255,255'},${a})`;cx.beginPath();cx.arc(x*G+G/2,y*G+G/2,G*(.12+.2*v),0,7);cx.fill()}
@@ -138,7 +144,8 @@ window.demo=(e='hablando')=>pintar({...S,estado:e}); // prueba en consola: demo(
 if(location.hash==='#celebra')setTimeout(()=>celebrar({archivo:'demo.gcode',total:'3 h 12 min'}),500);
 
 /* ---------- conexión ---------- */
-function ws(){const w=new WebSocket(`ws://${location.host}/ws`);
+function geo(w){try{navigator.geolocation.getCurrentPosition(p=>w.readyState===1&&w.send(JSON.stringify({geo:[p.coords.latitude,p.coords.longitude]})),()=>{},{maximumAge:36e5,timeout:20000})}catch(e){}}
+function ws(){const w=new WebSocket(`ws://${location.host}/ws`);w.onopen=()=>geo(w);
   w.onmessage=m=>pintar(JSON.parse(m.data));
   w.onclose=()=>{$('conexion').textContent='PANEL SIN ENLACE';$('conexion').className='mal';setTimeout(ws,2000)}}
 fit();ws();requestAnimationFrame(t=>dibuja(t/1000));

@@ -18,14 +18,18 @@ PORT = 7876
 AQUI = Path(__file__).parent
 S = {"frases": [], "voz": "", "impresora": None, "clima": None, "sistema": {}, "evento": None}
 _hablando_hasta = 0.0
+GEO = AQUI / "panel" / "geo.json"  # última posición dada por el navegador
+_geo_nuevo = asyncio.Event()
 _clientes: set = set()
 _cpu_prev = None
 
 
 # ---- llamados desde assistant.py (baratos y sin excepciones) ----
-def habla():
+def habla(nivel=0.0):
+    """nivel: amplitud 0..1 del fragmento de audio que se está reproduciendo."""
     global _hablando_hasta
     _hablando_hasta = time.monotonic() + 0.8
+    S["nivel"] = round(nivel, 2)
 
 
 def texto(rol: str, t: str):
@@ -91,6 +95,7 @@ def snapshot(ST):
         "memoria": _memoria(),
         "sueno": max(0, round(acciones.INACTIVIDAD - (ahora - ST["ultima"]))) if ST["activo"] else None,
         "ultima": round(ahora - ST["ultima"]),
+        "nivel": S.get("nivel", 0) if time.monotonic() < _hablando_hasta else 0,
         "hora": time.strftime("%H:%M"),
         "fecha": time.strftime("%a %d %b").upper(),
     }
@@ -134,15 +139,24 @@ async def _poll_impresora():
 async def _poll_clima():
     while True:
         try:
+            try:
+                lat, lon = json.loads(GEO.read_text())
+                lugar = f"{lat},{lon}"
+            except Exception:
+                lugar = ""  # sin posición del navegador: wttr.in usa la IP
             async with httpx.AsyncClient(timeout=10) as c:
-                j = (await c.get("https://wttr.in/?format=j1")).json()
+                j = (await c.get(f"https://wttr.in/{lugar}?format=j1")).json()
             cur = j["current_condition"][0]
             S["clima"] = {"temp": int(cur["temp_C"]), "sens": int(cur["FeelsLikeC"]), "hum": int(cur["humidity"]),
                           "desc": cur["weatherDesc"][0]["value"], "ciudad": j["nearest_area"][0]["areaName"][0]["value"],
                           "max": int(j["weather"][0]["maxtempC"]), "min": int(j["weather"][0]["mintempC"])}
         except Exception:
             pass  # conserva el último clima; 15 min es poco para que caduque
-        await asyncio.sleep(900)
+        try:
+            await asyncio.wait_for(_geo_nuevo.wait(), 900)
+            _geo_nuevo.clear()
+        except asyncio.TimeoutError:
+            pass
 
 
 # ---- servidor ----
@@ -152,8 +166,16 @@ async def _ws(request):
     _clientes.add(ws)
     try:
         await ws.send_str(json.dumps(snapshot(request.app["ST"])))  # estado completo al conectar
-        async for _ in ws:
-            pass
+        async for m in ws:
+            try:  # el navegador manda su posición: {"geo":[lat,lon]}
+                g = json.loads(m.data).get("geo")
+                if g and len(g) == 2 and all(isinstance(x, (int, float)) for x in g):
+                    g = [round(g[0], 2), round(g[1], 2)]  # ~1 km: sobra para el tiempo
+                    if not GEO.exists() or json.loads(GEO.read_text()) != g:
+                        GEO.write_text(json.dumps(g))
+                        _geo_nuevo.set()
+            except Exception:
+                pass
     finally:
         _clientes.discard(ws)
     return ws
@@ -180,6 +202,7 @@ async def start(ST, voz):
         app["ST"] = ST
         app.router.add_get("/", lambda r: web.FileResponse(AQUI / "panel" / "index.html"))
         app.router.add_get("/ws", _ws)
+        app.router.add_static("/fonts", AQUI / "panel" / "fonts")
         runner = web.AppRunner(app, access_log=None)
         await runner.setup()
         await web.TCPSite(runner, "127.0.0.1", PORT).start()
