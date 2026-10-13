@@ -272,7 +272,7 @@ async def main():
                     "Sé conciso, directo, natural y amigable al responder por voz. "
                     "Responde siempre en español. "
                     "Cuando el usuario pregunte por algo que ve en su pantalla, descríbeselo o guíale con claridad. "
-                    "Tienes herramientas: búsqueda web, abrir apps/URLs, scripts de WORMHOLE y ciclo de verificación, shell, delegar en Claude Code, estado de proyectos, memoria (recordar/olvidar), volumen, brillo, portapapeles, ventanas y notificaciones. "
+                    "Tienes herramientas: búsqueda web, abrir apps/URLs, scripts de WORMHOLE y ciclo de verificación, shell, delegar en Claude Code, estado de proyectos, memoria (recordar/olvidar), estado de la impresora Klipper, volumen, brillo, portapapeles, ventanas y notificaciones. "
                     "Úsalas cuando el usuario pida una acción, sin pedir permiso tú: la terminal ya le pregunta si es peligroso. "
                     "Los trabajos largos corren en segundo plano y recibirás un [AVISO DEL SISTEMA] al acabar: díselo al usuario en una frase. "
                     "Usa recordar cuando el usuario diga que recuerdes algo, y dormir cuando se despida. "
@@ -286,6 +286,7 @@ async def main():
     if sys.stdin.isatty():
         loop.add_reader(sys.stdin.fileno(), lambda: acciones.entrada_stdin(sys.stdin.readline()))
     asyncio.create_task(vigilante())
+    asyncio.create_task(acciones.vigilar_impresora())
 
     handle = None
     while True:

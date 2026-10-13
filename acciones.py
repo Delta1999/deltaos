@@ -1,5 +1,6 @@
 """Herramientas (function calling) que Gemini puede invocar + estado compartido."""
 import asyncio
+import httpx
 import shutil
 import subprocess
 import time
@@ -15,6 +16,7 @@ TOOLS_DIR = WORMHOLE / "tools"
 MEMORIA = AQUI / "memoria.md"
 TRABAJOS = AQUI / "trabajos"
 MAX_OUT = 4000
+MOONRAKER = "http://192.168.0.102:7125"
 INACTIVIDAD = 25  # s sin actividad del modelo antes de volver a dormir
 
 # Estado compartido con assistant.py
@@ -176,6 +178,49 @@ async def estado_proyectos(nombre=""):
     return f"{p.parent.name}:\n" + _clip(p.read_text(errors="replace"))
 
 
+# --- impresora (Moonraker, solo lectura) ---
+async def _impresora():
+    q = "extruder&heater_bed&print_stats&display_status&virtual_sdcard"
+    async with httpx.AsyncClient(timeout=5) as c:
+        r = await c.get(f"{MOONRAKER}/printer/objects/query?{q}")
+    return r.json()["result"]["status"]
+
+
+def _hhmm(seg):
+    return f"{int(seg // 3600)} h {int(seg % 3600 // 60)} min"
+
+
+async def estado_impresora():
+    try:
+        st = await _impresora()
+    except Exception as e:
+        return f"No puedo hablar con la impresora ({MOONRAKER}): {e}"
+    ps, ex, bed = st["print_stats"], st["extruder"], st["heater_bed"]
+    out = (f"Estado: {ps['state']}. Boquilla {ex['temperature']:.0f}/{ex['target']:.0f} °C, "
+           f"cama {bed['temperature']:.0f}/{bed['target']:.0f} °C.")
+    if ps["state"] in ("printing", "paused"):
+        prog = st["virtual_sdcard"]["progress"]
+        out += f" Archivo {ps['filename']}, {prog * 100:.0f}% hecho, lleva {_hhmm(ps['print_duration'])}"
+        if prog > 0.02:
+            out += f", quedan unas {_hhmm(ps['print_duration'] * (1 - prog) / prog)}"
+        out += "."
+    return out
+
+
+async def vigilar_impresora():
+    """Avisa cuando una impresión termina, falla o se cancela."""
+    previo = None
+    while True:
+        await asyncio.sleep(20)
+        try:
+            ps = (await _impresora())["print_stats"]
+        except Exception:
+            continue  # impresora apagada o sin red: reintenta
+        if previo == "printing" and ps["state"] != "printing" and ps["state"] != "paused":
+            await avisar(f"La impresora ha dejado de imprimir {ps['filename']}: estado {ps['state']}. {ps.get('message') or ''}")
+        previo = ps["state"]
+
+
 # --- memoria ---
 def leer_memoria():
     return MEMORIA.read_text().strip() if MEMORIA.exists() else ""
@@ -283,6 +328,7 @@ DECLARATIONS = [
     _fn("preguntar_a_claude",
         "Delega en Claude Code (en segundo plano, repo WORMHOLE, puede editar archivos; pide confirmación). Avisa al terminar.",
         {"tarea": _s("instrucción completa y autocontenida")}),
+    _fn("estado_impresora", "Temperaturas, estado y progreso de la impresión actual (Klipper/Moonraker, solo lectura)."),
     _fn("ver_trabajos", "Lista los trabajos en segundo plano y su estado."),
     _fn("estado_proyectos",
         "Sin nombre: lista proyectos recientes. Con nombre: lee su ESTADO.md para decir dónde lo dejaron.",
@@ -308,7 +354,7 @@ TOOLS = [types.Tool(google_search=types.GoogleSearch()),
 
 HANDLERS = {f.__name__: f for f in (
     abrir, ejecutar_herramienta_wormhole, verificar_diseno, ejecutar_shell, preguntar_a_claude,
-    ver_trabajos, estado_proyectos, recordar, olvidar, volumen, brillo, notificar, portapapeles,
+    ver_trabajos, estado_impresora, estado_proyectos, recordar, olvidar, volumen, brillo, notificar, portapapeles,
     ventanas, dormir)}
 
 
