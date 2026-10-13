@@ -66,7 +66,10 @@ def start_player():
         stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 # Available voice options in Gemini Live
-VOICES = ["Aoede", "Puck", "Charon", "Kore", "Fenrir"]
+VOICES = ["Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede", "Callirrhoe", "Autonoe",
+          "Enceladus", "Iapetus", "Umbriel", "Algieba", "Despina", "Erinome", "Algenib", "Rasalgethi",
+          "Laomedeia", "Achernar", "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird",
+          "Zubenelgenubi", "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"]
 
 WAKE_WORD = "delta"
 
@@ -228,7 +231,7 @@ async def vigilante():
 
 async def main():
     parser = argparse.ArgumentParser(description="Gemini Live Screen & Voice Assistant")
-    parser.add_argument("--voice", default="Aoede", choices=VOICES, help="Voz del asistente (Aoede, Puck, Charon, Kore, Fenrir)")
+    parser.add_argument("--voice", default="Aoede", choices=VOICES, help="Voz del asistente (30 disponibles, p.ej. Orus, Zephyr, Algieba)")
     parser.add_argument("--interval", type=float, default=6.0, help="Intervalo de capturas de pantalla en segundos (def: 6)")
     parser.add_argument("--no-screen", action="store_true", help="Desactiva la captura de pantalla (solo voz)")
     args = parser.parse_args()
