@@ -24,6 +24,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # Parchear ws_connect de google.genai para deshabilitar ping_interval en el cliente
 # El servidor de Google Live gestiona su propio heartbeat; enviar pings locales
 # causa timeout 1011 cuando el ancho de banda está copado por audio y vídeo.
+import acciones
 import google.genai.live as genai_live
 _original_ws_connect = genai_live.ws_connect
 
@@ -146,6 +147,8 @@ async def receive_and_play_loop(session):
                 upd = getattr(response, 'session_resumption_update', None)
                 if upd and upd.new_handle:
                     SESSION_HANDLE["h"] = upd.new_handle
+                if response.tool_call:
+                    asyncio.create_task(acciones.atender(session, response.tool_call))
                 server_content = response.server_content
                 if server_content is not None:
                     if getattr(server_content, 'output_transcription', None):
@@ -210,6 +213,7 @@ async def main():
         context_window_compression=types.ContextWindowCompressionConfig(
             sliding_window=types.SlidingWindow()),
         session_resumption=types.SessionResumptionConfig(handle=handle),
+        tools=acciones.TOOLS,
         response_modalities=[types.Modality.AUDIO],
         speech_config=types.SpeechConfig(
             voice_config=types.VoiceConfig(
@@ -226,7 +230,8 @@ async def main():
                     "El usuario te hablará por voz y verás su pantalla en vivo. "
                     "Sé conciso, directo, natural y amigable al responder por voz. "
                     "Responde siempre en español. "
-                    "Cuando el usuario pregunte por algo que ve en su pantalla, descríbeselo o guíale con claridad."
+                    "Cuando el usuario pregunte por algo que ve en su pantalla, descríbeselo o guíale con claridad. "
+                    "Tienes herramientas: búsqueda web, abrir apps/URLs, scripts de WORMHOLE, shell y delegar en Claude Code. Úsalas cuando el usuario pida una acción, sin pedir permiso tú: la terminal ya le pregunta."
                 )
             )]
         )
