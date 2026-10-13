@@ -187,7 +187,39 @@ async def _impresora():
 
 
 def _hhmm(seg):
+    if seg < 60:
+        return f"{int(seg)} s"
+    elif seg < 3600:
+        return f"{int(seg // 60)} min"
     return f"{int(seg // 3600)} h {int(seg % 3600 // 60)} min"
+
+
+async def _tiempo_restante_impresora():
+    """Devuelve (segundos_restantes, filename, state, metodo)."""
+    st = await _impresora()
+    ps = st.get("print_stats", {})
+    state = ps.get("state")
+    if state not in ("printing", "paused"):
+        return None, ps.get("filename", ""), state, None
+
+    filename = ps.get("filename", "")
+    print_duration = ps.get("print_duration", 0)
+    prog = st.get("virtual_sdcard", {}).get("progress", 0)
+
+    est_slicer = None
+    try:
+        async with httpx.AsyncClient(timeout=3) as c:
+            r = await c.get(f"{MOONRAKER}/server/files/metadata", params={"filename": filename})
+            if r.status_code == 200:
+                est_slicer = r.json().get("result", {}).get("estimated_time")
+    except Exception:
+        pass
+
+    if est_slicer and est_slicer > print_duration:
+        return est_slicer - print_duration, filename, state, "slicer"
+    if prog > 0.02:
+        return print_duration * (1 - prog) / prog, filename, state, "progreso"
+    return None, filename, state, None
 
 
 async def estado_impresora():
@@ -201,10 +233,52 @@ async def estado_impresora():
     if ps["state"] in ("printing", "paused"):
         prog = st["virtual_sdcard"]["progress"]
         out += f" Archivo {ps['filename']}, {prog * 100:.0f}% hecho, lleva {_hhmm(ps['print_duration'])}"
-        if prog > 0.02:
-            out += f", quedan unas {_hhmm(ps['print_duration'] * (1 - prog) / prog)}"
+        restante, _, _, _ = await _tiempo_restante_impresora()
+        if restante is not None:
+            out += f", quedan unas {_hhmm(restante)}"
         out += "."
     return out
+
+
+async def programar_aviso_impresora(minutos_antes="5"):
+    try:
+        m = float(str(minutos_antes).strip() or 5)
+    except ValueError:
+        m = 5.0
+    seg_target = m * 60
+    try:
+        restante, fn, state, _ = await _tiempo_restante_impresora()
+    except Exception as e:
+        return f"Error consultando la impresora: {e}"
+
+    if state not in ("printing", "paused"):
+        return f"La impresora no está imprimiendo actualmente (estado: {state})."
+    if restante is None:
+        return "No hay suficiente progreso o metadatos para calcular el tiempo restante de impresión."
+    if restante <= seg_target:
+        return f"¡Atención! Ya quedan menos de {int(m)} minutos (quedan aproximadamente {_hhmm(restante)})."
+
+    nombre_trabajo = f"aviso_{int(m)}m_{fn}"
+    ST["trabajos"][nombre_trabajo] = f"esperando ({int(m)} min antes de fin)"
+
+    async def _vigilante_tiempo():
+        while True:
+            await asyncio.sleep(20)
+            try:
+                r, _, s, _ = await _tiempo_restante_impresora()
+                if s not in ("printing", "paused"):
+                    ST["trabajos"][nombre_trabajo] = "finalizado o detenido"
+                    break
+                if r is not None and r <= seg_target:
+                    ST["trabajos"][nombre_trabajo] = "notificado"
+                    await avisar(f"Quedan aproximadamente {int(m)} minutos para terminar de imprimir {fn}.")
+                    break
+            except Exception:
+                pass
+
+    asyncio.create_task(_vigilante_tiempo())
+    return (f"Aviso programado: te avisaré cuando falten {int(m)} minutos para terminar de imprimir {fn}. "
+            f"Tiempo restante estimado actual: {_hhmm(restante)}.")
 
 
 async def vigilar_impresora():
@@ -237,6 +311,16 @@ async def olvidar(fragmento):
     resto = [l for l in lineas if fragmento.lower() not in l.lower()]
     MEMORIA.write_text("\n".join(resto) + ("\n" if resto else ""))
     return f"Borradas {len(lineas) - len(resto)} notas."
+
+
+MEJORAS_LOG = AQUI / "mejoras_pendientes.log"
+
+
+async def anotar_mejora(descripcion):
+    with open(MEJORAS_LOG, "a") as f:
+        f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {descripcion.strip()}\n")
+    print(f"\n💡 [MEJORA SOLICITADA]: {descripcion.strip()}\n")
+    return "Anotado. He registrado esta solicitud para que se implemente lo antes posible."
 
 
 # --- sistema (KDE / PipeWire) ---
@@ -281,6 +365,14 @@ async def ventanas(accion, nombre=""):
         ids = (await _run(["kdotool", "search", "--name", ""]))[1].split()
         nombres = [(await _run(["kdotool", "getwindowname", i]))[1] for i in ids]
         return "\n".join(n for n in nombres if n) or "Sin ventanas."
+    if accion in ("mover_pantalla", "otra_pantalla"):
+        if nombre:
+            ids = (await _run(["kdotool", "search", "--name", nombre]))[1].split()
+            if ids:
+                await _run(["kdotool", "windowactivate", ids[0]])
+                await asyncio.sleep(0.1)
+        await _run(["qdbus-qt6", "org.kde.kglobalaccel", "/component/kwin", "org.kde.kglobalaccel.Component.invokeShortcut", "Window to Next Screen"])
+        return f"Ventana {f'«{nombre}» ' if nombre else ''}movida a la otra pantalla."
     ids = (await _run(["kdotool", "search", "--name", nombre]))[1].split()
     if not ids:
         return f"No encuentro ventana «{nombre}»."
@@ -329,6 +421,10 @@ DECLARATIONS = [
         "Delega en Claude Code (en segundo plano, repo WORMHOLE, puede editar archivos; pide confirmación). Avisa al terminar.",
         {"tarea": _s("instrucción completa y autocontenida")}),
     _fn("estado_impresora", "Temperaturas, estado y progreso de la impresión actual (Klipper/Moonraker, solo lectura)."),
+    _fn("programar_aviso_impresora",
+        "Programa un aviso o alarma cuando falten N minutos para que termine la impresión 3D actual (por defecto 5 min).",
+        {"minutos_antes": _s("minutos antes del final de la impresión para avisar (por ejemplo 5 o 10, por defecto 5)")},
+        req=[]),
     _fn("ver_trabajos", "Lista los trabajos en segundo plano y su estado."),
     _fn("estado_proyectos",
         "Sin nombre: lista proyectos recientes. Con nombre: lee su ESTADO.md para decir dónde lo dejaron.",
@@ -344,8 +440,12 @@ DECLARATIONS = [
     _fn("portapapeles", "Lee o escribe el portapapeles.",
         {"accion": _s("leer | escribir"), "texto": _s("texto si escribir")}, req=["accion"]),
     _fn("ventanas", "Gestiona ventanas de KDE.",
-        {"accion": _s("listar | activar | minimizar | cerrar"), "nombre": _s("parte del título de la ventana")},
+        {"accion": _s("listar | activar | minimizar | cerrar | mover_pantalla"),
+         "nombre": _s("parte del título de la ventana (para activar, minimizar, cerrar o mover de monitor)")},
         req=["accion"]),
+    _fn("anotar_mejora",
+        "Invoca esto cuando el usuario te pida una acción o capacidad que aún no puedes hacer, para que el programador la implemente.",
+        {"descripcion": _s("descripción clara de la función o acción solicitada")}),
     _fn("dormir", "Vuelve al modo espera cuando el usuario se despide o dice que ya está."),
 ]
 
@@ -354,8 +454,8 @@ TOOLS = [types.Tool(google_search=types.GoogleSearch()),
 
 HANDLERS = {f.__name__: f for f in (
     abrir, ejecutar_herramienta_wormhole, verificar_diseno, ejecutar_shell, preguntar_a_claude,
-    ver_trabajos, estado_impresora, estado_proyectos, recordar, olvidar, volumen, brillo, notificar, portapapeles,
-    ventanas, dormir)}
+    ver_trabajos, estado_impresora, programar_aviso_impresora, estado_proyectos, recordar, olvidar, anotar_mejora,
+    volumen, brillo, notificar, portapapeles, ventanas, dormir)}
 
 
 async def atender(session, tool_call):

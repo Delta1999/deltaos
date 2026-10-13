@@ -3,3 +3,5 @@ __pycache__/
 modelos/
 trabajos/
 memoria.md
+assistant.log
+mejoras_pendientes.log

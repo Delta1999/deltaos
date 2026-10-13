@@ -87,11 +87,11 @@ def load_wakeword():
         return None
 
 def wake_heard(rec, data) -> bool:
-    # Solo resultados finales con confianza alta: los parciales dan falsos positivos.
+    # Solo resultados finales con confianza alta: evita falsos positivos de audios de fondo.
     if not rec.AcceptWaveform(data):
         return False
     import json
-    return any(w["word"] == WAKE_WORD and w["conf"] >= 0.8
+    return any(w["word"] == WAKE_WORD and w["conf"] >= 0.90
                for w in json.loads(rec.Result()).get("result", []))
 
 def capture_screen_wayland(max_size=(1024, 1024), quality=60):
@@ -275,8 +275,9 @@ async def main():
                     "Sé conciso, directo, natural y amigable al responder por voz. "
                     "Responde siempre en español de España: pronunciación y acento castellano peninsular (no latinoamericano), con seseo prohibido (distingue z/c de s), y vocabulario de España (ordenador, vale, coger, móvil). "
                     "Cuando el usuario pregunte por algo que ve en su pantalla, descríbeselo o guíale con claridad. "
-                    "Tienes herramientas: búsqueda web, abrir apps/URLs, scripts de WORMHOLE y ciclo de verificación, shell, delegar en Claude Code, estado de proyectos, memoria (recordar/olvidar), estado de la impresora Klipper, volumen, brillo, portapapeles, ventanas y notificaciones. "
+                    "Tienes herramientas: búsqueda web, abrir apps/URLs, scripts de WORMHOLE y ciclo de verificación, shell, delegar en Claude Code, estado de proyectos, memoria (recordar/olvidar), estado de la impresora Klipper y programar aviso cuando falten N minutos de impresión, volumen, brillo, portapapeles, ventanas (activar, minimizar, cerrar, mover a la otra pantalla) y notificaciones. "
                     "Úsalas cuando el usuario pida una acción, sin pedir permiso tú: la terminal ya le pregunta si es peligroso. "
+                    "Si el usuario te pide alguna acción o capacidad que aún no sepas o no puedas realizar, invoca anotar_mejora inmediatamente para que el desarrollador la implemente. "
                     "Los trabajos largos corren en segundo plano y recibirás un [AVISO DEL SISTEMA] al acabar: díselo al usuario en una frase. "
                     "Usa recordar cuando el usuario diga que recuerdes algo, y dormir cuando se despida. "
                     "Notas guardadas del usuario:\n" + (acciones.leer_memoria() or "(ninguna todavía)")
