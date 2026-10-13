@@ -78,7 +78,7 @@ def capture_screen_wayland(max_size=(1024, 1024), quality=60):
             ["spectacle", "-b", "-n", "-m", "-o", tmp_path],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=2.0
+            timeout=8.0
         )
         if res.returncode == 0 and os.path.exists(tmp_path):
             with Image.open(tmp_path) as img:
@@ -120,7 +120,7 @@ async def audio_input_loop(session):
     finally:
         recorder.terminate()
 
-async def screen_capture_loop(session, interval=2.5):
+async def screen_capture_loop(session, interval=6.0):
     """Envía capturas de pantalla periódicas usando video=types.Blob."""
     print(f"🖥️ Captura de pantalla en vivo activada (cada {interval}s)...")
     try:
@@ -185,7 +185,7 @@ async def receive_and_play_loop(session):
 async def main():
     parser = argparse.ArgumentParser(description="Gemini Live Screen & Voice Assistant")
     parser.add_argument("--voice", default="Aoede", choices=VOICES, help="Voz del asistente (Aoede, Puck, Charon, Kore, Fenrir)")
-    parser.add_argument("--interval", type=float, default=2.5, help="Intervalo de capturas de pantalla en segundos (def: 2.5)")
+    parser.add_argument("--interval", type=float, default=6.0, help="Intervalo de capturas de pantalla en segundos (def: 6)")
     parser.add_argument("--no-screen", action="store_true", help="Desactiva la captura de pantalla (solo voz)")
     args = parser.parse_args()
 
