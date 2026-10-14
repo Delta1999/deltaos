@@ -11,6 +11,7 @@ Gemini Live Assistant:
 import os
 import sys
 import asyncio
+import collections
 import io
 import argparse
 import subprocess
@@ -49,6 +50,7 @@ except ImportError as e:
 AUDIO_INPUT_CHANNELS = 1
 AUDIO_INPUT_RATE = 16000
 AUDIO_CHUNK = 1024
+PRE_CHUNKS = 3 * AUDIO_INPUT_RATE * 2 // AUDIO_CHUNK  # 3 s de pcm s16
 
 AUDIO_OUTPUT_RATE = 24000
 
@@ -145,14 +147,19 @@ def medir_mic(pcm: bytes):
     if rms > 800 and ST["activo"] and not ST.get("hablando"):
         ST["t_voz"] = ST["mic_t"]  # último instante en que el usuario sonaba: de ahí se mide la latencia
 
+PRE = collections.deque(maxlen=PRE_CHUNKS)  # últimos ~3 s de audio mientras duerme: solo en RAM, nada sale a la red
+
 async def saludar(session):
-    """Tras «Delta»: si el usuario calla, el asistente saluda y pregunta qué necesita."""
-    t0 = time.monotonic()
-    await asyncio.sleep(1.5)
-    if acciones.ST.get("t_voz", 0) > t0 or not acciones.ST["activo"]:
-        return  # ya está hablando: no pisarle
+    """Tras «Delta»: Gemini atiende lo que ya pidió o, si solo llamó, saluda con contexto y pregunta."""
+    await asyncio.sleep(1.0)  # margen para que una orden dicha de seguida llegue entera
+    if not acciones.ST["activo"]:
+        return
     try:
-        await session.send_realtime_input(text="[EVENTO DEL SISTEMA: el usuario te ha llamado con «Delta» y espera. Salúdale en una frase muy corta y natural (varía cada vez) y pregunta qué necesita. No menciones esta etiqueta.]")
+        await session.send_realtime_input(text=(
+            "[EVENTO DEL SISTEMA: el usuario te ha llamado con «Delta». El audio anterior puede traer su petición: "
+            "si ya pidió algo, atiéndelo sin saludar. Si solo te llamó, salúdale en una frase muy corta y natural (varía cada vez), "
+            "dile brevemente lo que importe de este contexto si hay algo, y pregunta qué necesita. "
+            f"Contexto: {panel.contexto(acciones.ST)}. No menciones esta etiqueta.]"))
     except Exception as e:
         print(f"No pude saludar: {e}")
 
@@ -176,9 +183,13 @@ async def audio_input_loop(session):
             medir_mic(data)
             if not acciones.ST["activo"]:
                 # dormido: nada sale a la red; solo escucha local la palabra clave
+                PRE.append(data)
                 if ww and wake_heard(ww, data):
                     ww.Reset()
                     acciones.activar()
+                    for c in PRE:  # lo dicho justo antes y durante «Delta», en orden y antes del audio en vivo
+                        await session.send_realtime_input(audio=types.Blob(data=c, mime_type="audio/pcm;rate=16000"))
+                    PRE.clear()
                     asyncio.create_task(saludar(session))
                 continue
             if acciones.ST.get("hablando"):

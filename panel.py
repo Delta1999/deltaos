@@ -349,3 +349,31 @@ acciones.registrar([
                  {"lugar": acciones._s("ciudad o sitio; vacío = donde está el usuario"),
                   "dias": acciones._s("cuántos días de previsión, 1 a 3 (por defecto 1)")}),
 ], (consultar_clima,))
+
+
+_visto = 0.0  # id de la última notificación ya contada en un saludo
+
+
+def contexto(ST):
+    """Resumen corto de lo que importa ahora; el saludo proactivo se lo da a Gemini."""
+    global _visto
+    c = []
+    imp = S["impresora"]
+    if imp and imp.get("online"):
+        if imp["estado"] in ("printing", "paused"):
+            c.append(f"impresora {imp['estado']} al {imp['prog']}% ({imp['archivo']})")
+        elif imp["estado"] == "error":
+            c.append("impresora EN ERROR")
+    elif imp is not None:
+        c.append("impresora sin conexión")
+    nuevas = [n for n in S["notifs"] if n["id"] > _visto]
+    _visto = max([_visto] + [n["id"] for n in nuevas])
+    c += [f"aviso {n['tipo']}: {n['txt']}" for n in nuevas[-3:]]
+    cl = ST.get("claude", {})
+    if cl.get("estado") in ("trabajando", "esperando permiso"):
+        c.append(f"Claude Code {cl['estado']}: {cl.get('tarea', '')[:60]}")
+    w = S["clima"]
+    if w:
+        c.append(f"tiempo en {w['ciudad']}: {w['temp']}°C, {w['desc']}, viento {w['viento']} km/h, lluvia {w['lluvia']}%")
+    c.append(f"son las {time.strftime('%H:%M')}")
+    return "; ".join(c)
