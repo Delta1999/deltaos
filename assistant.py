@@ -145,6 +145,17 @@ def medir_mic(pcm: bytes):
     if rms > 800 and ST["activo"] and not ST.get("hablando"):
         ST["t_voz"] = ST["mic_t"]  # último instante en que el usuario sonaba: de ahí se mide la latencia
 
+async def saludar(session):
+    """Tras «Delta»: si el usuario calla, el asistente saluda y pregunta qué necesita."""
+    t0 = time.monotonic()
+    await asyncio.sleep(1.5)
+    if acciones.ST.get("t_voz", 0) > t0 or not acciones.ST["activo"]:
+        return  # ya está hablando: no pisarle
+    try:
+        await session.send_realtime_input(text="[EVENTO DEL SISTEMA: el usuario te ha llamado con «Delta» y espera. Salúdale en una frase muy corta y natural (varía cada vez) y pregunta qué necesita. No menciones esta etiqueta.]")
+    except Exception as e:
+        print(f"No pude saludar: {e}")
+
 async def audio_input_loop(session):
     """Lee audio del micrófono directamente desde parec (PipeWire/PulseAudio nativo)."""
     recorder = subprocess.Popen(
@@ -168,6 +179,7 @@ async def audio_input_loop(session):
                 if ww and wake_heard(ww, data):
                     ww.Reset()
                     acciones.activar()
+                    asyncio.create_task(saludar(session))
                 continue
             if acciones.ST.get("hablando"):
                 # Eco-gate: mientras el asistente habla, silenciar envío del micro
