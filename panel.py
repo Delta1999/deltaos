@@ -6,6 +6,8 @@ Todo va protegido: si el panel falla, el asistente sigue.
 import asyncio
 import glob
 import json
+import math
+import subprocess
 import time
 from pathlib import Path
 
@@ -16,7 +18,8 @@ import acciones
 
 PORT = 7876
 AQUI = Path(__file__).parent
-S = {"frases": [], "voz": "", "impresora": None, "clima": None, "sistema": {}, "evento": None}
+S = {"frases": [], "voz": "", "impresora": None, "clima": None, "sistema": {}, "evento": None,
+     "modo": "chat", "notifs": [], "nuevas": 0, "aec": True}
 _hablando_hasta = 0.0
 GEO = AQUI / "panel" / "geo.json"  # última posición dada por el navegador
 _geo_nuevo = asyncio.Event()
@@ -40,6 +43,13 @@ def texto(rol: str, t: str):
     else:
         f.append({"rol": rol, "t": t})
         del f[:-2]  # solo las 2 últimas
+
+
+def notificar(tipo: str, txt: str):
+    """Aviso importante para el modo ALERTAS del panel. tipo: 'alerta' (rojo) o 'info'."""
+    S["notifs"].append({"t": time.strftime("%H:%M"), "tipo": tipo, "txt": txt[:140], "id": time.time()})
+    del S["notifs"][:-8]
+    S["nuevas"] += 1
 
 
 def fin_turno():
@@ -82,10 +92,41 @@ def _sistema():
             "cpu": uso, "temp": temp}
 
 
+def _db01(x):
+    """Amplitud int16 -> 0..1 en escala log (-60..0 dBFS), como un VU."""
+    return max(0.0, min(1.0, (20 * math.log10(max(x, 1) / 32768) + 60) / 60))
+
+
+def _mic(ST):
+    if ST.get("privacidad"):
+        return {"nivel": 0, "db": None, "estado": "off"}
+    viva = time.monotonic() - ST.get("mic_t", 0) < 2
+    rms = ST.get("mic_rms", 0)
+    if not viva:
+        est = "mal"
+    elif ST.get("mic_clip", 0) > 0.15 or ST.get("ruido", 0) >= 3:
+        est = "mal"
+    else:
+        est = "ok"
+    return {"nivel": round(_db01(rms), 2) if viva else 0, "db": round(20 * math.log10(max(rms, 1) / 32768)) if viva else None,
+            "estado": est, "sat": ST.get("mic_clip", 0) > 0.15, "ruido": ST.get("ruido", 0) >= 3, "viva": viva}
+
+
+def _salud(ST, mic):
+    cl = ST.get("claude", {}).get("estado", "libre")
+    imp = S["impresora"]
+    return {"enlace": "ok" if ST["session"] else "mal", "mic": mic["estado"],
+            "aec": "ok" if S["aec"] else "mal",
+            "claude": {"libre": "ok", "trabajando": "act"}.get(cl, "mal"),
+            "impresora": "off" if not imp or not imp.get("online") else "act" if imp.get("estado") == "printing" else "ok"}
+
+
 def snapshot(ST):
     ahora = time.monotonic()
+    mic = _mic(ST)
     return {
         **S,
+        "mic": mic, "salud": _salud(ST, mic), "lat": ST.get("lat"), "priv": bool(ST.get("privacidad")),
         "estado": _estado(ST),
         "conexion": "conectado" if ST["session"] else "reconectando",
         "herramienta": ST.get("herramienta"),
@@ -124,15 +165,57 @@ async def _poll_impresora():
             }
             if ps["state"] in ("printing", "paused"):
                 S["impresora"]["quedan"] = (await acciones._tiempo_restante_impresora())[0]
+            if ps["state"] == "error" and previo != "error":
+                notificar("alerta", "La impresora está en error")
             if previo == "printing" and ps["state"] == "complete":
+                notificar("info", f"Impresión terminada: {ps.get('filename', '')}")
                 S["evento"] = {"tipo": "print_ok", "archivo": ps.get("filename", ""),
                                "total": acciones._hhmm(ps.get("total_duration") or ps.get("print_duration", 0)),
                                "id": time.time()}
             previo = ps["state"]
         except Exception:
+            if previo is not None:
+                notificar("alerta", "Impresora sin conexión")
             S["impresora"] = {"online": False}  # sin datos viejos: se muestra "sin conexión"
             previo = None
         await asyncio.sleep(5)
+
+
+async def _poll_audio():
+    """El AEC (echo-cancel-source) tiene que seguir existiendo: si PipeWire lo pierde, el eco rompe la conversación."""
+    while True:
+        try:
+            out = await asyncio.to_thread(lambda: subprocess.run(["pactl", "list", "short", "sources"], capture_output=True, text=True, timeout=4).stdout)
+            S["aec"] = "echo-cancel-source" in out
+        except Exception:
+            pass
+        await asyncio.sleep(5)
+
+
+_AVISOS = {"enlace": "Sesión con Gemini perdida", "mic": "Problema con el micrófono (saturado, sin señal o solo ruido)",
+           "aec": "Cancelación de eco perdida"}
+_salud_previa: dict = {}
+
+
+def _vigila(sn):
+    """Una transición ok -> mal en la salud se convierte en alerta (una vez, no en cada ciclo)."""
+    for k, txt in _AVISOS.items():
+        if sn["salud"][k] == "mal" and _salud_previa.get(k) not in (None, "mal"):
+            notificar("alerta", txt)
+    _salud_previa.update(sn["salud"])
+
+
+def _cmd(ST, cmd):
+    if cmd == "privacidad":
+        ST["privacidad"] = not ST.get("privacidad")
+        if ST["privacidad"]:
+            acciones.dormir_ahora()
+        notificar("info", "Privacidad ACTIVADA: el micrófono se ignora, ni la palabra «Delta»" if ST["privacidad"] else "Privacidad desactivada")
+    elif cmd == "modo":
+        S["modo"] = "alertas" if S["modo"] == "chat" else "chat"
+        S["nuevas"] = 0
+    elif cmd == "dormir":
+        acciones.dormir_ahora() if ST["activo"] else acciones.activar()
 
 
 async def _poll_clima():
@@ -175,8 +258,11 @@ async def _ws(request):
     try:
         await ws.send_str(json.dumps(snapshot(request.app["ST"])))  # estado completo al conectar
         async for m in ws:
-            try:  # el navegador manda su posición: {"geo":[lat,lon]}
-                g = json.loads(m.data).get("geo")
+            try:  # el navegador manda su posición {"geo":[lat,lon]} o un botón {"cmd":"privacidad"}
+                msg = json.loads(m.data)
+                if msg.get("cmd") in ("privacidad", "modo", "dormir"):
+                    _cmd(request.app["ST"], msg["cmd"])
+                g = msg.get("geo")
                 if g and len(g) == 2 and all(isinstance(x, (int, float)) for x in g):
                     g = [round(g[0], 2), round(g[1], 2)]  # ~1 km: sobra para el tiempo
                     if not GEO.exists() or json.loads(GEO.read_text()) != g:
@@ -194,7 +280,11 @@ async def _difusor(ST):
     while True:
         await asyncio.sleep(0.4)
         try:
-            msg = json.dumps(snapshot(ST))
+            sn = snapshot(ST)
+            _vigila(sn)
+            if S["modo"] == "alertas":
+                sn["nuevas"] = S["nuevas"] = 0
+            msg = json.dumps(sn)
             if msg != ultimo and _clientes:
                 ultimo = msg
                 await asyncio.gather(*(c.send_str(msg) for c in list(_clientes)), return_exceptions=True)
@@ -217,8 +307,45 @@ async def start(ST, voz):
     except Exception as e:
         print(f"Panel no disponible: {e}")
         return False
-    for f in (_poll_sistema, _poll_impresora, _poll_clima):
+    for f in (_poll_sistema, _poll_impresora, _poll_clima, _poll_audio):
         asyncio.create_task(f())
     asyncio.create_task(_difusor(ST))
     print(f"Panel en http://127.0.0.1:{PORT}")
     return True
+
+
+# ---- herramienta para Gemini ----
+def _es(x):  # descripción en español si wttr la da
+    return (x.get("lang_es") or x["weatherDesc"])[0]["value"]
+
+
+async def consultar_clima(lugar="", dias=1):
+    """Tiempo actual y previsión (hasta 3 días) de un sitio; sin sitio, el del usuario (GPS del panel)."""
+    try:
+        dias = max(1, min(3, int(dias or 1)))
+        if not lugar:
+            try:
+                lugar = "{},{}".format(*json.loads(GEO.read_text()))
+            except Exception:
+                lugar = ""
+        async with httpx.AsyncClient(timeout=10) as c:
+            j = (await c.get(f"https://wttr.in/{lugar}", params={"format": "j1", "lang": "es"})).json()
+        cur = j["current_condition"][0]
+        zona = j["nearest_area"][0]["areaName"][0]["value"]
+        out = [f"{zona}: ahora {cur['temp_C']}°C (sensación {cur['FeelsLikeC']}°), {_es(cur)}, viento {cur['windspeedKmph']} km/h {cur['winddir16Point']}, humedad {cur['humidity']}%."]
+        for d, w in enumerate(j["weather"][:dias]):
+            h = w["hourly"]
+            out.append(f"{['Hoy', 'Mañana', 'Pasado mañana'][d]} ({w['date']}): {w['mintempC']}° a {w['maxtempC']}°, {_es(h[4])}, "
+                       f"lluvia hasta {max(int(x['chanceofrain']) for x in h)}%, viento hasta {max(int(x['windspeedKmph']) for x in h)} km/h, UV {w['uvIndex']}.")
+        return " ".join(out)
+    except Exception as e:
+        return f"No pude consultar el tiempo: {e}"
+
+
+acciones.registrar([
+    acciones._fn("consultar_clima",
+                 "Consulta el tiempo en este momento: temperatura, viento, lluvia y previsión de hoy y los próximos días (hasta 3). "
+                 "Sin lugar usa la ubicación del usuario. Úsala siempre que pregunte por el tiempo, la temperatura, el viento o la lluvia.",
+                 {"lugar": acciones._s("ciudad o sitio; vacío = donde está el usuario"),
+                  "dias": acciones._s("cuántos días de previsión, 1 a 3 (por defecto 1)")}),
+], (consultar_clima,))

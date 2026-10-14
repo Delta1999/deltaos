@@ -47,6 +47,26 @@ footer{display:grid;grid-template-columns:1.2fr .9fr .8fr 1.35fr;gap:28px}
 .hs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0 4px;text-align:center}
 .hs div{font-size:12px;color:var(--dim);display:flex;flex-direction:column;align-items:center;gap:5px}
 .hs b{color:var(--fg);font-weight:500}
+#der{display:flex;flex-direction:column;gap:28px;min-height:0}
+#der #frases{flex:1}
+#consola{padding:18px 22px 16px;display:flex;flex-direction:column;gap:12px}
+.gs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.g{text-align:center;display:flex;flex-direction:column;align-items:center}
+.g canvas{flex:none;width:100%;height:92px}
+.g .lbl{margin-top:8px}.g b{font-family:var(--dot);font-weight:900;font-size:19px;letter-spacing:.04em;margin-top:2px}
+.mando{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:12px}
+.lamps{display:flex;gap:14px;flex-wrap:wrap}
+.lamp{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}
+.lamp i{width:9px;height:9px;border-radius:50%;border:1px solid var(--dim)}
+.lamp.ok i{background:var(--fg);border-color:var(--fg);box-shadow:0 0 7px #fff9}.lamp.ok{color:var(--fg)}
+.lamp.act i{background:var(--fg);border-color:var(--fg);animation:pul 1.2s ease-in-out infinite}.lamp.act{color:var(--fg)}
+.lamp.mal i{background:var(--red);border-color:var(--red);animation:par .9s steps(2) infinite}.lamp.mal{color:var(--red)}
+@keyframes par{50%{opacity:.12}}@keyframes pul{50%{opacity:.25}}
+.btns{display:flex;gap:8px}
+.btn{font:inherit;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--fg);background:transparent;border:1px solid var(--dim);border-radius:99px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--fg)}.btn:active{transform:translateY(1px)}
+.btn.on{background:var(--red);border-color:var(--red);color:#000}
+.fr small.i{color:var(--dim)}
 #cel{position:fixed;inset:0;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:9}
 #cel.on{display:flex}
 #cel canvas{position:absolute;inset:0;width:100%;height:100%;flex:none}
@@ -69,7 +89,26 @@ footer{display:grid;grid-template-columns:1.2fr .9fr .8fr 1.35fr;gap:28px}
     <canvas id="cv"></canvas>
     <div><div id="estado" class="dot">CARGANDO</div><div id="sub"></div></div>
   </section>
-  <section class="card" id="frases"></section>
+  <div id="der">
+    <section class="card" id="consola">
+      <div class="gs">
+        <div class="g"><canvas id="g0"></canvas><span class="lbl">Micro</span><b id="v0">—</b></div>
+        <div class="g"><canvas id="g1"></canvas><span class="lbl">Voz</span><b id="v1">—</b></div>
+        <div class="g"><canvas id="g2"></canvas><span class="lbl">Respuesta</span><b id="v2">—</b></div>
+      </div>
+      <div class="mando">
+        <div class="lamps">
+          <span class="lamp" id="l-enlace"><i></i>Enlace</span><span class="lamp" id="l-mic"><i></i>Mic</span>
+          <span class="lamp" id="l-aec"><i></i>Eco</span><span class="lamp" id="l-claude"><i></i>Claude</span>
+          <span class="lamp" id="l-impresora"><i></i>3D</span>
+        </div>
+        <div class="btns">
+          <button class="btn" id="b-priv">Privacidad</button><button class="btn" id="b-modo">Alertas</button><button class="btn" id="b-dormir">Dormir</button>
+        </div>
+      </div>
+    </section>
+    <section class="card" id="frases"></section>
+  </div>
 </main>
 <footer>
   <section class="card" id="imp"></section>
@@ -81,7 +120,7 @@ footer{display:grid;grid-template-columns:1.2fr .9fr .8fr 1.35fr;gap:28px}
 
 <script>
 const $=i=>document.getElementById(i), esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-let S={estado:'cargando',nivel:0};
+let S={estado:'cargando',nivel:0,mic:{nivel:0},lat:null};
 const bar=(p,r)=>`<div class="bar${r?' r':''}" style="--p:${Math.max(0,Math.min(100,p))}%"></div>`;
 const mmss=s=>s==null?'—':s<90?`${Math.round(s)} s`:s<5400?`${Math.round(s/60)} min`:`${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
 
@@ -97,8 +136,16 @@ function pintar(d){
   $('ultima').textContent=d.ultima<5?'ahora':`hace ${mmss(d.ultima)}`;
   $('estado').textContent=d.estado.toUpperCase();
   $('estado').style.color=d.estado==='dormido'?'var(--dim)':'var(--fg)';
-  $('sub').textContent=d.herramienta?`usando: ${d.herramienta}`:d.sueno!=null?`duerme en ${d.sueno} s`:'di «Delta» o pulsa Enter';
-  $('frases').innerHTML=d.frases.length?d.frases.map(f=>`<div class="fr"><small>${esc(f.rol).toUpperCase()}</small>${esc(f.t)}</div>`).join(''):'<div class="vacio">Sin conversación todavía.</div>';
+  $('sub').textContent=d.priv?'PRIVACIDAD · el micro se ignora, ni «Delta»':d.herramienta?`usando: ${d.herramienta}`:d.sueno!=null?`duerme en ${d.sueno} s`:'di «Delta» o pulsa Enter';
+  $('frases').innerHTML=d.modo==='alertas'
+   ?(d.notifs.length?d.notifs.slice(-4).map(n=>`<div class="fr"><small class="${n.tipo==='alerta'?'':'i'}">${n.t} · ${n.tipo.toUpperCase()}</small>${esc(n.txt)}</div>`).join(''):'<div class="vacio">Sin avisos.</div>')
+   :d.frases.length?d.frases.map(f=>`<div class="fr"><small>${esc(f.rol).toUpperCase()}</small>${esc(f.t)}</div>`).join(''):'<div class="vacio">Sin conversación todavía.</div>';
+  for(const k in d.salud)$('l-'+k).className='lamp '+d.salud[k];
+  $('b-priv').className='btn'+(d.priv?' on':'');$('b-priv').textContent=d.priv?'Privacidad · ON':'Privacidad';
+  $('b-modo').className='btn'+(d.modo==='alertas'?' on':'');$('b-modo').textContent=d.modo==='alertas'?'Alertas · ON':'Alertas'+(d.nuevas?` · ${d.nuevas}`:'');
+  $('b-dormir').textContent=d.estado==='dormido'?'Activar':'Dormir';
+  $('v0').textContent=d.mic.db==null?'—':d.mic.db+' dB';$('v1').textContent=d.estado==='hablando'?'HABLA':'—';
+  $('v2').textContent=d.lat==null?'—':(d.lat/1000).toFixed(1)+' s';
 
   const p=d.impresora;
   $('imp').innerHTML=`<span class="lbl">Impresora · Klipper</span>`+(!p||!p.online?'<div class="big dot" style="color:var(--dim)">SIN CONEXIÓN</div>':
@@ -161,11 +208,25 @@ function nivel(e,x,y,t){ // 0..1 por estado
   const ang=Math.atan2(dy,dx),f=((ang-t*3)%(2*Math.PI)+2*Math.PI)%(2*Math.PI); // trabajando: barrido radar
   return d<Math.min(cols,rows*1.4)*.46&&d>2?Math.pow(1-f/(2*Math.PI),3):0}
 function dibuja(t){
-  NV+=(S.nivel-NV)*.25;
+  NV+=(S.nivel-NV)*.25;relojes();
   cx.clearRect(0,0,W,H);const e=S.estado,col=e==='dormido'?'255,255,255':e==='escuchando'||e==='trabajando'?'255,45,31':'255,255,255';
   for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const v=Math.min(1,nivel(e,x,y,t)),a=.09+.91*v;
     cx.fillStyle=`rgba(${v>.15?col:'255,255,255'},${a})`;cx.beginPath();cx.arc(x*G+G/2,y*G+G/2,G*(.12+.2*v),0,7);cx.fill()}
   requestAnimationFrame(t=>dibuja(t/1000))}
+
+/* ---------- relojes vintage de puntos (aguja con muelle) ---------- */
+const GA=[{id:'g0',rojo:.85,t:()=>S.mic?S.mic.nivel:0},{id:'g1',rojo:2,t:()=>NV},{id:'g2',rojo:.67,t:()=>S.lat==null?0:Math.min(1,S.lat/3000)}]
+ .map(o=>({...o,cv:$(o.id),a:0,v:0}));
+function relojes(){const k=devicePixelRatio||1;
+  for(const o of GA){const c=o.cv,r=c.getBoundingClientRect();if(c.width!==Math.round(r.width*k)){c.width=Math.round(r.width*k);c.height=Math.round(r.height*k)}
+    o.v=o.v*.78+(o.t()-o.a)*.14;o.a=Math.max(-.02,Math.min(1.03,o.a+o.v)); // muelle amortiguado: rebota como una aguja real
+    const x=c.getContext('2d'),w=c.width,h=c.height,cx0=w/2,cy0=h*.8,R=Math.min(w*.46,h*.72),th=f=>Math.PI*(1.15-1.3*f);
+    x.clearRect(0,0,w,h);
+    for(let i=0;i<=40;i++){const f=i/40,m=i%5===0,p=[cx0+R*Math.cos(th(f)),cy0-R*Math.sin(th(f))];
+      x.fillStyle=f>=o.rojo?(m?'#ff2d1f':'#a81d14'):(m?'#f2f2f2':'#5a5a5a');x.beginPath();x.arc(p[0],p[1],(m?2.6:1.5)*k,0,7);x.fill()}
+    for(let i=0;i<=11;i++){const d=.14+.74*i/11,f=o.a,p=[cx0+R*d*Math.cos(th(f)),cy0-R*d*Math.sin(th(f))];
+      x.fillStyle=i>8?'#ff2d1f':'#f2f2f2';x.beginPath();x.arc(p[0],p[1],(1.2+1.1*i/11)*k,0,7);x.fill()}
+    x.fillStyle='#000';x.strokeStyle='#f2f2f2';x.lineWidth=1.5*k;x.beginPath();x.arc(cx0,cy0,5*k,0,7);x.fill();x.stroke()}}
 
 /* ---------- celebración de impresión ---------- */
 function celebrar(ev){
@@ -182,7 +243,9 @@ if(location.hash==='#celebra')setTimeout(()=>celebrar({archivo:'demo.gcode',tota
 
 /* ---------- conexión ---------- */
 function geo(w){try{navigator.geolocation.getCurrentPosition(p=>w.readyState===1&&w.send(JSON.stringify({geo:[p.coords.latitude,p.coords.longitude]})),()=>{},{maximumAge:36e5,timeout:20000})}catch(e){}}
-function ws(){const w=new WebSocket(`ws://${location.host}/ws`);w.onopen=()=>geo(w);
+let WS=null;const cmd=c=>WS&&WS.readyState===1&&WS.send(JSON.stringify({cmd:c}));
+[['b-priv','privacidad'],['b-modo','modo'],['b-dormir','dormir']].forEach(([i,c])=>$(i).addEventListener('click',()=>cmd(c)));
+function ws(){const w=WS=new WebSocket(`ws://${location.host}/ws`);w.onopen=()=>geo(w);
   w.onmessage=m=>pintar(JSON.parse(m.data));
   w.onclose=()=>{$('conexion').textContent='PANEL SIN ENLACE';$('conexion').className='mal';setTimeout(ws,2000)}}
 fit();ws();requestAnimationFrame(t=>dibuja(t/1000));

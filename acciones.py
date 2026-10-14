@@ -20,7 +20,7 @@ MOONRAKER = "http://192.168.0.102:7125"
 INACTIVIDAD = 25  # s sin actividad del modelo antes de volver a dormir
 
 # Estado compartido con assistant.py
-ST = {"session": None, "activo": False, "ultima": time.monotonic(),
+ST = {"session": None, "activo": False, "hablando": False, "ultima": time.monotonic(),
       "pending": None, "trabajos": {}}
 
 
@@ -28,6 +28,11 @@ ST = {"session": None, "activo": False, "ultima": time.monotonic(),
 def activar():
     if not ST["activo"]:
         print("\n🟢 Activo, te escucho...")
+        try:
+            subprocess.Popen(["paplay", "/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga"],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
     ST["activo"] = True
     ST["ultima"] = time.monotonic()
 
@@ -36,6 +41,7 @@ def dormir_ahora():
     if ST["activo"]:
         print("\n💤 Dormido (di «Delta» o pulsa Enter)")
     ST["activo"] = False
+    ST["hablando"] = False
 
 
 async def avisar(texto: str):
@@ -451,6 +457,13 @@ DECLARATIONS = [
 
 TOOLS = [types.Tool(google_search=types.GoogleSearch()),
          types.Tool(function_declarations=DECLARATIONS)]
+
+def registrar(declaraciones, handlers):
+    """Añade herramientas desde otros módulos y reconstruye TOOLS (que copia la lista al crearse)."""
+    DECLARATIONS.extend(declaraciones)
+    HANDLERS.update({f.__name__: f for f in handlers})
+    TOOLS[1] = types.Tool(function_declarations=DECLARATIONS)
+
 
 HANDLERS = {f.__name__: f for f in (
     abrir, ejecutar_herramienta_wormhole, verificar_diseno, ejecutar_shell, preguntar_a_claude,

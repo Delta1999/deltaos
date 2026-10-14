@@ -12,6 +12,7 @@ import acp
 from acp.helpers import text_block
 
 import acciones
+import panel
 from acciones import ST, WORMHOLE, avisar, _confirmar
 
 COMANDO = ("npx", "-y", "@agentclientprotocol/claude-agent-acp")
@@ -59,6 +60,7 @@ class _Cliente:
         previo = _estado["estado"]
         _estado["estado"] = "esperando permiso"
         _estado["permiso"] = titulo
+        panel.notificar("alerta", f"Claude Code pide permiso: {titulo}")
         await avisar(f"Claude Code pide permiso para: {titulo}. Pregunta al usuario si lo permito y, cuando responda, usa responder_permiso.")
         try:
             ok = await asyncio.wait_for(_confirmar(f"Claude Code: {titulo}"), ESPERA_PERMISO)
@@ -105,6 +107,7 @@ async def _turno(mensaje):
         await _conn.prompt(session_id=_sid, prompt=[text_block(mensaje)])
         final = _estado["texto"].strip() or "(sin texto)"
         _estado["estado"] = "libre"
+        panel.notificar("info", f"Claude Code terminó: {mensaje[:60]}")
         await avisar(f"Claude Code ha terminado. Resume al usuario en una o dos frases: {final[-1200:]}")
     except asyncio.CancelledError:
         _estado["estado"] = "libre"
@@ -112,6 +115,7 @@ async def _turno(mensaje):
     except Exception as e:
         _estado["estado"] = "libre"
         await cerrar()  # la próxima vez se reconecta
+        panel.notificar("alerta", f"Claude Code falló: {e}")
         await avisar(f"Falló la conversación con Claude Code: {e}")
     finally:
         _tarea = None
@@ -153,7 +157,7 @@ async def responder_permiso(acepta):
 
 
 # ---------- registro en acciones ----------
-acciones.DECLARATIONS.extend([
+acciones.registrar([
     acciones._fn("hablar_con_claude",
                  "Conversa con Claude Code (el agente de código, repo WORMHOLE). Es UNA conversación persistente: recuerda lo anterior, "
                  "así que puedes pedir seguimientos («ahora hazlo más grueso»). Trabaja en segundo plano y avisa al terminar. "
@@ -164,5 +168,4 @@ acciones.DECLARATIONS.extend([
     acciones._fn("responder_permiso",
                  "Contesta a un permiso que Claude Code o el sistema ha pedido al usuario, con lo que el usuario haya dicho.",
                  {"acepta": acciones._s("«si» o «no»")}),
-])
-acciones.HANDLERS.update({f.__name__: f for f in (hablar_con_claude, estado_claude, cancelar_claude, responder_permiso)})
+], (hablar_con_claude, estado_claude, cancelar_claude, responder_permiso))

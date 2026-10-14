@@ -89,12 +89,19 @@ def load_wakeword():
         return None
 
 def wake_heard(rec, data) -> bool:
-    # Solo resultados finales con confianza alta: evita falsos positivos de audios de fondo.
-    if not rec.AcceptWaveform(data):
-        return False
     import json
-    return any(w["word"] == WAKE_WORD and w["conf"] >= 0.90
-               for w in json.loads(rec.Result()).get("result", []))
+    if rec.AcceptWaveform(data):
+        res = json.loads(rec.Result())
+        for w in res.get("result", []):
+            if w.get("word") == WAKE_WORD and w.get("conf", 0) >= 0.65:
+                return True
+        if WAKE_WORD in res.get("text", "").lower():
+            return True
+    else:
+        part = json.loads(rec.PartialResult()).get("partial", "")
+        if WAKE_WORD in part.lower():
+            return True
+    return False
 
 def capture_screen_wayland(max_size=(1024, 1024), quality=60):
     """
@@ -127,6 +134,17 @@ def capture_screen_wayland(max_size=(1024, 1024), quality=60):
                 pass
     return None
 
+def medir_mic(pcm: bytes):
+    """Nivel RMS/pico del micro y racha de saturación: alimentan los relojes y alertas del panel."""
+    ST = acciones.ST
+    m = memoryview(pcm[: len(pcm) // 2 * 2]).cast("h")
+    pico = max(map(abs, m), default=0)
+    rms = (sum(x * x for x in m[::4]) / max(1, len(m[::4]))) ** 0.5
+    ST.update(mic_rms=rms, mic_pico=pico, mic_t=time.monotonic(),
+              mic_clip=0.95 * ST.get("mic_clip", 0) + 0.05 * (pico >= 32000))
+    if rms > 800 and ST["activo"] and not ST.get("hablando"):
+        ST["t_voz"] = ST["mic_t"]  # último instante en que el usuario sonaba: de ahí se mide la latencia
+
 async def audio_input_loop(session):
     """Lee audio del micrófono directamente desde parec (PipeWire/PulseAudio nativo)."""
     recorder = subprocess.Popen(
@@ -142,11 +160,19 @@ async def audio_input_loop(session):
             data = await asyncio.to_thread(recorder.stdout.read, AUDIO_CHUNK)
             if not data:
                 break
+            if acciones.ST.get("privacidad"):
+                continue  # modo privacidad: se descarta todo, ni la palabra clave se procesa
+            medir_mic(data)
             if not acciones.ST["activo"]:
                 # dormido: nada sale a la red; solo escucha local la palabra clave
                 if ww and wake_heard(ww, data):
                     ww.Reset()
                     acciones.activar()
+                continue
+            if acciones.ST.get("hablando"):
+                # Eco-gate: mientras el asistente habla, silenciar envío del micro
+                # para evitar que el eco de los altavoces auto-interrumpa la voz
+                await asyncio.sleep(0.04)
                 continue
             audio_blob = types.Blob(data=data, mime_type="audio/pcm;rate=16000")
             await session.send_realtime_input(audio=audio_blob)
@@ -162,7 +188,7 @@ async def screen_capture_loop(session, interval=6.0):
     print(f"🖥️ Captura de pantalla en vivo activada (cada {interval}s)...")
     try:
         while True:
-            jpeg_bytes = await asyncio.to_thread(capture_screen_wayland) if acciones.ST["activo"] else None
+            jpeg_bytes = await asyncio.to_thread(capture_screen_wayland) if acciones.ST["activo"] and not acciones.ST.get("privacidad") else None
             if jpeg_bytes:
                 video_blob = types.Blob(data=jpeg_bytes, mime_type="image/jpeg")
                 await session.send_realtime_input(video=video_blob)
@@ -202,9 +228,14 @@ async def receive_and_play_loop(session):
                     if getattr(server_content, 'input_transcription', None):
                         t = server_content.input_transcription.text
                         if t:
-                            panel.texto("tú", t)
+                            if t.strip() == "<noise>":  # Gemini oye ruido, no voz: micro saturado o roto
+                                acciones.ST["ruido"] = acciones.ST.get("ruido", 0) + 1
+                            else:
+                                acciones.ST["ruido"] = 0
+                                panel.texto("tú", t)
 
                     if getattr(server_content, 'interrupted', False):
+                        acciones.ST["hablando"] = False
                         player.kill()
                         player = start_player()
 
@@ -215,15 +246,35 @@ async def receive_and_play_loop(session):
                                 print(part.text, end="", flush=True)
                             if part.inline_data:
                                 audio_data = part.inline_data.data
-                                if player.stdin and not player.stdin.closed:
-                                    panel.habla(nivel_audio(audio_data))
+                                tv = acciones.ST.pop("t_voz", None)
+                                if tv and not acciones.ST["hablando"] and time.monotonic() - tv < 8:
+                                    acciones.ST["lat"] = round((time.monotonic() - tv) * 1000)
+                                acciones.ST["hablando"] = True
+                                if player.poll() is not None or not player.stdin or player.stdin.closed:
+                                    try:
+                                        player.kill()
+                                    except Exception:
+                                        pass
+                                    player = start_player()
+                                panel.habla(nivel_audio(audio_data))
+                                try:
+                                    player.stdin.write(audio_data)
+                                    player.stdin.flush()
+                                except (BrokenPipeError, OSError) as pe:
+                                    print(f"\n⚠️ [Audio] Fallo escribiendo en player ({pe}), reiniciando paplay...", flush=True)
+                                    try:
+                                        player.kill()
+                                    except Exception:
+                                        pass
+                                    player = start_player()
                                     try:
                                         player.stdin.write(audio_data)
                                         player.stdin.flush()
-                                    except (BrokenPipeError, OSError):
+                                    except Exception:
                                         pass
                     if server_content.turn_complete:
                         print("\n---")
+                        acciones.ST["hablando"] = False
                         panel.fin_turno()
     except asyncio.CancelledError:
         pass
