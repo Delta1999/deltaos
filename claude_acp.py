@@ -5,6 +5,7 @@ los pasos llegan en directo a ST["claude"] (los pinta el panel) y los permisos
 se preguntan al usuario por voz o con [s/N] en teclado.
 """
 import asyncio
+import os
 import time
 from contextlib import AsyncExitStack
 
@@ -16,7 +17,6 @@ import panel
 from acciones import ST, WORMHOLE, avisar, _confirmar
 
 COMANDO = ("npx", "-y", "@agentclientprotocol/claude-agent-acp")
-ESPERA_PERMISO = 120  # s sin respuesta = denegar
 MAX_PASOS = 8
 
 _conn = _pila = _sid = _tarea = None
@@ -63,9 +63,7 @@ class _Cliente:
         panel.notificar("alerta", f"Claude Code pide permiso: {titulo}")
         await avisar(f"Claude Code pide permiso para: {titulo}. Pregunta al usuario si lo permito y, cuando responda, usa responder_permiso.")
         try:
-            ok = await asyncio.wait_for(_confirmar(f"Claude Code: {titulo}"), ESPERA_PERMISO)
-        except asyncio.TimeoutError:
-            ok = False
+            ok = await _confirmar(f"Claude Code: {titulo}", voz=True)
         finally:
             _estado["estado"] = previo
             _estado.pop("permiso", None)
@@ -80,7 +78,8 @@ async def _conectar():
     global _conn, _pila, _sid
     _pila = AsyncExitStack()
     try:
-        _conn, _ = await _pila.enter_async_context(acp.spawn_agent_process(_Cliente(), *COMANDO, cwd=str(WORMHOLE)))
+        _conn, _ = await _pila.enter_async_context(acp.spawn_agent_process(
+            _Cliente(), *COMANDO, cwd=str(WORMHOLE), env={**os.environ, "DELTA_ORIGEN": "1"}))
         await _conn.initialize(protocol_version=acp.PROTOCOL_VERSION)
         _sid = (await _conn.new_session(cwd=str(WORMHOLE))).session_id
     except BaseException:
@@ -126,7 +125,7 @@ async def hablar_con_claude(mensaje):
     global _tarea
     if _tarea and not _tarea.done():
         return f"Claude Code sigue ocupado con: {_estado['tarea']}. Espera a que termine o cancélalo."
-    _tarea = asyncio.create_task(_turno(mensaje))
+    _tarea = acciones.tarea(_turno(mensaje))
     return "Enviado a Claude Code. Trabaja en segundo plano, los pasos salen en el panel y te aviso al terminar. Es la misma conversación: recuerda lo anterior."
 
 
@@ -152,6 +151,10 @@ async def responder_permiso(acepta):
     f = ST["pending"]
     if not f or f.done():
         return "No hay ningún permiso pendiente."
+    if not f.voz:
+        return "Este permiso solo se puede dar con el teclado o el botón del panel. Díselo al usuario."
+    if ST.get("t_tu", 0) <= f.t0:  # lo que hay en pantalla no puede dar permiso: tiene que hablar el usuario
+        return "El usuario aún no ha contestado de viva voz. Pregúntale y espera a que hable."
     f.set_result("s" if str(acepta).strip().lower() in ("si", "sí", "s", "true", "yes", "sí.") else "n")
     return "Respuesta enviada."
 

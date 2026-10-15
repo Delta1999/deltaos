@@ -24,17 +24,20 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:24p
 .meta div{max-width:300px}
 .meta b{display:block;font-weight:500;font-size:15px;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ok{color:var(--fg)}.mal{color:var(--red)}
-main{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:1.6fr 1fr;gap:28px;min-height:0}
+main{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:1fr 1.3fr;gap:28px;min-height:0}
 .card{border:1px solid var(--line);border-radius:22px;padding:22px 26px;position:relative;overflow:hidden;min-height:0}
 #hero{display:flex;flex-direction:column;justify-content:space-between}
 canvas{width:100%;flex:1;min-height:0;display:block}
-#estado{font-size:76px;line-height:1;margin-top:10px}
+#estado{font-size:58px;line-height:1;margin-top:10px}
 #sub{color:var(--dim);font-size:14px;margin-top:8px;height:18px}
 #frases{display:flex;flex-direction:column;justify-content:flex-end;gap:22px}
 .fr{font-size:22px;line-height:1.35;color:var(--dim)}
 .fr:last-child{color:var(--fg)}
 .fr small{display:block;font-size:11px;letter-spacing:.2em;margin-bottom:4px;color:var(--red)}
-footer{display:grid;grid-template-columns:1.2fr .9fr .8fr 1.35fr;gap:28px}
+footer{display:grid;grid-template-columns:.75fr 1.15fr .75fr 1.3fr;gap:28px}
+#imp .big{font-size:40px}
+.ag{display:grid;grid-template-columns:52px 1fr auto;gap:10px;font-size:13px;margin-top:8px}
+.ag span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ag b{font-weight:500}.ag .r{color:var(--red)}
 .big{font-size:54px;line-height:1;margin:10px 0}
 .row{display:flex;justify-content:space-between;font-size:13px;margin-top:8px;gap:12px}
 .row span:last-child{text-align:right}
@@ -49,10 +52,10 @@ footer{display:grid;grid-template-columns:1.2fr .9fr .8fr 1.35fr;gap:28px}
 .hs b{color:var(--fg);font-weight:500}
 #der{display:flex;flex-direction:column;gap:28px;min-height:0}
 #der #frases{flex:1}
-#consola{padding:18px 22px 16px;display:flex;flex-direction:column;gap:12px}
+#consola{padding:14px 22px 12px;display:flex;flex-direction:column;gap:8px}
 .gs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .g{text-align:center;display:flex;flex-direction:column;align-items:center}
-.g canvas{flex:none;width:100%;height:92px}
+.g canvas{flex:none;width:100%;height:64px}
 .g .lbl{margin-top:8px}.g b{font-family:var(--dot);font-weight:900;font-size:19px;letter-spacing:.04em;margin-top:2px}
 .mando{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:12px}
 .lamps{display:flex;gap:14px;flex-wrap:wrap}
@@ -67,19 +70,54 @@ footer{display:grid;grid-template-columns:1.2fr .9fr .8fr 1.35fr;gap:28px}
 .btn:hover{border-color:var(--fg)}.btn:active{transform:translateY(1px)}
 .btn.on{background:var(--red);border-color:var(--red);color:#000}
 .fr small.i{color:var(--dim)}
+/* pasos y consumo en el recuadro de estado */
+#pasos{position:absolute;top:22px;right:26px;width:min(560px,56%);background:rgba(0,0,0,.78);border:1px solid var(--line);border-radius:16px;padding:14px 16px 10px;display:none}
+#pasos.on{display:block}
+.p{display:grid;grid-template-columns:62px 1fr 18px;gap:10px;font-size:14px;line-height:1.5;color:var(--dim)}
+.p span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.p.cur{color:var(--fg)}.p.cur b{color:var(--red);animation:pul 1s ease-in-out infinite}.p.mal b{color:var(--red)}
+.p b{font-weight:500;text-align:right}
+#pie{display:flex;justify-content:space-between;align-items:flex-end;gap:20px}
+#uso{text-align:right;line-height:1.7}#uso b{color:var(--fg);font-weight:500}
+/* DeltaOS: visor integrado y pantalla de espera */
+main,footer{transition:opacity .45s,transform .45s}
+body.espera main,body.espera footer{opacity:0;transform:scale(.97)}
+#visor{display:none;padding:0;grid-row:2/4;flex-direction:column}
+body.visor{grid-template-rows:auto 1fr}body.visor main,body.visor footer{display:none}body.visor #visor{display:flex}
+.vbar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:10px 14px 10px 22px;border-bottom:1px solid var(--line)}
+.vbar .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vder{display:flex;align-items:center;gap:14px}
+#vest{color:var(--fg)}#vest.mal{color:var(--red)}
+#vif{flex:1;width:100%;border:0;background:#fff}
+#espera{position:fixed;inset:0;background:#000;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;opacity:0;pointer-events:none;transition:opacity .45s}
+#espera.on{opacity:1;pointer-events:auto}
+#arena{height:42vh;width:auto;flex:none;transition:transform .9s cubic-bezier(.6,0,.3,1)}
+#ehora{font-size:130px;line-height:.9}
+#etxt{max-width:70vw;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #cel{position:fixed;inset:0;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:9}
 #cel.on{display:flex}
 #cel canvas{position:absolute;inset:0;width:100%;height:100%;flex:none}
 #cel .dot{position:relative;font-size:150px;color:var(--red)}
 #cel p{position:relative;font-size:22px;margin-top:18px}
+/* gadget oculto: tocar la hora abre la chuleta de capacidades */
+#hora{cursor:pointer}
+.cab{display:flex;align-items:center;gap:16px}#mapa{width:120px;height:120px;flex:none;cursor:pointer}
+#chuleta{position:fixed;inset:0;background:#000e;z-index:9;padding:40px 48px;overflow:auto;display:none}
+body.chuleta #chuleta{display:block}
+#chuleta h2{font-size:44px;margin-bottom:6px}
+#chuleta .cols{columns:3 320px;column-gap:36px;margin-top:26px}
+#chuleta section{break-inside:avoid;margin-bottom:24px;border-top:1px solid var(--line);padding-top:10px}
+#chuleta section .lbl{color:var(--red)}
+#chuleta li{list-style:none;font-size:15px;line-height:1.35;margin-top:7px}
+#chuleta li i{color:var(--dim);font-style:normal}
 </style>
 </head>
 <body>
 <header>
-  <div><div id="hora" class="dot">--:--</div><div id="fecha" class="lbl"></div></div>
+  <div class="cab"><div><div id="hora" class="dot">--:--</div><div id="fecha" class="lbl"></div></div><canvas id="mapa" title="Modo mascota"></canvas></div>
   <div class="meta">
     <div><span class="lbl">Sesión</span><b id="conexion">—</b></div>
     <div><span class="lbl">Voz</span><b id="voz">—</b></div>
+    <div><span class="lbl">Dispositivos</span><b id="dispos">—</b></div>
     <div><span class="lbl">Memoria</span><b id="memoria">—</b></div>
     <div><span class="lbl">Última actividad</span><b id="ultima">—</b></div>
   </div>
@@ -87,7 +125,8 @@ footer{display:grid;grid-template-columns:1.2fr .9fr .8fr 1.35fr;gap:28px}
 <main>
   <section class="card" id="hero">
     <canvas id="cv"></canvas>
-    <div><div id="estado" class="dot">CARGANDO</div><div id="sub"></div></div>
+    <div id="pasos"></div>
+    <div id="pie"><div><div id="estado" class="dot">CARGANDO</div><div id="sub"></div></div><div id="uso" class="lbl"></div></div>
   </section>
   <div id="der">
     <section class="card" id="consola">
@@ -103,19 +142,25 @@ footer{display:grid;grid-template-columns:1.2fr .9fr .8fr 1.35fr;gap:28px}
           <span class="lamp" id="l-impresora"><i></i>3D</span>
         </div>
         <div class="btns">
-          <button class="btn" id="b-priv">Privacidad</button><button class="btn" id="b-modo">Alertas</button><button class="btn" id="b-dormir">Dormir</button>
+          <button class="btn" id="b-priv">Privacidad</button><button class="btn" id="b-modo">Alertas</button><button class="btn" id="b-dormir">Dormir</button><button class="btn on" id="b-si" hidden>Permitir</button><button class="btn" id="b-no" hidden>Denegar</button>
         </div>
       </div>
     </section>
     <section class="card" id="frases"></section>
   </div>
 </main>
+<section class="card" id="visor">
+  <div class="vbar"><span class="lbl" id="vtit"></span><span class="vder"><span class="lbl" id="vest"></span><button class="btn" id="b-cerrar">Cerrar</button></span></div>
+  <iframe id="vif" allow="autoplay; fullscreen; encrypted-media; geolocation; picture-in-picture"></iframe>
+</section>
 <footer>
   <section class="card" id="imp"></section>
-  <section class="card" id="trab"></section>
+  <section class="card" id="agenda"></section>
   <section class="card" id="sis"></section>
   <section class="card" id="clima"></section>
 </footer>
+<div id="chuleta"><h2 class="dot">QUÉ PUEDO PEDIR</h2><div class="lbl">Toca en cualquier sitio para cerrar</div><div class="cols"><section><span class="lbl">Impresora 3D</span><ul><li>«¿Cómo va la impresión?»</li><li>«¿Qué he impreso esta semana?» <i>historial</i></li><li>«Avísame 10 minutos antes de que acabe»</li></ul></section><section><span class="lbl">Internet</span><ul><li>«Busca cuánto cuesta el PETG en Amazon» <i>búsqueda rápida</i></li><li>«Investiga a fondo ASA vs PETG para exterior» <i>informe con citas</i></li><li>«Ponme en pantalla el mapa de Sevilla / Wikipedia de… / la web de…»</li><li>«Ponme el vídeo de … en YouTube»</li></ul></section><section><span class="lbl">Música</span><ul><li>«Pon música lo-fi»</li><li>«Pausa / sigue / siguiente / anterior»</li><li>«Sube / baja la música» · «¿Qué suena?» · «Para la música»</li></ul></section><section><span class="lbl">Pantalla y escritorio</span><ul><li>«¿Qué ves en mi pantalla?» · «Mira el detalle»</li><li>«Abre Firefox / esta carpeta / esta URL»</li><li>«Lista las ventanas» · «Minimiza / cierra / activa …» · «Pásala al otro monitor»</li><li>«Sube el volumen al 40 %» · «Silencia» · «Brillo al 70 %»</li><li>«Lee el portapapeles» · «Copia esto»</li><li>«Mándame una notificación con …»</li></ul></section><section><span class="lbl">Taller WORMHOLE</span><ul><li>«¿Dónde lo dejamos con la fuente …?» <i>lee ESTADO.md</i></li><li>«¿Qué proyectos hay recientes?»</li><li>«Verifica el diseño de este STL» <i>cadcheck + slice + render</i></li><li>«Lanza render_views / slice_check sobre …»</li><li>«¿Cómo van los trabajos en segundo plano?»</li></ul></section><section><span class="lbl">Claude Code</span><ul><li>«Pídele a Claude que …» <i>conversación con memoria</i></li><li>«Encarga a Claude una tarea suelta: …»</li></ul></section><section><span class="lbl">Terminal</span><ul><li>«¿Qué procesos gastan más memoria?» <i>lectura: sin preguntar</i></li><li>«¿Cuánto disco queda?» · «¿Hay errores en el log?»</li><li>Lo que modifique algo pide permiso</li></ul></section><section><span class="lbl">Skills</span><ul><li>«Busca una skill para …»</li><li>«Instala la skill …» <i>siempre avisa</i></li><li>«Usa la skill …» · «Actualiza las skills»</li></ul></section><section><span class="lbl">Memoria</span><ul><li>«Recuerda que …»</li><li>«Olvida lo de …»</li><li>«Apunta como mejora: …» <i>lo que aún no sé hacer</i></li></ul></section><section><span class="lbl">Sesión</span><ul><li>«Ey Delta» / «Delta» para despertar</li><li>«Gracias, ya está» → a dormir</li><li>Escape o «cierra» cierra el visor</li><li>«Modo mascota» · «Panel completo» <i>o clic en el mapache</i></li><li>«Suspende el ordenador» · «Apágalo / reinícialo» <i>pide un «sí»</i></li><li>«Apágalo en 30 minutos» · «Cancela el apagado»</li></ul></section><section><span class="lbl">El mapache</span><ul><li>Respira y pestañea <i>siempre</i></li><li>Ojos abiertos y tranquilo <i>Delta dormido, tú delante</i></li><li>Ojos cerrados, gris y zetas que suben <i>Delta dormido y 5 min sin tocar teclado ni ratón</i></li><li>Orejas arriba y ojos rojos <i>te está escuchando</i></li><li>Hocico y barriga laten con la voz, cola más rápida <i>está hablando</i></li><li>Cometa de puntos rojos alrededor de la cabeza, cola agitada <i>está trabajando (herramienta, Claude, trabajo en segundo plano)</i></li><li>Ojos rojos parpadeando y «!» encima <i>pide permiso</i></li><li>Como dormido pero más apagado <i>Delta no está en marcha</i></li><li>Tiembla y se pone rojo <i>CPU ≥ 85 % o RAM ≥ 92 %</i></li><li>Gotas naranjas cayendo de la cabeza <i>temperatura ≥ 85 °C</i></li><li>Pila roja parpadeando y más apagado <i>batería ≤ 20 %</i> · pila llenándose <i>cargando</i></li><li>Wifi con una X roja <i>sin red</i></li><li>Taza de café humeante <i>50 min seguidos delante: toca descanso (se quita tras 5 min sin tocar nada)</i></li><li>Papelera a su lado <i>la papelera tiene cosas</i></li><li>Ratón encima → ficha con impresora, sistema, tiempo, Claude, batería y papelera · arrastrar → moverlo · clic → panel completo</li></ul></section></div></div>
+<div id="espera"><canvas id="arena"></canvas><div id="ehora" class="dot">--:--</div><div class="lbl" id="etxt"></div></div>
 <div id="cel"><canvas id="cv2"></canvas><div class="dot">LISTO</div><p id="celtxt"></p></div>
 
 <script>
@@ -124,19 +169,19 @@ let S={estado:'cargando',nivel:0,mic:{nivel:0},lat:null};
 const bar=(p,r)=>`<div class="bar${r?' r':''}" style="--p:${Math.max(0,Math.min(100,p))}%"></div>`;
 const mmss=s=>s==null?'—':s<90?`${Math.round(s)} s`:s<5400?`${Math.round(s/60)} min`:`${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
 
-function claude(c){if(!c||!c.tarea)return '<div class="vacio">Ninguna tarea.</div>';
-  const pasos=c.pasos.map(p=>`<div class="row"><span>${esc(p.t).slice(0,46)}</span><span class="${p.e==='en curso'?'ok':p.e==='falló'?'mal':''}">${p.e==='hecho'?'✓':p.e==='falló'?'✗':'…'}</span></div>`).join('');
-  return `<div class="row"><span>${esc(c.tarea).slice(0,60)}</span></div>${c.permiso?`<div class="row mal"><span>¿Permitir? ${esc(c.permiso).slice(0,50)}</span></div>`:''}${pasos}`}
 function pintar(d){
   S=d;
   $('hora').textContent=d.hora; $('fecha').textContent=d.fecha;
-  const c=$('conexion'); c.textContent=d.conexion.toUpperCase(); c.className=d.conexion==='conectado'?'ok':'mal';
+  const c=$('conexion'); c.textContent=d.conexion.toUpperCase(); c.className=d.conexion==='conectado'?'ok':d.conexion==='en reposo'?'':'mal';c.style.color=d.conexion==='en reposo'?'var(--dim)':'';
   $('voz').textContent=d.voz;
+  $('dispos').innerHTML=d.dispos.length?d.dispos.map(x=>{const n=esc(x.nombre.split(' ')[0]).toUpperCase(),
+    v=!x.vinculado?'sin vincular':!x.alcance?'fuera':x.carga==null?'—':x.carga+'%'+(x.cargando?'⚡':'');
+    return `<span style="color:${!x.alcance||!x.vinculado?'var(--dim)':x.carga!=null&&x.carga<=15&&!x.cargando?'var(--red)':'inherit'}">${n} ${v}</span>`}).join(' · '):'—';
   $('memoria').textContent=`${d.memoria.n} notas`+(d.memoria.ultima?` · ${d.memoria.ultima}`:'');
   $('ultima').textContent=d.ultima<5?'ahora':`hace ${mmss(d.ultima)}`;
-  $('estado').textContent=d.estado.toUpperCase();
+  const est=d.estado==='dormido'?'STAND-BY':d.estado.toUpperCase();$('estado').textContent=est;
   $('estado').style.color=d.estado==='dormido'?'var(--dim)':'var(--fg)';
-  $('sub').textContent=d.priv?'PRIVACIDAD · el micro se ignora, ni «Delta»':d.herramienta?`usando: ${d.herramienta}`:d.sueno!=null?`duerme en ${d.sueno} s`:'di «Delta» o pulsa Enter';
+  $('sub').textContent=d.confirma?`¿PERMITIR? ${d.confirma}`:d.priv?'PRIVACIDAD · el micro se ignora, ni «Delta»':d.herramienta?`usando: ${d.herramienta}`:d.sueno!=null?`duerme en ${d.sueno} s`:'di «Delta» o pulsa Enter';
   $('frases').innerHTML=d.modo==='alertas'
    ?(d.notifs.length?d.notifs.slice(-4).map(n=>`<div class="fr"><small class="${n.tipo==='alerta'?'':'i'}">${n.t} · ${n.tipo.toUpperCase()}</small>${esc(n.txt)}</div>`).join(''):'<div class="vacio">Sin avisos.</div>')
    :d.frases.length?d.frases.map(f=>`<div class="fr"><small>${esc(f.rol).toUpperCase()}</small>${esc(f.t)}</div>`).join(''):'<div class="vacio">Sin conversación todavía.</div>';
@@ -144,17 +189,23 @@ function pintar(d){
   $('b-priv').className='btn'+(d.priv?' on':'');$('b-priv').textContent=d.priv?'Privacidad · ON':'Privacidad';
   $('b-modo').className='btn'+(d.modo==='alertas'?' on':'');$('b-modo').textContent=d.modo==='alertas'?'Alertas · ON':'Alertas'+(d.nuevas?` · ${d.nuevas}`:'');
   $('b-dormir').textContent=d.estado==='dormido'?'Activar':'Dormir';
+  $('b-si').hidden=$('b-no').hidden=!d.confirma;$('b-si').title=d.confirma||'';
   $('v0').textContent=d.mic.db==null?'—':d.mic.db+' dB';$('v1').textContent=d.estado==='hablando'?'HABLA':'—';
   $('v2').textContent=d.lat==null?'—':(d.lat/1000).toFixed(1)+' s';
 
   const p=d.impresora;
   $('imp').innerHTML=`<span class="lbl">Impresora · Klipper</span>`+(!p||!p.online?'<div class="big dot" style="color:var(--dim)">SIN CONEXIÓN</div>':
    `<div class="big dot">${p.estado==='printing'||p.estado==='paused'?p.prog+'%':p.estado.toUpperCase()}</div>`+bar(p.prog,p.estado==='printing')+
-   (p.archivo?`<div class="row"><span>${esc(p.archivo)}</span><span>${p.quedan!=null?'quedan '+mmss(p.quedan):''}</span></div>`:'')+
+   (p.archivo?`<div class="row"><span>${esc(p.archivo)}</span></div>`+(p.quedan!=null?`<div class="row"><span>quedan ${mmss(p.quedan)}</span><span>fin ${new Date(Date.now()+p.quedan*1e3).toTimeString().slice(0,5)}</span></div>`:''):'')+
    `<div class="row"><span>Boquilla</span><span>${p.boquilla[0]}/${p.boquilla[1]} °C</span></div><div class="row"><span>Cama</span><span>${p.cama[0]}/${p.cama[1]} °C</span></div>`);
 
-  const j=Object.entries(d.trabajos), li=a=>a.map(([n,e])=>`<div class="row"><span>${esc(n)}</span><span class="${e==='en curso'?'ok':''}">${esc(e)}</span></div>`).join('');
-  $('trab').innerHTML=`<span class="lbl">Trabajos</span>${li(j)||'<div class="vacio">Ninguno.</div>'}<div class="lbl" style="margin-top:20px">Claude Code · ${esc(d.claude?d.claude.estado:'—')}</div>${claude(d.claude)}`;
+  const ahora=Date.now(),tr=Object.entries(d.trabajos).filter(([n,e])=>e==='en curso'),mv=d.movil;
+  const falta=t=>{const m=Math.round((new Date(t)-ahora)/6e4);return m<1?'ya':m<60?m+' min':m<1440?Math.floor(m/60)+' h '+m%60+' min':Math.floor(m/1440)+' d'};
+  const grupos=mv?Object.entries(mv.reduce((o,x)=>((o[x.app]=o[x.app]||[]).push(x.quien),o),{})):[];
+  $('agenda').innerHTML=`<span class="lbl">Agenda · avisos</span>`+((d.avisos||[]).map(a=>`<div class="ag"><b class="${a.tipo==='alarma'?'r':''}">${a.t.slice(11,16)}</b><span>${a.tipo==='alarma'?'⏰ ':''}${esc(a.texto)}</span><span class="lbl">${falta(a.t)}</span></div>`).join('')||'<div class="vacio">Sin avisos ni alarmas. «Avísame en 20 min…»</div>')+
+   (tr.length?`<div class="lbl" style="margin-top:16px">En curso</div>`+tr.map(([n])=>`<div class="ag"><b class="r">●</b><span>${esc(n)}</span><span></span></div>`).join(''):'')+
+   `<div class="lbl" style="margin-top:16px">Móvil${mv?' · '+mv.length:''}</div>`+(mv==null?'<div class="vacio">No conectado.</div>':d.priv?'<div class="vacio">Oculto (privacidad).</div>':
+    grupos.slice(0,4).map(([app,q])=>`<div class="ag"><b>${q.length}</b><span>${esc(app)} · ${esc([...new Set(q)].join(', '))}</span><span></span></div>`).join('')||'<div class="vacio">Sin notificaciones.</div>');
 
   const s=d.sistema||{};
   $('sis').innerHTML=`<span class="lbl">Sistema</span>`+[['RAM',s.ram,'%'],['SWAP',s.swap,'%'],['CPU',s.cpu,'%'],['TEMP',s.temp,' °C']].map(([n,v,u])=>
@@ -171,6 +222,19 @@ function pintar(d){
   else $('clima').innerHTML='<span class="lbl">Tiempo</span><div class="vacio">Sin datos.</div>';
 
   if(d.evento&&d.evento.id!==(window._ev||0)){window._ev=d.evento.id;celebrar(d.evento)}
+
+  const ps=d.pasos||[],cl=d.claude&&d.claude.estado==='trabajando'&&d.claude.pasos.length?d.claude.pasos[d.claude.pasos.length-1]:null,
+   vivo=d.estado!=='dormido'||ps.some(p=>p.e==='en curso')||cl;
+  $('pasos').className=vivo&&(ps.length||cl)?'on':'';
+  $('pasos').innerHTML='<div class="lbl" style="margin-bottom:8px">Pasos</div>'+ps.map(p=>
+    `<div class="p ${p.e==='en curso'?'cur':p.e==='falló'?'mal':''}"><span>${p.h.slice(0,5)}</span><span>${esc(p.t)}</span><b>${p.e==='hecho'?'✓':p.e==='falló'?'✗':'●'}</b></div>`).join('')+
+    (cl?`<div class="p cur"><span>CLAUDE</span><span>${esc(cl.t)}</span><b>●</b></div>`:'');
+  const u=d.uso;
+  $('uso').innerHTML=u?`Contexto <b>${u.ctx}%</b> · <b>${u.tok>=1e6?(u.tok/1e6).toFixed(2)+'M':(u.tok/1000).toFixed(1)+'K'}</b> tokens<br>Gasto <b>0 €</b> · gratis (de pago ≈ ${u.usd.toFixed(3)} $)`:'';
+
+  const v=d.visor||null;
+  if((v&&v.id)!==VID){VID=v&&v.id;v?abrirVisor(v):cerrarVisor()}
+  $('vest').textContent=d.confirma?'¿PERMITIR?':est+(d.herramienta?' · '+d.herramienta:'');$('vest').className='lbl'+(d.confirma?' mal':'');
 }
 
 /* ---------- iconos del tiempo (11x11 puntos) ---------- */
@@ -208,11 +272,31 @@ function nivel(e,x,y,t){ // 0..1 por estado
   const ang=Math.atan2(dy,dx),f=((ang-t*3)%(2*Math.PI)+2*Math.PI)%(2*Math.PI); // trabajando: barrido radar
   return d<Math.min(cols,rows*1.4)*.46&&d>2?Math.pow(1-f/(2*Math.PI),3):0}
 function dibuja(t){
-  NV+=(S.nivel-NV)*.25;relojes();
+  NV+=(S.nivel-NV)*.25;relojes();mapache(t);
   cx.clearRect(0,0,W,H);const e=S.estado,col=e==='dormido'?'255,255,255':e==='escuchando'||e==='trabajando'?'255,45,31':'255,255,255';
   for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const v=Math.min(1,nivel(e,x,y,t)),a=.09+.91*v;
     cx.fillStyle=`rgba(${v>.15?col:'255,255,255'},${a})`;cx.beginPath();cx.arc(x*G+G/2,y*G+G/2,G*(.12+.2*v),0,7);cx.fill()}
   requestAnimationFrame(t=>dibuja(t/1000))}
+
+/* ---------- mascota junto a la hora (mismo mapache y gestos que mascota.py); clic = modo mascota ---------- */
+let MAP=[],parp=0;fetch('/mapache.txt').then(r=>r.text()).then(t=>{MAP=t.trimEnd().split('\n').flatMap((f,y)=>[...f].map((ch,x)=>[y,x,ch]).filter(p=>p[2]!=='.'))});
+const OJO=new Set(['12,9','12,10','13,9','13,10','12,19','12,20','13,19','13,20']),GR={'#':26,'+':138,'o':242};
+function mapache(t){const c=$('mapa'),k=devicePixelRatio||1,C=2.55*k,r=1.05*k;
+  if(c.width!==Math.round(47*C)){c.width=c.height=Math.round(47*C)}
+  const g2=c.getContext('2d');g2.clearRect(0,0,c.width,c.height);
+  const e=S.estado||'dormido',dorm=e==='dormido',perm=!!S.confirma;
+  if(t>parp+.15&&Math.random()<.012)parp=t;const cerr=dorm||t-parp<.15,resp=Math.sin(t*2*Math.PI/(dorm?6:3.5));
+  const cola=({hablando:8+16*NV,trabajando:14}[e]??(dorm?3:7))*Math.PI/180*Math.sin(t*({hablando:9,trabajando:12}[e]??(dorm?1.5:3)));
+  const ox=C*2,oy=C*3+resp*C*.25,px=ox+26*C,py=oy+33*C;
+  for(const [f,col,ch] of MAP){let x=ox+col*C,y=oy+f*C,g=GR[ch],rgb=null;const cl=f>=23&&col>=27;
+    if(cl){const dx=x-px,dy=y-py;x=px+dx*Math.cos(cola)-dy*Math.sin(cola);y=py+dx*Math.sin(cola)+dy*Math.cos(cola)}
+    else if(f<=7&&(col<=9||col>=20)){if(e==='escuchando')y-=C}
+    else if(OJO.has(f+','+col)){if(cerr)g=26;else if(perm)rgb=(t*4|0)%2?'255,45,31':'60,10,8';else if(e==='escuchando')rgb='255,45,31'}
+    else if(ch==='o'&&f>=18)g=Math.round(g*(e==='hablando'?.75+.25*NV:.9+.1*resp));
+    if(!rgb&&dorm)g=Math.round(g*.8);
+    if(!rgb&&g<60){g2.fillStyle='rgb(78,78,78)';g2.beginPath();g2.arc(x,y,r,0,7);g2.fill()}  // aro: si no, lo oscuro se pierde en el negro
+    g2.fillStyle=`rgb(${rgb||g+','+g+','+g})`;g2.beginPath();g2.arc(x,y,!rgb&&g<60?r*.72:r,0,7);g2.fill()}}
+$('mapa').addEventListener('click',()=>cmd('vista_mascota'));
 
 /* ---------- relojes vintage de puntos (aguja con muelle) ---------- */
 const GA=[{id:'g0',rojo:.85,t:()=>S.mic?S.mic.nivel:0},{id:'g1',rojo:2,t:()=>NV},{id:'g2',rojo:.67,t:()=>S.lat==null?0:Math.min(1,S.lat/3000)}]
@@ -228,6 +312,43 @@ function relojes(){const k=devicePixelRatio||1;
       x.fillStyle=i>8?'#ff2d1f':'#f2f2f2';x.beginPath();x.arc(p[0],p[1],(1.2+1.1*i/11)*k,0,7);x.fill()}
     x.fillStyle='#000';x.strokeStyle='#f2f2f2';x.lineWidth=1.5*k;x.beginPath();x.arc(cx0,cy0,5*k,0,7);x.fill();x.stroke()}}
 
+/* ---------- DeltaOS: visor y reloj de arena ---------- */
+let VID=null,VTOK=0;
+function abrirVisor(v){const tok=++VTOK,t0=performance.now();
+  document.body.classList.add('espera');$('espera').classList.add('on');arena();
+  $('etxt').textContent=v.titulo;$('vtit').textContent=v.titulo;
+  const listo=()=>{if(tok!==VTOK)return;VTOK++;setTimeout(()=>{document.body.classList.add('visor');document.body.classList.remove('espera');$('espera').classList.remove('on')},Math.max(0,1800-(performance.now()-t0)))};
+  $('vif').onload=listo;setTimeout(listo,9000);$('vif').src=v.url}
+function cerrarVisor(){VTOK++;document.body.classList.remove('visor','espera');$('espera').classList.remove('on');$('vif').src='about:blank';setTimeout(fit,50)}
+addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('visor')){cmd('cerrar_visor');cerrarVisor()}});
+
+// reloj de arena de puntos: autómata de arena (cada grano cae, si no puede resbala en diagonal); al vaciarse, se da la vuelta
+const AW=17,AH=29,AM=14,hw=y=>Math.round(7*Math.abs(y-AM)/(AM-1)),dentro=(x,y)=>y>=1&&y<=AH-2&&Math.abs(x-8)<=hw(y);
+let AG=null,AB=null,AV=null,Aon=false,Aquieto=0,Agiro=false;
+const VIDRIO=[];for(let y=0;y<AH;y++)for(let x=0;x<AW;x++)if(!dentro(x,y)&&(y===0||y===AH-1||[-1,0,1].some(a=>[-1,0,1].some(b=>dentro(x+a,y+b)))))VIDRIO.push([x,y]);
+function arena(){if(Aon)return;Aon=true;AG=new Uint8Array(AW*AH);AB=new Float32Array(AW*AH);AV=new Uint8Array(AW*AH);
+  for(let y=4;y<AM;y++)for(let x=0;x<AW;x++)if(dentro(x,y)){AG[y*AW+x]=1;AB[y*AW+x]=.55+.45*Math.random()}
+  let ult=0;(function f(t){if(!$('espera').classList.contains('on')){Aon=false;return}
+    if(t-ult>65&&!Agiro){ult=t;paso()}pintaArena(t/1000);requestAnimationFrame(f)})(0)}
+function mover(i,j){AG[j]=1;AB[j]=AB[i];AG[i]=0;AV[j]=1}
+function paso(){AV.fill(0);let mov=0;
+  for(let y=AH-2;y>=1;y--){const xs=[...Array(AW).keys()].sort(()=>Math.random()-.5);
+    for(const x of xs){const i=y*AW+x;if(!AG[i]||AV[i])continue;
+      if(dentro(x,y+1)&&!AG[i+AW]){mover(i,i+AW);mov++;continue}
+      const d=Math.random()<.5?[-1,1]:[1,-1];
+      for(const k of d)if(dentro(x+k,y+1)&&!AG[i+AW+k]){mover(i,i+AW+k);mov++;break}}}
+  Aquieto=mov?0:Aquieto+1;
+  if(Aquieto>12){Agiro=true;const c=$('arena');c.style.transform='rotate(180deg)';
+    setTimeout(()=>{const G=AG.slice(),B=AB.slice();for(let y=0;y<AH;y++)for(let x=0;x<AW;x++){AG[y*AW+x]=G[(AH-1-y)*AW+(AW-1-x)];AB[y*AW+x]=B[(AH-1-y)*AW+(AW-1-x)]}
+      c.style.transition='none';c.style.transform='';void c.offsetWidth;c.style.transition='';Agiro=false;Aquieto=0},950)}}
+function pintaArena(t){const c=$('arena'),k=devicePixelRatio||1,h=Math.round(c.getBoundingClientRect().height*k),u=h/AH;
+  if(c.height!==h){c.height=h;c.width=Math.round(u*AW)}
+  const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);const dot=(i,j,r,col)=>{x.fillStyle=col;x.beginPath();x.arc(i*u+u/2,j*u+u/2,u*r,0,7);x.fill()};
+  for(const [i,j] of VIDRIO)dot(i,j,.28,'rgba(242,242,242,.55)');
+  for(let j=0;j<AH;j++)for(let i=0;i<AW;i++){if(!dentro(i,j))continue;const n=j*AW+i;
+    if(AG[n]){const b=AB[n]*(.8+.2*Math.sin(t*4+n*1.7));dot(i,j,AV[n]?.44:.38,`rgba(255,45,31,${AV[n]?1:b})`)}else dot(i,j,.11,'#1c1c1c')}
+  $('ehora').textContent=new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}
+
 /* ---------- celebración de impresión ---------- */
 function celebrar(ev){
   $('celtxt').textContent=`${ev.archivo} · ${ev.total}`;$('cel').classList.add('on');
@@ -239,12 +360,17 @@ function celebrar(ev){
     requestAnimationFrame(f)})();
 }
 window.demo=(e='hablando')=>pintar({...S,estado:e}); // prueba en consola: demo('trabajando')
+window.espera=()=>{document.body.classList.add('espera');$('espera').classList.add('on');arena()}; // prueba: espera()
 if(location.hash==='#celebra')setTimeout(()=>celebrar({archivo:'demo.gcode',total:'3 h 12 min'}),500);
 
 /* ---------- conexión ---------- */
-function geo(w){try{navigator.geolocation.getCurrentPosition(p=>w.readyState===1&&w.send(JSON.stringify({geo:[p.coords.latitude,p.coords.longitude]})),()=>{},{maximumAge:36e5,timeout:20000})}catch(e){}}
+function geo(w){try{navigator.geolocation.getCurrentPosition(p=>w.readyState===1&&w.send(JSON.stringify({geo:[p.coords.latitude,p.coords.longitude,p.coords.accuracy]})),()=>{},{maximumAge:36e5,timeout:20000})}catch(e){}}
 let WS=null;const cmd=c=>WS&&WS.readyState===1&&WS.send(JSON.stringify({cmd:c}));
-[['b-priv','privacidad'],['b-modo','modo'],['b-dormir','dormir']].forEach(([i,c])=>$(i).addEventListener('click',()=>cmd(c)));
+$('b-cerrar').addEventListener('click',cerrarVisor);
+$('hora').addEventListener('click',()=>document.body.classList.add('chuleta'));
+$('chuleta').addEventListener('click',()=>document.body.classList.remove('chuleta'));
+$('clima').style.cursor='pointer';$('clima').title='Abrir Nothing Weather';$('clima').addEventListener('click',()=>cmd('tiempo'));
+[['b-cerrar','cerrar_visor'],['b-priv','privacidad'],['b-modo','modo'],['b-dormir','dormir'],['b-si','permitir'],['b-no','denegar']].forEach(([i,c])=>$(i).addEventListener('click',()=>cmd(c)));
 function ws(){const w=WS=new WebSocket(`ws://${location.host}/ws`);w.onopen=()=>geo(w);
   w.onmessage=m=>pintar(JSON.parse(m.data));
   w.onclose=()=>{$('conexion').textContent='PANEL SIN ENLACE';$('conexion').className='mal';setTimeout(ws,2000)}}

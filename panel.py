@@ -7,7 +7,10 @@ import asyncio
 import glob
 import json
 import math
+import os
+import socket
 import subprocess
+import urllib.parse
 import time
 from pathlib import Path
 
@@ -18,12 +21,14 @@ import acciones
 
 PORT = 7876
 AQUI = Path(__file__).parent
-S = {"frases": [], "voz": "", "impresora": None, "clima": None, "sistema": {}, "evento": None,
+S = {"frases": [], "voz": "", "dispos": [], "impresora": None, "clima": None, "sistema": {}, "evento": None,
      "modo": "chat", "notifs": [], "nuevas": 0, "aec": True}
 _hablando_hasta = 0.0
-GEO = AQUI / "panel" / "geo.json"  # última posición dada por el navegador
+GEO = AQUI / "panel" / "geo.json"  # última posición dada por el navegador (Chromium sin clave de Google: poco fiable)
+FIJA = AQUI / "ubicacion_fija.json"  # la que dice el usuario («estoy en …»): manda sobre todo
 _geo_nuevo = asyncio.Event()
 _clientes: set = set()
+RUTAS = []  # (ruta, handler) que añaden otros módulos (deltaos)
 _cpu_prev = None
 
 
@@ -50,6 +55,23 @@ def notificar(tipo: str, txt: str):
     S["notifs"].append({"t": time.strftime("%H:%M"), "tipo": tipo, "txt": txt[:140], "id": time.time()})
     del S["notifs"][:-8]
     S["nuevas"] += 1
+
+
+# $ por 1M tokens del nivel de pago de gemini-3.8-live (ai.google.dev/gemini-api/docs/pricing, 2026-10):
+# el nivel gratis no cobra; se enseña para saber cuánto costaría.
+PRECIO_IN = {"TEXT": 0.75, "AUDIO": 3.00, "IMAGE": 1.00, "VIDEO": 1.00}
+PRECIO_OUT = {"TEXT": 4.50, "AUDIO": 12.00}
+CONTEXTO_MAX = 128_000
+
+
+def uso(um):
+    """usage_metadata llega una vez por turno: prompt_token_count es el contexto entero de ese turno."""
+    u = S.setdefault("uso", {"ctx": 0, "tok": 0, "usd": 0.0, "turnos": 0})
+    coste = lambda det, pr, dflt: sum(d.token_count * pr.get(getattr(d.modality, "value", str(d.modality)), dflt) for d in det or [])
+    u["ctx"] = round(100 * (um.prompt_token_count or 0) / CONTEXTO_MAX, 1)
+    u["tok"] += um.total_token_count or 0
+    u["usd"] += (coste(um.prompt_tokens_details, PRECIO_IN, 3.0) + coste(um.response_tokens_details, PRECIO_OUT, 12.0)) / 1e6
+    u["turnos"] += 1
 
 
 def fin_turno():
@@ -115,7 +137,7 @@ def _mic(ST):
 def _salud(ST, mic):
     cl = ST.get("claude", {}).get("estado", "libre")
     imp = S["impresora"]
-    return {"enlace": "ok" if ST["session"] else "mal", "mic": mic["estado"],
+    return {"enlace": "ok" if ST["session"] else "off" if ST.get("reposo") else "mal", "mic": mic["estado"],
             "aec": "ok" if S["aec"] else "mal",
             "claude": {"libre": "ok", "trabajando": "act"}.get(cl, "mal"),
             "impresora": "off" if not imp or not imp.get("online") else "act" if imp.get("estado") == "printing" else "ok"}
@@ -128,8 +150,10 @@ def snapshot(ST):
         **S,
         "mic": mic, "salud": _salud(ST, mic), "lat": ST.get("lat"), "priv": bool(ST.get("privacidad")),
         "estado": _estado(ST),
-        "conexion": "conectado" if ST["session"] else "reconectando",
+        "conexion": "conectado" if ST["session"] else "en reposo" if ST.get("reposo") else "reconectando",
         "herramienta": ST.get("herramienta"),
+        "pasos": ST.get("pasos", []),
+        "confirma": getattr(ST["pending"], "texto", None) if ST["pending"] and not ST["pending"].done() else None,
         "trabajos": ST["trabajos"],
         "claude": ST.get("claude"),
         "memoria": _memoria(),
@@ -181,6 +205,56 @@ async def _poll_impresora():
         await asyncio.sleep(5)
 
 
+def _bus(ruta, iface, *props):
+    """Propiedades D-Bus de KDE Connect; None si el objeto no existe (p.ej. batería de un móvil sin vincular)."""
+    r = subprocess.run(["busctl", "--user", "--json=short", "get-property", "org.kde.kdeconnect", ruta, iface, *props],
+                       capture_output=True, text=True, timeout=4)
+    return [json.loads(l)["data"] for l in r.stdout.splitlines()] if r.returncode == 0 else None
+
+
+def _dispositivos():
+    ids = subprocess.run(["kdeconnect-cli", "-l", "--id-only"], capture_output=True, text=True, timeout=6).stdout.split()
+    out = []
+    for i in ids:
+        ruta = f"/modules/kdeconnect/devices/{i}"
+        nombre, vinculado, alcance, tipo = _bus(ruta, "org.kde.kdeconnect.device", "name", "isPaired", "isReachable", "type")
+        bat = _bus(ruta + "/battery", "org.kde.kdeconnect.device.battery", "charge", "isCharging") if vinculado and alcance else None
+        out.append({"nombre": nombre, "tipo": tipo, "vinculado": vinculado, "alcance": alcance,
+                    "carga": bat[0] if bat and bat[0] >= 0 else None, "cargando": bool(bat and bat[1])})
+    return out
+
+
+async def _poll_dispositivos():
+    """KDE Connect: qué dispositivos hay, si están al alcance y su batería."""
+    while True:
+        try:
+            S["dispos"] = await asyncio.to_thread(_dispositivos)
+        except Exception:
+            pass
+        await asyncio.sleep(30)
+
+
+async def _poll_agenda():
+    """Próximos avisos (avisos.json, cada 5 s) y notificaciones del móvil (cada minuto) para la tarjeta Agenda."""
+    import movil
+    n = 0
+    while True:
+        try:
+            lista = json.loads((AQUI / "avisos.json").read_text())
+            S["avisos"] = sorted(({"t": a["t"], "texto": a["texto"], "tipo": a["tipo"]} for a in lista), key=lambda a: a["t"])[:4]
+        except Exception:
+            S["avisos"] = []
+        if n % 12 == 0:
+            try:
+                d = await movil._movil()
+                # solo app y remitente: el panel puede estar en la tele
+                S["movil"] = [{"app": x.get("appName", ""), "quien": x.get("title", "")} for x in await movil._notificaciones(d)] if d else None
+            except Exception:
+                pass
+        n += 1
+        await asyncio.sleep(5)
+
+
 async def _poll_audio():
     """El AEC (echo-cancel-source) tiene que seguir existiendo: si PipeWire lo pierde, el eco rompe la conversación."""
     while True:
@@ -205,6 +279,13 @@ def _vigila(sn):
     _salud_previa.update(sn["salud"])
 
 
+VISTA = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "delta-vista"  # ventana.sh la lee y coloca panel y mascota
+
+
+def vista(modo):
+    VISTA.write_text(modo)
+
+
 def _cmd(ST, cmd):
     if cmd == "privacidad":
         ST["privacidad"] = not ST.get("privacidad")
@@ -214,18 +295,72 @@ def _cmd(ST, cmd):
     elif cmd == "modo":
         S["modo"] = "alertas" if S["modo"] == "chat" else "chat"
         S["nuevas"] = 0
+    elif cmd in ("vista_panel", "vista_mascota"):
+        vista(cmd[6:])
+    elif cmd == "tiempo":
+        acciones.tarea(_abrir_tiempo())
+    elif cmd == "cerrar_visor":
+        S["visor"] = None
     elif cmd == "dormir":
         acciones.dormir_ahora() if ST["activo"] else acciones.activar()
+    elif cmd in ("permitir", "denegar") and ST["pending"] and not ST["pending"].done():
+        ST["pending"].set_result("s" if cmd == "permitir" else "n")
+
+
+PRECISA = 5000  # m; GeoClue por IP da ~25 km, por wifi conocida < 1 km
+
+
+async def posicion():
+    """«lat,lon» para wttr.in: fijada por el usuario > GeoClue preciso (wifi) > navegador > "" (wttr usa la IP)."""
+    try:
+        f = json.loads(FIJA.read_text())
+        return f"{f['lat']},{f['lon']}"
+    except Exception:
+        pass
+    try:
+        p = await asyncio.create_subprocess_exec(str(AQUI / "ubicacion.py"), stdout=asyncio.subprocess.PIPE,
+                                                 stderr=asyncio.subprocess.DEVNULL)
+        lat, lon, prec = map(float, (await asyncio.wait_for(p.communicate(), 25))[0].split())
+        if prec <= PRECISA:
+            return f"{lat:.2f},{lon:.2f}"
+    except Exception:
+        pass
+    try:
+        return "{},{}".format(*json.loads(GEO.read_text()))
+    except Exception:
+        return ""
+
+
+NOTHING_WEATHER = acciones.WORMHOLE / "nothing-weather"   # el otro proyecto del usuario (vite preview, 7875)
+
+
+async def _abrir_tiempo():
+    """Clic en el tiempo: Nothing Weather en el visor, en la posición del usuario. Arranca su servidor si hace falta."""
+    def abierto():
+        try:
+            socket.create_connection(("127.0.0.1", 7875), 0.3).close()
+            return True
+        except OSError:
+            return False
+    if not abierto():
+        subprocess.Popen([str(NOTHING_WEATHER / "run.sh")], start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(40):
+            await asyncio.sleep(0.25)
+            if abierto():
+                break
+    q = ""
+    if (lugar := await posicion()):
+        lat, lon = lugar.split(",")
+        ciudad = (S["clima"] or {}).get("ciudad", "")
+        q = "?" + urllib.parse.urlencode({"lat": lat, "lon": lon, "city": ciudad})
+    S["visor"] = {"url": f"http://127.0.0.1:7875/{q}", "titulo": "Nothing Weather", "id": time.time()}
 
 
 async def _poll_clima():
     while True:
         try:
-            try:
-                lat, lon = json.loads(GEO.read_text())
-                lugar = f"{lat},{lon}"
-            except Exception:
-                lugar = ""  # sin posición del navegador: wttr.in usa la IP
+            lugar = await posicion()
             async with httpx.AsyncClient(timeout=10) as c:
                 j = (await c.get(f"https://wttr.in/{lugar}?format=j1")).json()
             cur, hoy = j["current_condition"][0], j["weather"][0]
@@ -251,7 +386,13 @@ async def _poll_clima():
 
 
 # ---- servidor ----
+ORIGENES = {None, f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"}
+
+
 async def _ws(request):
+    # Los WebSocket no tienen CORS: sin esto cualquier web abierta leería la conversación y pulsaría botones.
+    if request.headers.get("Origin") not in ORIGENES:
+        raise web.HTTPForbidden()
     ws = web.WebSocketResponse()
     await ws.prepare(request)
     _clientes.add(ws)
@@ -260,10 +401,10 @@ async def _ws(request):
         async for m in ws:
             try:  # el navegador manda su posición {"geo":[lat,lon]} o un botón {"cmd":"privacidad"}
                 msg = json.loads(m.data)
-                if msg.get("cmd") in ("privacidad", "modo", "dormir"):
+                if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "vista_panel", "vista_mascota", "tiempo"):
                     _cmd(request.app["ST"], msg["cmd"])
                 g = msg.get("geo")
-                if g and len(g) == 2 and all(isinstance(x, (int, float)) for x in g):
+                if g and len(g) == 3 and all(isinstance(x, (int, float)) for x in g) and g[2] <= PRECISA:
                     g = [round(g[0], 2), round(g[1], 2)]  # ~1 km: sobra para el tiempo
                     if not GEO.exists() or json.loads(GEO.read_text()) != g:
                         GEO.write_text(json.dumps(g))
@@ -300,16 +441,19 @@ async def start(ST, voz):
         app["ST"] = ST
         app.router.add_get("/", lambda r: web.FileResponse(AQUI / "panel" / "index.html"))
         app.router.add_get("/ws", _ws)
+        app.router.add_get("/mapache.txt", lambda r: web.FileResponse(AQUI / "panel" / "mapache.txt"))
         app.router.add_static("/fonts", AQUI / "panel" / "fonts")
+        for ruta, h in RUTAS:
+            app.router.add_get(ruta, h)
         runner = web.AppRunner(app, access_log=None)
         await runner.setup()
         await web.TCPSite(runner, "127.0.0.1", PORT).start()
     except Exception as e:
         print(f"Panel no disponible: {e}")
         return False
-    for f in (_poll_sistema, _poll_impresora, _poll_clima, _poll_audio):
-        asyncio.create_task(f())
-    asyncio.create_task(_difusor(ST))
+    for f in (_poll_sistema, _poll_impresora, _poll_clima, _poll_audio, _poll_dispositivos, _poll_agenda):
+        acciones.tarea(f())
+    acciones.tarea(_difusor(ST))
     print(f"Panel en http://127.0.0.1:{PORT}")
     return True
 
@@ -323,11 +467,7 @@ async def consultar_clima(lugar="", dias=1):
     """Tiempo actual y previsión (hasta 3 días) de un sitio; sin sitio, el del usuario (GPS del panel)."""
     try:
         dias = max(1, min(3, int(dias or 1)))
-        if not lugar:
-            try:
-                lugar = "{},{}".format(*json.loads(GEO.read_text()))
-            except Exception:
-                lugar = ""
+        lugar = lugar or await posicion()
         async with httpx.AsyncClient(timeout=10) as c:
             j = (await c.get(f"https://wttr.in/{lugar}", params={"format": "j1", "lang": "es"})).json()
         cur = j["current_condition"][0]
@@ -342,13 +482,35 @@ async def consultar_clima(lugar="", dias=1):
         return f"No pude consultar el tiempo: {e}"
 
 
+async def fijar_ubicacion(lugar):
+    if lugar.strip().lower() in ("", "auto", "automática", "automatica", "borrar"):
+        FIJA.unlink(missing_ok=True)
+        _geo_nuevo.set()
+        return "Ubicación fija borrada: vuelvo a situarme por la red."
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = (await c.get("https://geocoding-api.open-meteo.com/v1/search",
+                             params={"name": lugar, "count": 1, "language": "es"})).json()["results"][0]
+    except Exception:
+        return f"No encuentro «{lugar}». Prueba con el nombre del pueblo o ciudad."
+    nombre = ", ".join(x for x in (r["name"], r.get("admin2") or r.get("admin1"), r.get("country")) if x)
+    FIJA.write_text(json.dumps({"lat": round(r["latitude"], 3), "lon": round(r["longitude"], 3), "nombre": nombre},
+                               ensure_ascii=False))
+    _geo_nuevo.set()  # el panel refresca el tiempo ya
+    return f"Ubicación fijada en {nombre}."
+
+
 acciones.registrar([
+    acciones._fn("fijar_ubicacion",
+                 "Fija dónde está el usuario («estoy en Chiclana», «vivo en …») para el tiempo y lo demás. "
+                 "Ni el portátil tiene GPS ni la red da una posición fiable, así que es lo que manda. «auto» la borra.",
+                 {"lugar": acciones._s("pueblo o ciudad, o «auto»")}),
     acciones._fn("consultar_clima",
                  "Consulta el tiempo en este momento: temperatura, viento, lluvia y previsión de hoy y los próximos días (hasta 3). "
                  "Sin lugar usa la ubicación del usuario. Úsala siempre que pregunte por el tiempo, la temperatura, el viento o la lluvia.",
                  {"lugar": acciones._s("ciudad o sitio; vacío = donde está el usuario"),
                   "dias": acciones._s("cuántos días de previsión, 1 a 3 (por defecto 1)")}),
-], (consultar_clima,))
+], (fijar_ubicacion, consultar_clima))
 
 
 _visto = 0.0  # id de la última notificación ya contada en un saludo

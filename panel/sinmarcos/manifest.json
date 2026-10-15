@@ -1,0 +1,4 @@
+{"manifest_version": 3, "name": "Delta sin marcos", "version": "1",
+ "description": "Deja que el panel de Delta incruste webs: quita X-Frame-Options/CSP solo a los iframes que abre 127.0.0.1.",
+ "permissions": ["declarativeNetRequest"], "host_permissions": ["<all_urls>"],
+ "declarative_net_request": {"rule_resources": [{"id": "r", "enabled": true, "path": "reglas.json"}]}}

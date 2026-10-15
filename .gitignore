@@ -7,3 +7,8 @@ assistant.log
 mejoras_pendientes.log
 panel/geo.json
 panel/.chrome/
+panel/.chromium/
+skills/
+averias.log
+avisos.json
+ubicacion_fija.json
