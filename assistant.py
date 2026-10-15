@@ -31,6 +31,8 @@ import claude_acp  # noqa: F401  (registra sus herramientas en acciones)
 import avisos
 import movil  # noqa: F401
 import deltaos  # noqa: F401  (visor del panel, investigación y skills)
+import secretario  # noqa: F401  (documentos PDF/Word/texto)
+import estudio  # noqa: F401  (modo estudiante: clase → tema anotado)
 import panel
 import google.genai.live as genai_live
 _original_ws_connect = genai_live.ws_connect
@@ -323,7 +325,9 @@ async def receive_and_play_loop(session):
                                 acciones.ST["ruido"] = acciones.ST.get("ruido", 0) + 1
                             else:
                                 acciones.ST["ruido"] = 0
-                                acciones.ST["t_tu"] = time.monotonic()  # el usuario ha hablado (permisos por voz)
+                                acciones.ST["t_tu"] = acciones.ST["ultima"] = time.monotonic()  # el usuario ha hablado (permisos por voz; y no dormir mientras habla)
+                                f = panel.S["frases"]  # al log también, para ver qué entendió cuando no hace caso
+                                print(t if f and f[-1]["rol"] == "tú" and not f[-1].get("fin") else f"\n🗣️ {t}", end="", flush=True)
                                 panel.texto("tú", t)
 
                     if getattr(server_content, 'interrupted', False):
@@ -458,7 +462,9 @@ async def main():
                     "Si te piden enseñar, ver o abrir algo para mirarlo, usa mostrar (sale en el panel); abrir es solo para el navegador o apps del escritorio. "
                     "Skills: si una tarea encaja con una skill instalada, léela con usar_skill y síguela. Si no tienes ninguna que encaje y es algo que hará falta a menudo, "
                     "búscala con buscar_skills e instálala tú mismo sin pedir permiso, y dile al usuario cuál has instalado. Skills instaladas:\n" + deltaos.resumen_skills() + "\n"
-                    "Si el usuario te pide una capacidad que aún no tienes, invoca anotar_mejora para que el desarrollador la implemente. Los fallos (micro, audio, impresora) no son mejoras: díselos al usuario de palabra y como mucho anótalos una vez. "
+                    "Si el usuario te pide que cambies o mejores algo de tu propio sistema (panel, DeltaOS, mascota, herramientas), usa mejorar_delta. "
+                    "Si solo echa en falta una capacidad sin pedir que la implementes ya, invoca anotar_mejora para que el desarrollador la implemente. Los fallos (micro, audio, impresora) no son mejoras: díselos al usuario de palabra y como mucho anótalos una vez. "
+                    "Eres también su secretario: cartas, PDFs, Word, notas o dossieres con crear_documento (buscar=sí si hacen falta datos de internet); para pasar un informe a PDF o Word, convertir_documento. "
                     "Temporizadores, alarmas y recordatorios con hora: programar_aviso (no recordar, que es para datos). Móvil por KDE Connect: leer notificaciones, responderlas, SMS y hacerlo sonar. "
                     "Los trabajos largos corren en segundo plano y recibirás un [AVISO DEL SISTEMA] al acabar: díselo al usuario en una frase. "
                     "Usa recordar cuando el usuario diga que recuerdes algo, y dormir cuando se despida. "
@@ -492,6 +498,9 @@ async def main():
             async with client.aio.live.connect(model=model_id, config=make_config(handle)) as session:
                 acciones.ST.update(session=session, reposo=False)
                 print(f"\n🔗 Sesión {'reanudada' if handle else 'nueva'}", flush=True)
+                if not handle:  # sesión nueva: no recuerda el texto pegado, se le vuelve a dar
+                    acciones.ST.pop("pegado_dado", None)
+                await panel.entregar_pegado(acciones.ST)  # antes que los avisos: «¿qué hacemos con el texto?» lo necesita
                 for aviso in acciones.ST.pop("avisos", []):  # llegaron mientras estaba colgado
                     await acciones.avisar(aviso, notificar=False)
                 tasks = [asyncio.create_task(receive_and_play_loop(session)), asyncio.create_task(centinela())]

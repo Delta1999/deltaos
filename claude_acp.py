@@ -5,6 +5,7 @@ los pasos llegan en directo a ST["claude"] (los pinta el panel) y los permisos
 se preguntan al usuario por voz o con [s/N] en teclado.
 """
 import asyncio
+import json
 import os
 import time
 from contextlib import AsyncExitStack
@@ -14,12 +15,12 @@ from acp.helpers import text_block
 
 import acciones
 import panel
-from acciones import ST, WORMHOLE, avisar, _confirmar
+from acciones import ST, WORMHOLE, AQUI, avisar, _confirmar, _run
 
 COMANDO = ("npx", "-y", "@agentclientprotocol/claude-agent-acp")
 MAX_PASOS = 8
 
-_conn = _pila = _sid = _tarea = None
+_conn = _pila = _sid = _sid_delta = _tarea = None
 _estado = {"estado": "libre", "tarea": "", "pasos": [], "plan": [], "texto": ""}
 ST["claude"] = _estado
 
@@ -88,8 +89,8 @@ async def _conectar():
 
 
 async def cerrar():
-    global _conn, _pila, _sid
-    pila, _conn, _pila, _sid = _pila, None, None, None
+    global _conn, _pila, _sid, _sid_delta
+    pila, _conn, _pila, _sid, _sid_delta = _pila, None, None, None, None
     if pila:
         try:
             await pila.aclose()
@@ -97,27 +98,95 @@ async def cerrar():
             pass
 
 
-async def _turno(mensaje):
-    global _tarea
-    _estado.update(estado="trabajando", tarea=mensaje[:120], pasos=[], plan=[], texto="", inicio=time.time())
+async def _turno(mensaje, propio=None, voz=True):
+    """propio = (petición, foto «antes») cuando es un cambio en el propio Delta: otra sesión, con el repo de Delta como cwd."""
+    global _tarea, _sid_delta
+    _estado.update(estado="trabajando", tarea=(propio[0] if propio else mensaje)[:120], pasos=[], plan=[], texto="", inicio=time.time())
     try:
         if _conn is None:
             await _conectar()
-        await _conn.prompt(session_id=_sid, prompt=[text_block(mensaje)])
+        if propio and _sid_delta is None:
+            _sid_delta = (await _conn.new_session(cwd=str(AQUI))).session_id
+            try:  # editar sin preguntar cada archivo: el registro guarda el diff para deshacerlo
+                await _conn.set_session_mode(session_id=_sid_delta, mode_id="acceptEdits")
+            except Exception as e:
+                print(f"ACP: sin modo acceptEdits ({e})")
+        await _conn.prompt(session_id=_sid_delta if propio else _sid, prompt=[text_block(mensaje)])
         final = _estado["texto"].strip() or "(sin texto)"
-        _estado["estado"] = "libre"
-        panel.notificar("info", f"Claude Code terminó: {mensaje[:60]}")
-        await avisar(f"Claude Code ha terminado. Resume al usuario en una o dos frases: {final[-1200:]}")
+        if propio:
+            await _registrar(propio[0], propio[1], final)
+        _estado.update(estado="libre", ultimo="hecho")
+        panel.notificar("info", f"Claude Code terminó: {(propio[0] if propio else mensaje)[:60]}")
+        if voz:
+            await avisar(f"Claude Code ha terminado. Resume al usuario en una o dos frases: {final[-1200:]}")
     except asyncio.CancelledError:
         _estado["estado"] = "libre"
         raise
     except Exception as e:
-        _estado["estado"] = "libre"
+        _estado.update(estado="libre", ultimo="falló")
         await cerrar()  # la próxima vez se reconecta
         panel.notificar("alerta", f"Claude Code falló: {e}")
-        await avisar(f"Falló la conversación con Claude Code: {e}")
+        if voz:
+            await avisar(f"Falló la conversación con Claude Code: {e}")
     finally:
         _tarea = None
+
+
+# ---------- cambios en el propio Delta: pasarela Gemini Live → Claude Code, con registro ----------
+REGISTRO = AQUI / "CAMBIOS_DELTA.md"
+PROPIO = (
+    "[PETICIÓN DESDE DELTA · pasarela Gemini Live → Claude Code] El usuario ha pedido por voz a Delta este cambio en el "
+    "propio Delta. Trabaja SOLO en este repositorio (~/gemini-live-assistant), sobre sus archivos de verdad: nada de copias, "
+    "forks, carpetas ni proyectos paralelos. Lee CLAUDE.md antes. No reinicies Delta (eres un proceso suyo y morirías con "
+    "él) ni hagas commits. Al terminar di en dos frases qué has cambiado y si hace falta reiniciar Delta o basta con "
+    "recargar el panel.\n\nPetición: "
+)
+
+
+async def _foto():
+    """Instantánea del árbol de trabajo sin tocarlo (git stash create); vale HEAD si no hay cambios."""
+    c, h = await _run(["git", "-C", str(AQUI), "stash", "create"], timeout=30)
+    if c or not h.strip():
+        _, h = await _run(["git", "-C", str(AQUI), "rev-parse", "HEAD"], timeout=30)
+    _, nuevos = await _run(["git", "-C", str(AQUI), "ls-files", "--others", "--exclude-standard"], timeout=30)
+    return h.strip(), set(nuevos.split())
+
+
+async def _registrar(peticion, antes, final):
+    despues = await _foto()
+    marca = time.strftime("%Y%m%d-%H%M%S")
+    for n, h in (("antes", antes[0]), ("despues", despues[0])):  # refs: que git no borre las fotos
+        await _run(["git", "-C", str(AQUI), "update-ref", f"refs/delta/{marca}/{n}", h], timeout=30)
+    _, stat = await _run(["git", "-C", str(AQUI), "diff", "--stat", antes[0], despues[0]], timeout=30)
+    nuevos = sorted(despues[1] - antes[1])
+    with REGISTRO.open("a") as f:
+        f.write(f"\n## {time.strftime('%Y-%m-%d %H:%M')} · vía Delta (Gemini Live → Claude Code)\n\n"
+                f"**Petición:** {peticion}\n\n**Claude:** {final[-800:]}\n\n```\n{stat.strip() or '(sin cambios en archivos con seguimiento)'}\n```\n"
+                + (f"Archivos nuevos: {', '.join(nuevos)}\n" if nuevos else "")
+                + f"\nVer: `git diff refs/delta/{marca}/antes refs/delta/{marca}/despues` · "
+                  f"Deshacer: `git diff refs/delta/{marca}/antes refs/delta/{marca}/despues | git apply -R`\n")
+    try:  # y en las novedades del panel, para verlo al tocar la hora
+        nov = AQUI / "panel" / "novedades.json"
+        lista = json.loads(nov.read_text())
+        lista.insert(0, {"f": time.strftime("%Y-%m-%d"), "t": peticion[:200], "como": "vía Delta → Claude"})
+        nov.write_text(json.dumps(lista, ensure_ascii=False, indent=1))
+    except Exception as e:
+        print(f"novedades: {e}")
+
+
+def ocupado():
+    return bool(_tarea and not _tarea.done())
+
+
+async def mejorar_delta(peticion, voz=True):
+    """voz=False: arreglos de la llave inglesa, que se lanzan solos con el PC libre y no deben despertar a Delta."""
+    global _tarea
+    if ocupado():
+        return f"Claude Code sigue ocupado con: {_estado['tarea']}. Espera a que termine o cancélalo."
+    antes = await _foto()
+    _tarea = acciones.tarea(_turno(PROPIO + peticion, (peticion, antes), voz))
+    return ("Enviado a Claude Code, que trabaja sobre el propio repositorio de Delta. Los pasos salen en el panel, "
+            "queda registrado en CAMBIOS_DELTA.md y te aviso al terminar.")
 
 
 # ---------- herramientas para Gemini ----------
@@ -166,9 +235,14 @@ acciones.registrar([
                  "así que puedes pedir seguimientos («ahora hazlo más grueso»). Trabaja en segundo plano y avisa al terminar. "
                  "Úsala para toda petición de código, CAD o archivos del repo.",
                  {"mensaje": acciones._s("lo que quieres decirle a Claude Code, completo y claro")}),
+    acciones._fn("mejorar_delta",
+                 "Cambia, mejora o arregla el PROPIO Delta (tu interfaz, panel, DeltaOS, mascota, voz, herramientas, "
+                 "fondos…) llamando a Claude Code sobre tu repositorio. Úsala cuando el usuario pida modificar algo de tu "
+                 "sistema («cambia el panel para…», «añádete…», «arregla tu…»). Queda registrado para poder deshacerlo.",
+                 {"peticion": acciones._s("lo que hay que cambiar, completo y con las palabras del usuario")}),
     acciones._fn("estado_claude", "Qué está haciendo Claude Code ahora y sus últimos pasos."),
     acciones._fn("cancelar_claude", "Interrumpe la tarea actual de Claude Code."),
     acciones._fn("responder_permiso",
                  "Contesta a un permiso que Claude Code o el sistema ha pedido al usuario, con lo que el usuario haya dicho.",
                  {"acepta": acciones._s("«si» o «no»")}),
-], (hablar_con_claude, estado_claude, cancelar_claude, responder_permiso))
+], (hablar_con_claude, mejorar_delta, estado_claude, cancelar_claude, responder_permiso))

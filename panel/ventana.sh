@@ -24,7 +24,8 @@ aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
   read -r X Y AN AL _ <<<"$2"
   M=$(kdotool search --class delta-mascota 2>/dev/null | head -1)
   if [ "$3" = mascota ]; then
-    kdotool windowminimize "$1"; [ -n "$M" ] && kdotool windowactivate "$M"
+    # mostrarla sin activarla: la mascota es una capa del tamaño de la pantalla y se quedaría con el teclado
+    kdotool windowminimize "$1"; [ -n "$M" ] && kdotool windowstate --remove MINIMIZED "$M"
   else
     [ -n "$M" ] && kdotool windowminimize "$M"
     kdotool windowactivate "$1"
@@ -34,6 +35,19 @@ aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
   fi
 }
 
+# Regla de KWin: la ventana nace ya en su pantalla, sin aparecer antes en la otra y saltar
+regla() {
+  read -r X Y AN AL _ <<<"$1"
+  local k="kwriteconfig6 --file kwinrulesrc --group delta-panel --key" r
+  $k Description "Delta panel (ventana.sh)"; $k wmclass "127.0.0.1__"; $k wmclassmatch 2
+  $k position "$X,$Y"; $k positionrule 3; $k size "$AN,$AL"; $k sizerule 3
+  r=$(kreadconfig6 --file kwinrulesrc --group General --key rules)
+  [[ ",$r," == *,delta-panel,* ]] || r="${r:+$r,}delta-panel"
+  kwriteconfig6 --file kwinrulesrc --group General --key rules "$r"
+  kwriteconfig6 --file kwinrulesrc --group General --key count "$(tr ',' '\n' <<<"$r" | grep -c .)"
+  dbus-send --session --type=method_call --dest=org.kde.KWin /KWin org.kde.KWin.reconfigure
+}
+D=$(destino); [ -n "$D" ] && regla "$D"
 for i in $(seq 30); do curl -sf "$URL" >/dev/null && break; sleep 1; done
 # Chromium y no Chrome: Chrome ya no admite --load-extension, y sinmarcos/ deja incrustar webs en el panel
 chromium-browser --user-data-dir="$DIR/.chromium" --load-extension="$DIR/sinmarcos" --app="$URL" --no-first-run \
@@ -52,7 +66,8 @@ while kill -0 $CH 2>/dev/null; do
   fi
   MM=$(kdotool search --class delta-mascota 2>/dev/null | head -1)
   [ "$MM" != "$MANT" ] && { MANT=$MM; VANT=; }  # la mascota (re)aparece: aplicarle la vista
-  V=$(cat "$VISTA" 2>/dev/null)
-  [ -n "$D" ] && [ "$V" != "$VANT" ] && { aplicar "$W" "$D" "$V"; VANT=$V; }
+  # contenido + fecha: repetir «modo mascota» tras mover el panel a mano (o con «ventanas») también se aplica
+  V=$(cat "$VISTA" 2>/dev/null); T=$(stat -c %.9Y "$VISTA" 2>/dev/null)
+  [ -n "$D" ] && [ "$V$T" != "$VANT" ] && { aplicar "$W" "$D" "$V"; VANT=$V$T; }
   sleep 1
 done

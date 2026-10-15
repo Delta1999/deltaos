@@ -8,7 +8,7 @@ import html
 import json
 import re
 import time
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import httpx
 from aiohttp import web
@@ -50,10 +50,11 @@ async def mostrar(que, consulta=""):
     elif que == "google":
         url = f"https://www.google.com/search?q={quote(q)}&igu=1"
     elif que == "informe":
-        hay = sorted((f for f in INFORMES.glob("*.html") if q.lower() in f.name.lower()), key=lambda f: f.stat().st_mtime)
+        hay = sorted((f for f in [*INFORMES.glob("*.html"), *(f for f in (DELTA / "documentos").glob("*") if f.suffix in (".pdf", ".txt", ".md"))]
+                      if q.lower() in f.name.lower()), key=lambda f: f.stat().st_mtime)
         if not hay:
-            return "No hay ningún informe con ese nombre."
-        url, q = f"/informes/{quote(hay[-1].name)}", hay[-1].stem
+            return "No hay ningún informe ni documento con ese nombre."
+        url, q = f"/{hay[-1].parent.name}/{quote(hay[-1].name)}", hay[-1].stem
     elif que == "web":
         url = q if re.match(r"https?://", q) else f"https://{q}"
     else:
@@ -120,6 +121,8 @@ async def _investigar(pregunta):
     p = paso(f"Investigo · {pregunta[:60]}")
     try:
         docs = await _biblioteca()
+        if pg := panel.pegado():  # lo pegado en el panel cuenta como un documento local más, citable como [Ln]
+            docs = docs + [("texto pegado en el panel", pg[:60000])]
         indice = "\n".join(f"- {n}: {t[:300]!r}" for n, t in docs) or "(vacía)"
         plan = await _json(f"Vas a investigar a fondo: «{pregunta}». Documentos locales disponibles:\n{indice}\n"
                            'Devuelve JSON {"subpreguntas": [3 a 5 preguntas web concretas que juntas la respondan]}.')
@@ -165,6 +168,85 @@ async def _investigar(pregunta):
         await avisar(f"La investigación sobre «{pregunta}» falló: {e}")
 
 
+# ---------- edición de informes ----------
+VERSIONES = INFORMES / ".versiones"  # fuera de la ruta servida: _informe solo da ficheros de INFORMES
+ESTILO_EDICION = ('<style id="ed">.sr{text-decoration:underline #ff2d1f 2px;text-underline-offset:3px}.rojo{color:#ff2d1f}'
+                  "mark{background:#ffd60a;color:#000;padding:0 2px}.nota{border-left:3px solid #ff2d1f;padding:4px 12px;"
+                  "margin:12px 0;color:#cfcfcf;font-size:14px}@media print{.nota{color:#333}.rojo,.sr{color:#c00}}</style>")
+
+
+def _buscar_informe(q):
+    """El informe cuyo nombre contiene q; sin q, el que está en el visor y si no, el último."""
+    hay = sorted(INFORMES.glob("*.html"), key=lambda f: f.stat().st_mtime)
+    if q:
+        hay = [f for f in hay if q.lower() in f.name.lower()]
+    else:
+        m = re.match(r"/informes/([^?]+)", (panel.S.get("visor") or {}).get("url", ""))
+        if m and (INFORMES / unquote(m.group(1))).is_file():
+            return INFORMES / unquote(m.group(1))
+    return hay[-1] if hay else None
+
+
+def _partes(doc):
+    """(antes, cuerpo, después): el cuerpo es lo que va entre la línea meta y la lista de fuentes."""
+    ini = doc.index("</div>", doc.index('class="meta"')) + len("</div>")
+    fin = doc.rfind("<h2>Fuentes</h2>")
+    return doc[:ini], doc[ini:fin], doc[fin:]
+
+
+def _deshacer(f):
+    vers = sorted(VERSIONES.glob(f"{f.stem}.*.html"))
+    if not vers:
+        return "Ese informe no tiene versiones anteriores."
+    f.write_text(vers[-1].read_text())
+    vers[-1].unlink()
+    _ver(f"/informes/{quote(f.name)}?v={time.time()}", f"INFORME · {f.stem[14:]}")
+    return f"Recuperada la versión anterior de «{f.stem[14:]}» ({len(vers) - 1} más guardadas)."
+
+
+async def _editar(f, orden):
+    p = paso(f"Edito · {f.stem[14:60]}")
+    try:
+        doc = f.read_text()
+        antes, cuerpo, despues = _partes(doc)
+        r = await _gem().generate_content(model=MODELO, contents=(
+            f"Eres el editor de este informe HTML, que escribiste tú. Aplica esta orden del usuario: «{orden}».\n"
+            "Formato disponible: <span class=\"sr\">…</span> subrayado rojo; <span class=\"rojo\">…</span> texto rojo; "
+            "<mark>…</mark> resaltado; <strong>; <div class=\"nota\">…</div> anotación o comentario. Si la orden lo pide, "
+            "reescribe, añade o quita frases, párrafos, secciones, listas o tablas (h2, p, ul, li, table). Todo lo que la "
+            "orden no toque queda idéntico, incluidos los enlaces de cita <a href=\"#f…\" class=\"c\">. Sin scripts, sin "
+            "atributos style ni on*. Primera línea: CAMBIOS: <una frase con lo que has hecho>. Después, solo el fragmento "
+            f"HTML completo ya editado.{_con_pegado()}\n\nFRAGMENTO:\n{cuerpo}"))
+        texto = (r.text or "").strip()
+        cambios, _, nuevo = texto.partition("\n")
+        nuevo = re.sub(r"(?is)<script.*?</script>|\son\w+\s*=\s*(\"[^\"]*\"|'[^']*')", "",
+                       nuevo.strip().removeprefix("```html").removesuffix("```"))
+        if len(nuevo) < 0.3 * len(cuerpo) and not re.search(r"quita|borra|elimina|resume|acorta", orden, re.I):
+            raise ValueError("la versión editada salió incompleta; no la guardo")
+        VERSIONES.mkdir(exist_ok=True)
+        (VERSIONES / f"{f.stem}.{time.strftime('%Y%m%d%H%M%S')}.html").write_text(doc)
+        if 'id="ed"' not in antes:
+            antes = antes.replace("<style>", ESTILO_EDICION + "<style>", 1)
+        f.write_text(antes + nuevo + despues)
+        p["e"] = "hecho"
+        _ver(f"/informes/{quote(f.name)}?v={time.time()}", f"INFORME · {f.stem[14:]}")
+        await avisar(f"Informe «{f.stem[14:]}» editado y en el panel. Díselo al usuario en una frase: "
+                     f"{cambios.removeprefix('CAMBIOS:').strip()}")
+    except Exception as e:
+        p["e"] = "falló"
+        await avisar(f"No pude editar el informe «{f.stem[14:]}»: {e}")
+
+
+async def editar_informe(orden, informe=""):
+    f = _buscar_informe(informe.strip())
+    if not f:
+        return "No hay ningún informe con ese nombre."
+    if orden.strip().lower() in ("deshacer", "deshaz", "vuelve atrás"):
+        return _deshacer(f)
+    acciones.tarea(_editar(f, orden))
+    return f"Editando «{f.stem[14:]}» (tarda unos segundos; se recarga en el panel y te aviso). Díselo en una frase."
+
+
 async def buscar(consulta):
     _, texto, fuentes = await _salto(consulta, "Busca en internet y responde en español en 3-5 frases con los datos más "
                                      "relevantes (cifras, fechas, nombres), sin relleno")
@@ -185,7 +267,9 @@ h1{{font-family:Doto;font-weight:900;font-size:40px;line-height:1.1;letter-spaci
 h2{{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:#ff2d1f;margin-top:36px}}
 a{{color:#f2f2f2}}a.c{{color:#ff2d1f;text-decoration:none;font-size:12px;vertical-align:super}}
 table{{border-collapse:collapse}}td,th{{border:1px solid #262626;padding:6px 10px}}
-.meta,ul.f{{color:#5a5a5a;font-size:13px}}ul.f{{list-style:none;padding:0}}ul.f a{{color:#8a8a8a}}</style>
+.meta,ul.f{{color:#5a5a5a;font-size:13px}}ul.f{{list-style:none;padding:0}}ul.f a{{color:#8a8a8a}}
+@media print{{@page{{size:A4;margin:18mm}}body{{background:#fff;color:#111;padding:0;font-size:11pt}}a,ul.f a{{color:#111}}
+td,th{{border-color:#999}}h1{{font-size:28px}}}}</style>
 <div class="meta">INVESTIGACIÓN · {meta}</div>{cuerpo}<h2>Fuentes</h2><ul class="f">{fuentes}</ul></html>"""
 
 
@@ -266,6 +350,40 @@ async def cambiar_vista(modo):
     return f"Hecho: vista {modo}."
 
 
+ESCENAS = ("auto", "reloj", "mascota", "impresion", "tiempo")
+
+
+async def fondo(escena):
+    if escena not in ESCENAS:
+        return "Error: escena es " + " | ".join(ESCENAS) + "."
+    panel.S["fondo"] = {"escena": escena, "id": time.time()}  # el panel lo pone ya, sin esperar los 30 s
+    return f"Hecho: fondo de espera {escena}."
+
+
+async def pantalla_completa(que):
+    if que == "tiempo":
+        await panel._abrir_tiempo()  # Nothing Weather entero en el visor
+        return "Hecho: Nothing Weather en pantalla."
+    if que not in ("impresora", "sistema", "salir"):
+        return "Error: que es impresora | tiempo | sistema | salir."
+    panel.S["completa"] = {"que": que, "id": time.time()}
+    return f"Hecho: {que} a pantalla completa." if que != "salir" else "Hecho: vuelvo al panel."
+
+
+async def leer_pegado(desde="0"):
+    txt = panel.pegado()
+    if not txt:
+        return "No hay texto pegado."
+    i = max(0, int(float(desde or 0)))
+    return f"[caracteres {i}-{min(len(txt), i + 20000)} de {len(txt)}]\n" + txt[i:i + 20000]
+
+
+def _con_pegado():
+    """Lo que el usuario pegó en el panel, para que los trabajos en segundo plano también lo tengan."""
+    txt = panel.pegado()
+    return f"\n\nCONTEXTO QUE EL USUARIO PEGÓ EN EL PANEL (úsalo si es relevante):\n{txt[:60000]}\n" if txt else ""
+
+
 _ENERGIA = {"suspender": "suspend", "apagar": "poweroff", "reiniciar": "reboot"}
 _PROGRAMADO = {}  # "t": la tarea pendiente (solo una a la vez)
 
@@ -308,13 +426,26 @@ async def _energia_luego(cmd, espera):
     await asyncio.create_subprocess_exec("systemctl", cmd)
 
 
+async def pasar_cos():
+    """C.O.S. = comprobaciones operativas de sistemas: servicios, audio, panel, móvil, red, disco, RAM, temperatura."""
+    _, out = await _run(["bash", str(AQUI / "comprobar_servicios.sh"), "cos"], timeout=30)
+    if ST.get("ruido", 0) >= 3:
+        out += "\n🩺 servicios: ⚠️ Gemini oye ruido en vez de voz (micro saturado o roto)"
+    return out.replace("🩺 servicios: ", "- ")
+
+
 acciones.registrar([
+    acciones._fn("pasar_cos",
+                 "Pasa las C.O.S. (comprobaciones operativas de sistemas): revisa audio, micro, panel, mascota, ventanas, "
+                 "móvil, internet/Gemini, impresora, disco, RAM y temperatura, y arranca lo que esté caído. Úsalo cuando "
+                 "diga «pasar C.O.S.», «pasa las COS», «comprobaciones operativas», «¿está todo bien?». Contesta breve: "
+                 "si sale OK, que todo está operativo (y las notas sin ⚠️ en una frase); si hay ⚠️, di cada fallo."),
     acciones._fn("mostrar",
                  "Muestra contenido en la pantalla del panel (DeltaOS), integrado y sin marcos: webs, búsquedas de Google, "
                  "un vídeo de YouTube (lo reproduce), Wikipedia, Google Maps o un informe. Úsalo cuando el usuario diga "
                  "«enséñame», «ábreme», «pon el vídeo», «busca en el mapa»… Para abrir en el navegador normal usa abrir.",
                  {"que": acciones._s("web | google | youtube | wikipedia | mapa | informe | cerrar"),
-                  "consulta": acciones._s("URL, búsqueda, lugar o parte del nombre del informe (vacío para cerrar)")}, req=["que"]),
+                  "consulta": acciones._s("URL, búsqueda, lugar o parte del nombre del informe o documento (vacío para cerrar)")}, req=["que"]),
     acciones._fn("buscar",
                  "Búsqueda rápida en internet: devuelve los datos relevantes para contestar de palabra. Úsala por defecto "
                  "cuando te pidan buscar o averiguar algo.",
@@ -324,6 +455,13 @@ acciones.registrar([
                  f"{BIBLIOTECA}, cruza fuentes y deja un informe con citas que se muestra en el panel. Para preguntas que "
                  "el usuario pide así («investiga a fondo», «hazme un informe»); si solo pide buscar algo, usa buscar.",
                  {"pregunta": acciones._s("la pregunta completa a investigar")}),
+    acciones._fn("editar_informe",
+                 "Edita un informe que generaste con investigar (por defecto el que está en el visor): subrayar en rojo, "
+                 "poner en rojo, resaltar, añadir notas o comentarios, reescribir, añadir o quitar datos o secciones. "
+                 "Úsalo cuando diga «subraya en rojo…», «resalta…», «añade al informe…», «quita…», «cámbialo por…». "
+                 "orden=«deshacer» recupera la versión anterior.",
+                 {"orden": acciones._s("lo que hay que cambiar, con las palabras del usuario y los datos concretos"),
+                  "informe": acciones._s("parte del nombre del informe; vacío = el del visor o el último")}, req=["orden"]),
     acciones._fn("buscar_skills", "Busca skills (capacidades con instrucciones) instaladas y en el catálogo público skills.sh.",
                  {"consulta": acciones._s("tema o tarea, en inglés suele dar más resultados")}),
     acciones._fn("instalar_skill",
@@ -337,10 +475,26 @@ acciones.registrar([
                  "Cambia la interfaz entre el panel completo y el modo mascota (solo el mapache flotando). Úsalo cuando "
                  "el usuario diga «modo mascota», «pasa a mascota», «panel completo», «abre el panel»…",
                  {"modo": acciones._s("panel | mascota")}),
+    acciones._fn("fondo",
+                 "Elige el fondo del modo espera del panel (sale cuando duermes): reloj grande, la mascota en el centro, "
+                 "la estación meteo, o la impresión en vivo (recorrido 3D de la boquilla). auto = va rotando y la impresión manda mientras imprime. "
+                 "Úsalo cuando diga «pon el reloj de fondo», «fondo de la impresora», «salvapantallas»…",
+                 {"escena": acciones._s("auto | reloj | mascota | impresion | tiempo")}),
+    acciones._fn("pantalla_completa",
+                 "Pone a pantalla completa en el panel: impresora (la pieza en 3D en vivo con TODO: capas, tiempos, "
+                 "filamento, temperaturas con gráfica, velocidades, flujo, ventiladores, histórico), tiempo (Nothing Weather "
+                 "entero) o sistema (procesos por RAM y cuáles se pueden cerrar). salir = volver al panel. Úsalo cuando diga "
+                 "«ponme la impresora en grande / a pantalla completa», «enséñame el tiempo completo», «¿qué está comiendo RAM?» "
+                 "(enséñalo y dilo)…",
+                 {"que": acciones._s("impresora | tiempo | sistema | salir")}),
+    acciones._fn("leer_pegado",
+                 "Lee el texto que el usuario pegó en el panel (botón del lápiz). Ya lo tienes como contexto; úsalo solo "
+                 "si era largo y necesitas el resto, a partir de un carácter.",
+                 {"desde": acciones._s("carácter desde el que leer; 0 = el principio")}),
     acciones._fn("energia",
                  "Suspende, apaga o reinicia el ordenador, ahora o dentro de N minutos, o cancela lo programado. "
                  "Úsalo cuando diga «suspende/apaga/reinicia el ordenador», «apágalo en media hora», «cancela el apagado». "
                  "Apagar y reiniciar piden confirmación: pregúntale «¿Seguro, señor?» y si dice que sí usa responder_permiso.",
                  {"accion": acciones._s("suspender | apagar | reiniciar | cancelar"),
                   "minutos": acciones._s("minutos de espera; 0 = ahora")}, req=["accion"]),
-], (mostrar, buscar, investigar, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, energia))
+], (pasar_cos, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, fondo, pantalla_completa, leer_pegado, energia))

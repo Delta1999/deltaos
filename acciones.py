@@ -228,7 +228,20 @@ def _solo_lectura(comando):
     return True
 
 
+# 2026-10-15: «kill $(ps … nice < 0)» se aprobó sin ver qué mataba y tiró PipeWire, WirePlumber y KWin
+_MATAR = re.compile(r"\b(kill|pkill|killall)\b")
+_VITALES = re.compile(r"\$\(|`|pipewire|wireplumber|kwin|plasma|kded|xwayland|systemd|\s-1\b|\s0\s*$")
+
+
+def _mata_sesion(c):
+    """kill con objetivos calculados ($(…)) o que tocan el audio/escritorio: no se pide permiso, se rechaza."""
+    return bool(_MATAR.search(c) and _VITALES.search(c.lower()))
+
+
 async def ejecutar_shell(comando):
+    if _mata_sesion(comando):
+        return ("Rechazado: ese kill calcula a quién mata o toca el audio/escritorio (PipeWire, WirePlumber, KWin…), "
+                "y tumbaría la sesión. Lista primero los procesos y mata solo uno concreto por su nombre o PID.")
     if not _solo_lectura(comando) and not await _confirmar(f"ejecutar `{comando}`"):
         return "El usuario denegó la ejecución."
     code, out = await _run(["bash", "-lc", comando])
@@ -750,4 +763,9 @@ if __name__ == "__main__":
     for c in ["rm -rf /", "ps > x", "ls; rm x", "find . -delete", "cat $(ls)", "sudo ls", "systemctl stop x",
               "top", "sort -o x y", "uniq a b", "curl http://192.168.0.102:7125", "env rm x", "ls &", "echo `id`"]:
         assert not _solo_lectura(c), c
+    for c in ["kill $(ps -eo pid,ni,cmd | awk '$2 < 0 {print $1}')", "pkill wireplumber", "killall kwin_wayland",
+              "kill -9 -1", "kill `pgrep x`"]:
+        assert _mata_sesion(c), c
+    for c in ["kill 12345", "pkill chromium", "killall mpv", "ps aux"]:
+        assert not _mata_sesion(c), c
     print("ok")

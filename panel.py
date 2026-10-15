@@ -18,6 +18,7 @@ import httpx
 from aiohttp import web
 
 import acciones
+from google.genai import types
 
 PORT = 7876
 AQUI = Path(__file__).parent
@@ -52,9 +53,13 @@ def texto(rol: str, t: str):
 
 def notificar(tipo: str, txt: str):
     """Aviso importante para el modo ALERTAS del panel. tipo: 'alerta' (rojo) o 'info'."""
-    S["notifs"].append({"t": time.strftime("%H:%M"), "tipo": tipo, "txt": txt[:140], "id": time.time()})
-    del S["notifs"][:-8]
+    S["notifs"].append({"t": time.strftime("%H:%M"), "tipo": tipo, "txt": txt[:140], "id": time.time(),
+                        "fix": tipo == "alerta" and not any(x in txt.lower() for x in NO_ARREGLABLE)})
+    del S["notifs"][:-50]
     S["nuevas"] += 1
+
+
+NO_ARREGLABLE = ("impresora", "pide permiso")  # cosas de fuera de Delta: sin llave inglesa
 
 
 # $ por 1M tokens del nivel de pago de gemini-3.8-live (ai.google.dev/gemini-api/docs/pricing, 2026-10):
@@ -181,14 +186,15 @@ async def _poll_impresora():
         try:
             st = await acciones._impresora()
             ps = st["print_stats"]
-            S["impresora"] = {
+            imp = {
                 "online": True, "estado": ps["state"], "archivo": ps.get("filename", ""),
                 "prog": round(st["virtual_sdcard"]["progress"] * 100),
                 "boquilla": [round(st["extruder"]["temperature"]), round(st["extruder"]["target"])],
                 "cama": [round(st["heater_bed"]["temperature"]), round(st["heater_bed"]["target"])],
             }
             if ps["state"] in ("printing", "paused"):
-                S["impresora"]["quedan"] = (await acciones._tiempo_restante_impresora())[0]
+                imp["quedan"] = (await acciones._tiempo_restante_impresora())[0]
+            S["impresora"] = imp  # se asigna entero: nadie lee una ficha a medias
             if ps["state"] == "error" and previo != "error":
                 notificar("alerta", "La impresora está en error")
             if previo == "printing" and ps["state"] == "complete":
@@ -301,10 +307,65 @@ def _cmd(ST, cmd):
         acciones.tarea(_abrir_tiempo())
     elif cmd == "cerrar_visor":
         S["visor"] = None
+    elif cmd == "reset_v2":  # botón del menú de la hora; sesión aparte para sobrevivir al reinicio de Delta
+        subprocess.Popen([str(Path(__file__).with_name("reset_v2.sh"))], start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     elif cmd == "dormir":
         acciones.dormir_ahora() if ST["activo"] else acciones.activar()
     elif cmd in ("permitir", "denegar") and ST["pending"] and not ST["pending"].done():
         ST["pending"].set_result("s" if cmd == "permitir" else "n")
+
+
+# ---- texto pegado desde el panel: contexto para Delta ----
+PEGADO = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "delta-pegado.txt"  # se borra al reiniciar el PC
+MAX_PEGADO = 200_000  # caracteres que se guardan
+EN_LINEA = 30_000     # los que entran en la conversación; el resto, con leer_pegado
+
+
+def pegado():
+    try:
+        return PEGADO.read_text()
+    except OSError:
+        return ""
+
+
+def _pegar(ST, txt):
+    txt = txt.strip()[:MAX_PEGADO]
+    if not txt:
+        PEGADO.unlink(missing_ok=True)
+        S["pegado"] = None
+        return
+    PEGADO.write_text(txt)
+    S["pegado"] = {"id": time.time(), "n": len(txt), "ini": txt[:90]}
+    acciones.tarea(_dar_y_preguntar(ST, txt))
+
+
+async def _dar_y_preguntar(ST, txt):
+    """Al cerrar la ventana del lápiz con texto: Delta lo recibe y pregunta qué hacer con él."""
+    await entregar_pegado(ST)
+    ini = " ".join(txt[:60].split())
+    await acciones.avisar(f"Ya tengo el texto que me ha pasado por el panel («{ini}…»). ¿Qué hacemos con él? "
+                          "(propón en pocas palabras una o dos opciones según lo que sea)", notificar=False)
+
+
+if _t := pegado():  # tras reiniciar Delta sigue ahí: que se le vuelva a dar
+    S["pegado"] = {"id": PEGADO.stat().st_mtime, "n": len(_t), "ini": _t[:90]}
+
+
+async def entregar_pegado(ST):
+    """Mete el texto en la conversación como contexto, sin que responda (turn_complete=False). Una vez por texto y sesión."""
+    txt, s, info = pegado(), ST["session"], S.get("pegado")
+    if not txt or s is None or not info or ST.get("pegado_dado") == info["id"]:
+        return
+    resto = f" (son {len(txt)} caracteres; aquí van los {EN_LINEA} primeros, el resto con leer_pegado)" if len(txt) > EN_LINEA else ""
+    try:
+        await s.send_client_content(turns=types.Content(role="user", parts=[types.Part(text=(
+            f"[CONTEXTO PEGADO POR EL USUARIO desde el panel{resto}. Úsalo para lo que estemos haciendo. "
+            f"No lo leas en voz alta ni digas nada ahora; no menciones esta etiqueta.]\n{txt[:EN_LINEA]}"))]),
+            turn_complete=False)
+        ST["pegado_dado"] = info["id"]
+    except Exception as e:
+        print(f"No pude pasar el texto pegado: {e}")
 
 
 PRECISA = 5000  # m; GeoClue por IP da ~25 km, por wifi conocida < 1 km
@@ -401,7 +462,11 @@ async def _ws(request):
         async for m in ws:
             try:  # el navegador manda su posición {"geo":[lat,lon]} o un botón {"cmd":"privacidad"}
                 msg = json.loads(m.data)
-                if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "vista_panel", "vista_mascota", "tiempo"):
+                if isinstance(msg.get("llave"), (int, float)):
+                    _llave(msg["llave"])
+                if isinstance(msg.get("pegar"), str):
+                    _pegar(request.app["ST"], msg["pegar"])
+                if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "vista_panel", "vista_mascota", "tiempo", "reset_v2"):
                     _cmd(request.app["ST"], msg["cmd"])
                 g = msg.get("geo")
                 if g and len(g) == 3 and all(isinstance(x, (int, float)) for x in g) and g[2] <= PRECISA:
@@ -433,6 +498,216 @@ async def _difusor(ST):
             print(f"panel: {e}")
 
 
+# ---- modo espera: recorrido de la impresión en vivo (solo GET a Moonraker) ----
+async def _vivo(request):
+    try:
+        async with httpx.AsyncClient(timeout=4) as c:
+            r = await c.get(f"{acciones.MOONRAKER}/printer/objects/query?print_stats&virtual_sdcard&motion_report=live_position")
+        st = r.json()["result"]["status"]
+        return web.json_response({"archivo": st["print_stats"]["filename"], "estado": st["print_stats"]["state"],
+                                  "pos": st["virtual_sdcard"]["file_position"], "tam": st["virtual_sdcard"]["file_size"],
+                                  "boquilla": st["motion_report"]["live_position"][:3]})
+    except Exception:
+        return web.json_response({"estado": "offline"})
+
+
+async def _gcode(request):
+    """Solo el archivo que se está imprimiendo: el panel no puede pedir rutas arbitrarias."""
+    archivo = (S.get("impresora") or {}).get("archivo")
+    if not archivo or request.match_info["n"] != archivo:
+        raise web.HTTPNotFound()
+    resp = web.StreamResponse(headers={"Content-Type": "text/plain; charset=latin-1"})
+    await resp.prepare(request)
+    async with httpx.AsyncClient(timeout=60) as c:
+        async with c.stream("GET", f"{acciones.MOONRAKER}/server/files/gcodes/{urllib.parse.quote(archivo)}") as r:
+            async for trozo in r.aiter_bytes(1 << 16):
+                await resp.write(trozo)
+    return resp
+
+
+_meta: dict = {}  # metadatos del G-code por archivo: no cambian mientras se imprime
+
+
+async def _meta_de(c, archivo):
+    if archivo and archivo not in _meta:
+        _meta[archivo] = (await c.get("/server/files/metadata", params={"filename": archivo})).json()["result"]
+    return _meta.get(archivo)
+
+
+async def _todo(request):
+    """Pantalla completa de la impresora: todo lo que Moonraker sabe (solo GET)."""
+    q = "&".join(urllib.parse.quote(o) for o in ("print_stats", "virtual_sdcard", "extruder", "heater_bed", "fan",
+         "heater_fan ventilador_hotend", "gcode_move", "toolhead", "motion_report", "display_status", "idle_timeout",
+         "system_stats", "webhooks", "mcu"))
+    try:
+        async with httpx.AsyncClient(timeout=5, base_url=acciones.MOONRAKER) as c:
+            st, tot, temps, info = await asyncio.gather(c.get("/printer/objects/query?" + q), c.get("/server/history/totals"),
+                                                        c.get("/server/temperature_store"), c.get("/printer/info"))
+            st = st.json()["result"]["status"]
+            meta = await _meta_de(c, st["print_stats"]["filename"])
+        temps = {k: {n: v[n][-600::5] for n in ("temperatures", "targets", "powers") if n in v}  # 10 min, 1 de cada 5 s
+                 for k, v in temps.json()["result"].items() if k in ("extruder", "heater_bed")}
+        return web.json_response({"st": st, "meta": meta, "tot": tot.json()["result"]["job_totals"], "temps": temps,
+                                  "info": info.json()["result"], "quedan": (S.get("impresora") or {}).get("quedan")})
+    except Exception as e:
+        return web.json_response({"error": str(e)})
+
+
+async def _miniatura(request):
+    """La miniatura grande que guarda OrcaSlicer en el G-code en curso (nada de rutas arbitrarias)."""
+    archivo = (S.get("impresora") or {}).get("archivo")
+    m = _meta.get(archivo) or {}
+    if not m.get("thumbnails"):
+        raise web.HTTPNotFound()
+    rel = str(Path(archivo).parent / max(m["thumbnails"], key=lambda t: t["width"])["relative_path"])  # Path quita el «./»
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.get(f"{acciones.MOONRAKER}/server/files/gcodes/{urllib.parse.quote(rel)}")
+    if r.status_code != 200:
+        raise web.HTTPNotFound()
+    return web.Response(body=r.content, content_type="image/png", headers={"Cache-Control": "max-age=3600"})
+
+
+# ---- pantalla completa del sistema: procesos por RAM y cuáles se pueden cerrar ----
+NO_TOCAR = {"kwin_wayland", "plasmashell", "Xwayland", "ksmserver", "kded6", "pipewire", "pipewire-pulse", "wireplumber",
+            "dbus-broker", "dbus-daemon", "systemd", "xdg-desktop-portal", "xdg-desktop-portal-kde", "xdg-desktop-portal-gtk",
+            "xdg-document-portal", "xdg-permission-store", "kactivitymanagerd", "kglobalacceld", "kwalletd6", "ksecretd",
+            "polkit-kde-authentication-agent-1", "at-spi-bus-launcher", "at-spi2-registryd", "gvfsd", "kdeconnectd",
+            "org_kde_powerdevil", "plasma-keyboard", "xembedsniproxy", "gmenudbusmenuproxy", "ibus-daemon"}
+POR_QUE = {"kdeconnectd": "Delta lo usa para el móvil", "plasma-keyboard": "entrada de texto de Plasma"}
+CERRABLES = {"chrome": "navegador: cierra las pestañas que no uses", "firefox": "navegador: cierra pestañas",
+             "Telegram": "se cierra y se abre cuando haga falta", "orca-slicer": "OrcaSlicer: ciérralo si no estás laminando",
+             "blender": "ciérralo si no lo usas", "baloo_file": "indexador de archivos de KDE: se puede parar",
+             "baloo_file_extractor": "indexador de archivos de KDE: se puede parar",
+             "akonadi_control": "correo y agenda de KDE: si no usas KMail sobra", "ollama": "modelo local: libera mucha RAM si no lo usas",
+             "acestreamengine": "AceStream: ciérralo si no estás viendo nada", "node": "servidor de desarrollo (p. ej. Nothing Weather)",
+             "krema": "dock: prescindible", "plasma-discover": "tienda de apps: sobra abierta", "packagekitd": "actualizaciones en segundo plano",
+             "spotify": "ciérralo si no suena", "vlc": "ciérralo si no reproduce", "code": "editor: ciérralo si no lo usas"}
+_ticks_prev: dict = {}
+_t_prev = 0.0
+
+
+def _procesos_sync():
+    global _ticks_prev, _t_prev
+    yo, hz, ahora = os.getuid(), os.sysconf("SC_CLK_TCK"), time.monotonic()
+    P = {}
+    for d in Path("/proc").iterdir():
+        if not d.name.isdigit():
+            continue
+        try:
+            st = (d / "stat").read_text()
+            comm, resto = st[st.index("(") + 1:st.rindex(")")], st[st.rindex(")") + 2:].split()
+            cmd = (d / "cmdline").read_bytes().split(b"\0")
+            if not cmd[0]:
+                continue  # hilos del kernel
+            uid = d.stat().st_uid
+            try:  # PSS: lo que de verdad se liberaría (reparte la memoria compartida); solo legible en procesos propios
+                mem = int(next(l for l in (d / "smaps_rollup").read_text().splitlines() if l.startswith("Pss:")).split()[1])
+            except (OSError, StopIteration):
+                mem = int(next(l for l in (d / "status").read_text().splitlines() if l.startswith("VmRSS:")).split()[1])
+            arg = [a.decode(errors="replace") for a in cmd if a]
+            exe = Path(arg[0].split()[0]).name
+            if exe.startswith("python") and len(arg) > 1 and not arg[1].startswith("-"):
+                exe = Path(arg[1]).name
+            P[int(d.name)] = {"ppid": int(resto[1]), "exe": exe, "ticks": int(resto[11]) + int(resto[12]), "mem": mem,
+                              "uid": uid, "cmd": " ".join(arg)[:2000]}
+        except (OSError, ValueError, StopIteration):
+            continue
+    dt = (ahora - _t_prev) or 1
+    G = {}
+    for pid, p in P.items():
+        raiz = pid  # un programa = su proceso raíz con el mismo ejecutable (chrome y sus 30 hijos cuentan como uno)
+        while P.get(P[raiz]["ppid"], {}).get("exe") == p["exe"]:
+            raiz = P[raiz]["ppid"]
+        g = G.setdefault(raiz, {"exe": p["exe"], "n": 0, "kb": 0, "cpu": 0.0, "uid": P[raiz]["uid"], "cmd": P[raiz]["cmd"]})
+        g["n"] += 1
+        g["kb"] += p["mem"]
+        if pid in _ticks_prev:
+            g["cpu"] += 100 * (p["ticks"] - _ticks_prev[pid]) / hz / dt
+    _ticks_prev, _t_prev = {pid: p["ticks"] for pid, p in P.items()}, ahora
+    out = []
+    for raiz, g in sorted(G.items(), key=lambda x: -x[1]["kb"])[:30]:
+        e, cmd = g["exe"], g["cmd"]
+        if "gemini-live-assistant" in cmd or e in ("assistant.py", "mascota.py"):
+            nombre, tipo, por = {"assistant.py": "Delta", "mascota.py": "Delta · mascota"}.get(e, "Delta · panel"), "no", "es Delta"
+        elif e in ("claude", "claude-desktop"):
+            nombre, tipo, por = "Claude Code" if e == "claude" else "Claude (app)", "no", "con él trabajamos"
+        elif e in CERRABLES or "acestream" in cmd.lower():
+            nombre, tipo, por = e, "si", CERRABLES.get(e, "AceStream: ciérralo si no estás viendo nada")
+        elif g["uid"] != yo:
+            nombre, tipo, por = e, "no", "servicio del sistema"
+        elif e in NO_TOCAR:
+            nombre, tipo, por = e, "no", POR_QUE.get(e, "parte del escritorio")
+        else:
+            nombre, tipo, por = e, "mira", ""
+        out.append({"nombre": nombre, "pid": raiz, "n": g["n"], "mb": round(g["kb"] / 1024), "cpu": round(g["cpu"]), "tipo": tipo, "por": por})
+    m = {k: int(v.split()[0]) for k, v in (l.split(":", 1) for l in Path("/proc/meminfo").read_text().splitlines())}
+    zram = [l.split() for l in Path("/proc/swaps").read_text().splitlines()[1:]]
+    du = __import__("shutil").disk_usage("/")
+    # S["sistema"] va primero: sus ram/swap en % no deben pisar el detalle
+    return {**(S.get("sistema") or {}), "grupos": out, "nproc": len(P), "nucleos": os.cpu_count(), "carga": os.getloadavg(),
+            "arranque": float(Path("/proc/uptime").read_text().split()[0]),
+            "ram": {"total": m["MemTotal"] // 1024, "disp": m["MemAvailable"] // 1024, "cache": (m["Cached"] + m["Buffers"]) // 1024},
+            "swap": [{"dev": z[0], "mb": int(z[2]) // 1024, "usado": int(z[3]) // 1024} for z in zram],
+            "disco": {"total": du.total >> 30, "libre": du.free >> 30}}
+
+
+async def _procesos(request):
+    return web.json_response(await asyncio.to_thread(_procesos_sync))
+
+
+# ---- llave inglesa: alertas que el usuario marca para que Claude las arregle cuando el PC esté desahogado ----
+ARREGLOS = AQUI / "arreglos.json"  # sobrevive a los reinicios
+CALMA = {"cpu": 45, "ram": 80}     # por debajo en dos lecturas seguidas (1 min) y sin que Delta ni Claude estén liados
+ARREGLA = ("Arregla esta alerta que salió en el panel de Delta y que el usuario marcó con la llave inglesa para que se "
+           "arreglara cuando el PC estuviera libre: «{txt}» (a las {t}). Busca la causa (código, salida de Delta, "
+           "journalctl --user) y arréglala si es un fallo de Delta. Si es algo externo que no se arregla con código "
+           "(red, hardware, otro servicio), no cambies nada y explica por qué.")
+S["arreglos"] = [dict(a, estado="pendiente") if a["estado"] == "en curso" else a  # se cortó con un reinicio: otra vez
+                 for a in (json.loads(ARREGLOS.read_text()) if ARREGLOS.exists() else [])]
+
+
+def _guardar_arreglos():
+    S["arreglos"] = [a for a in S["arreglos"] if a["estado"] in ("pendiente", "en curso")] + \
+                    [a for a in S["arreglos"] if a["estado"] not in ("pendiente", "en curso")][-10:]
+    ARREGLOS.write_text(json.dumps(S["arreglos"], ensure_ascii=False, indent=1))
+
+
+def _llave(nid):
+    """Clic en la llave: encola la alerta; otro clic la quita si aún no ha empezado."""
+    a = next((a for a in S["arreglos"] if a["id"] == nid), None)
+    if a:
+        if a["estado"] != "en curso":
+            S["arreglos"].remove(a)
+    elif (n := next((n for n in S["notifs"] if n["id"] == nid and n.get("fix")), None)):
+        S["arreglos"].append({"id": nid, "t": n["t"], "txt": n["txt"], "estado": "pendiente"})
+    _guardar_arreglos()
+
+
+async def _poll_arreglos(ST):
+    import claude_acp  # aquí y no arriba: claude_acp importa panel
+    calma = 0
+    while True:
+        await asyncio.sleep(30)
+        try:
+            for a in S["arreglos"]:
+                if a["estado"] == "en curso" and not claude_acp.ocupado():
+                    a["estado"] = claude_acp._estado.get("ultimo", "hecho")
+                    a["res"] = claude_acp._estado["texto"].strip()[-400:]
+                    _guardar_arreglos()
+            s = S["sistema"] or {}
+            libre = (s.get("cpu", 100) < CALMA["cpu"] and s.get("ram", 100) < CALMA["ram"]
+                     and _estado(ST) in ("dormido", "escuchando") and not claude_acp.ocupado())
+            calma = calma + 1 if libre else 0
+            pend = next((a for a in S["arreglos"] if a["estado"] == "pendiente"), None)
+            if pend and calma >= 2:
+                pend["estado"], pend["inicio"] = "en curso", time.strftime("%H:%M")
+                _guardar_arreglos()
+                await claude_acp.mejorar_delta(ARREGLA.format(**pend), voz=False)
+                calma = 0
+        except Exception as e:
+            print(f"arreglos: {e}")
+
+
 async def start(ST, voz):
     """Arranca el servidor en 127.0.0.1; devuelve True si quedó escuchando."""
     S["voz"] = voz
@@ -443,6 +718,13 @@ async def start(ST, voz):
         app.router.add_get("/ws", _ws)
         app.router.add_get("/mapache.txt", lambda r: web.FileResponse(AQUI / "panel" / "mapache.txt"))
         app.router.add_static("/fonts", AQUI / "panel" / "fonts")
+        for js in ("fondo.js", "mapache3d.js", "three.module.js", "novedades.json"):
+            app.router.add_get("/" + js, lambda r, js=js: web.FileResponse(AQUI / "panel" / js))
+        app.router.add_get("/impresora/vivo", _vivo)
+        app.router.add_get("/impresora/gcode/{n}", _gcode)
+        app.router.add_get("/impresora/todo", _todo)
+        app.router.add_get("/impresora/miniatura", _miniatura)
+        app.router.add_get("/sistema/procesos", _procesos)
         for ruta, h in RUTAS:
             app.router.add_get(ruta, h)
         runner = web.AppRunner(app, access_log=None)
@@ -453,6 +735,7 @@ async def start(ST, voz):
         return False
     for f in (_poll_sistema, _poll_impresora, _poll_clima, _poll_audio, _poll_dispositivos, _poll_agenda):
         acciones.tarea(f())
+    acciones.tarea(_poll_arreglos(ST))
     acciones.tarea(_difusor(ST))
     print(f"Panel en http://127.0.0.1:{PORT}")
     return True

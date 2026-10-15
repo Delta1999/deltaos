@@ -19,6 +19,9 @@ fi
 # Guardar el dispositivo de salida original
 ORIG_SINK="$(pactl get-default-sink 2>/dev/null)"
 
+# Rutina: que estén en marcha los servicios que necesita (audio, escritorio, móvil, red); arranca los que pueda.
+"$DIR/comprobar_servicios.sh"
+
 # Rutina: perfil, micro, ganancia y altavoces como funcionaban (corrige y lo anota en el log).
 "$DIR/comprobar_audio.sh"
 

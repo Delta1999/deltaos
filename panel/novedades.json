@@ -1,0 +1,102 @@
+[
+ {
+  "f": "2026-10-15",
+  "t": "DeltaOS v2.0 guardada. Botón «↺ Volver a v2.0» en el menú de la hora: vuelve a esta versión estable y reinicia (lo posterior queda guardado en git)",
+  "como": "toca la hora → «↺ Volver a v2.0»"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Modo estudiante: Delta baja el audio de la clase que estás viendo, la transcribe, analiza lo que recalca el profe y te deja el tema en PDF anotado a mano (subrayado por colores, notas al margen, preguntas fijas, mnemotecnias y esquemas) en «Editados por mi»",
+  "como": "«Delta, descárgate el audio de esta clase y pásalo a apuntes»"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Al cerrar la ventana del lápiz con texto escrito, Delta se lo queda (aunque no pulses «Dar») y te pregunta qué hacemos con él, proponiendo una o dos opciones",
+  "como": "lápiz → pega o escribe → cierra (X, Esc o clic fuera)"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Pasar C.O.S. (comprobaciones operativas de sistemas): revisa audio, micro, panel, mascota, móvil, internet, impresora, disco, RAM y temperatura, arranca lo caído y te dice si todo va bien",
+  "como": "«Delta, pasar C.O.S.»"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Al arrancar o reiniciar, Delta comprueba los servicios que necesita y arranca los caídos (audio, KDE Connect); ya no acepta «kill» que tumben el audio o el escritorio",
+  "como": ""
+ },
+ {
+  "f": "2026-10-15",
+  "t": "El mapache del salvapantallas es el mismo 3D que la mascota: se pasea, sigue al ratón y saluda si lo tocas; pásale el ratón por encima 4 veces seguidas y se pone juguetón (brinca y da volteretas)",
+  "como": "clic derecho en el fondo hasta la escena del mapache"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Alertas con scroll (rueda del ratón) y llave inglesa en las arreglables: van a una cola que Claude arregla sola cuando el PC está tranquilo (CPU < 45 %, RAM < 80 %)",
+  "como": "botón «Alertas» · clic en la llave para encolar o quitar"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Pantallas completas: impresora con toda la información (pieza 3D realista, filamento, temperaturas, histórico…) y sistema con los procesos por RAM y cuáles se pueden cerrar; el tiempo abre Nothing Weather entero",
+  "como": "clic en la tarjeta · «ponme la impresora / el sistema / el tiempo a pantalla completa» · «quita la pantalla completa»"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "La impresión en curso también se ve en 3D en su tarjeta del panel; si la agenda no tiene nada, se oculta y deja más sitio a la pieza",
+  "como": ""
+ },
+ {
+  "f": "2026-10-15",
+  "t": "El panel abre ya directamente en el portátil (regla de KWin), sin aparecer antes en el ultrawide",
+  "como": ""
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Delta puede cambiarse a sí mismo: llama a Claude Code sobre su propio repositorio y deja registro (CAMBIOS_DELTA.md) con el diff para deshacerlo",
+  "como": "«cambia tu panel para que…» · «añádete…»"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Lápiz junto al mapache: pega o escribe un texto y Delta lo tiene como contexto (también al investigar o editar informes). Punto rojo = tiene texto",
+  "como": "Ctrl+Enter para dárselo · «Olvidar» lo borra"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Salvapantallas: clic derecho cambia de escena (impresión, reloj, mapache, estación meteo), doble clic lo quita; clic derecho en el mapache del panel lo pone ya",
+  "como": "«pon la estación meteo de fondo»"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Modo espera del panel: a los 30 s dormido sale un fondo (impresión 3D en vivo con la boquilla, reloj grande o la mascota). Clic = siguiente, Esc = volver",
+  "como": "«pon el reloj de fondo» · «fondo de la impresora» · «automático»"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "DeltaOS edita sus informes: subrayar en rojo, poner en rojo, resaltar, notas al margen, reescribir o quitar",
+  "como": "«subraya en rojo las cifras» · «deshaz»"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Mascota: los triángulos de la barriga son ahora sus manos y se mueven; el brazo solo aparece al separarlas",
+  "como": ""
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Mascota en patrulla al pasear en espera: tricornio, placa, porra y a veces «¡ALTO! GUARDIA CIVIL»",
+  "como": ""
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Mascota más expresiva: orejas, manos y boca animadas según escucha, habla, trabaja, duerme o pide permiso",
+  "como": ""
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Mascota fuera de su ventana: se pasea por el escritorio, camina con las patas, se gira en 3D y se sube a las ventanas",
+  "como": "«modo mascota»"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Arregladas las dos voces de Delta",
+  "como": ""
+ }
+]
