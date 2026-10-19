@@ -14,17 +14,17 @@
   --dot:"Doto","IBM Plex Mono",monospace;--mono:"IBM Plex Mono",ui-monospace,monospace}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--mono);overflow:hidden}
-body{display:grid;grid-template-rows:auto 1fr auto;gap:28px;padding:32px 40px}
+body{display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:minmax(0,1fr);gap:28px;padding:32px 40px}
 .dot{font-family:var(--dot);font-weight:900;letter-spacing:.04em}
 .lbl{font-size:12px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
 header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
 #hora{font-size:92px;line-height:.9}
 #fecha{margin-top:8px}
-.meta{display:flex;gap:36px;text-align:right}
-.meta div{max-width:300px}
+.meta{display:flex;gap:clamp(14px,2vw,36px);text-align:right;min-width:0}
+.meta div{max-width:300px;min-width:0}.meta div:is(:nth-child(1),:nth-child(2),:last-child){flex:none}  /* encogen dispositivos y memoria, que son los largos */
 .meta b{display:block;font-weight:500;font-size:15px;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ok{color:var(--fg)}.mal{color:var(--red)}
-main{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:1fr 1.3fr;gap:28px;min-height:0}
+main{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:28px;min-height:0}
 .card{border:1px solid var(--line);border-radius:22px;padding:22px 26px;position:relative;overflow:hidden;min-height:0}
 #hero{display:flex;flex-direction:column;justify-content:space-between}
 canvas{width:100%;flex:1;min-height:0;display:block}
@@ -34,7 +34,7 @@ canvas{width:100%;flex:1;min-height:0;display:block}
 .fr{font-size:22px;line-height:1.35;color:var(--dim)}
 .fr:last-child{color:var(--fg)}
 .fr small{display:block;font-size:11px;letter-spacing:.2em;margin-bottom:4px;color:var(--red)}
-footer{display:grid;grid-template-columns:.75fr 1.15fr .75fr 1.3fr;gap:28px}
+footer{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.15fr) minmax(0,.75fr) minmax(0,1.3fr);gap:28px}
 #imp .big{font-size:40px}
 .ag{display:grid;grid-template-columns:52px 1fr auto;gap:10px;font-size:13px;margin-top:8px}
 .ag span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ag b{font-weight:500}.ag .r{color:var(--red)}
@@ -53,7 +53,7 @@ footer{display:grid;grid-template-columns:.75fr 1.15fr .75fr 1.3fr;gap:28px}
 #der{display:flex;flex-direction:column;gap:28px;min-height:0}
 #der #frases{flex:1}
 #consola{padding:14px 22px 12px;display:flex;flex-direction:column;gap:8px}
-.gs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.gs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .g{text-align:center;display:flex;flex-direction:column;align-items:center}
 .g canvas{flex:none;width:100%;height:64px}
 .g .lbl{margin-top:8px}.g b{font-family:var(--dot);font-weight:900;font-size:19px;letter-spacing:.04em;margin-top:2px}
@@ -140,7 +140,7 @@ body.chuleta #chuleta{display:block}
 .cola{border:1px solid var(--line);border-radius:14px;padding:10px 14px;font-size:13px;flex:none}.cola .ag{grid-template-columns:44px 1fr auto}
 /* la impresión en 3D dentro de su tarjeta; clic = pantalla completa */
 #imp,#sis{cursor:pointer}
-body.sinagenda footer{grid-template-columns:1.9fr .75fr 1.3fr}body.sinagenda #agenda{display:none}body.sinagenda #imp3d{width:72%}#impd{position:relative}
+body.sinagenda footer{grid-template-columns:minmax(0,1.9fr) minmax(0,.75fr) minmax(0,1.3fr)}body.sinagenda #agenda{display:none}body.sinagenda #imp3d{width:72%}#impd{position:relative}
 #imp3d{position:absolute;top:0;right:0;bottom:0;width:58%;pointer-events:none;-webkit-mask:linear-gradient(90deg,transparent,#000 35%);mask:linear-gradient(90deg,transparent,#000 35%)}
 #imp3d canvas,#fi-cv{position:absolute;inset:0;width:100%;height:100%}
 #fondo.full #f-impresion #fi-cv{width:60%}
@@ -158,6 +158,15 @@ body.sinagenda footer{grid-template-columns:1.9fr .75fr 1.3fr}body.sinagenda #ag
 #fs-tabla .h{font-size:11px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}#fs-tabla .n{text-align:right}
 #fs-tabla .no{color:var(--dim)}#fs-tabla .si{color:var(--red)}#fs-tabla .bar{margin:0}
 #fi-info{margin-top:12px;font-size:13px;line-height:1.7;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+/* Pantallas bajas (la ventana del portátil, 1280×720): el pie se comía la fila central (2026-10-19) */
+@media (max-height:820px){
+  body{gap:14px;padding:16px 24px}main,footer,#der{gap:14px}
+  .card{padding:14px 18px;border-radius:16px}
+  #hora{font-size:60px}#estado{font-size:40px}.fr{font-size:17px}
+  #clima #ic0{width:66px!important;height:66px!important}.hs canvas{width:44px!important;height:44px!important}
+  .hs{margin:8px 0 2px}.row{margin-top:5px}.big{font-size:40px}
+  .mando{padding-top:8px}.g canvas{height:52px}
+}
 </style>
 </head>
 <body>

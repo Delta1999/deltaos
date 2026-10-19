@@ -166,7 +166,7 @@ def snapshot(ST):
         "ultima": round(ahora - ST["ultima"]),
         "nivel": S.get("nivel", 0) if time.monotonic() < _hablando_hasta else 0,
         "hora": time.strftime("%H:%M"),
-        "fecha": time.strftime("%a %d %b").upper(),
+        "fecha": _fecha(),
     }
 
 
@@ -422,20 +422,25 @@ async def _abrir_tiempo():
     S["visor"] = {"url": f"http://127.0.0.1:7875/{q}", "titulo": "Nothing Weather", "id": time.time()}
 
 
+def _fecha(t=None):  # strftime va con el locale C y salía «MON 19 OCT»
+    t = time.localtime(t)
+    return f"{'LUN MAR MIÉ JUE VIE SÁB DOM'.split()[t.tm_wday]} {t.tm_mday:02d} {'ENE FEB MAR ABR MAY JUN JUL AGO SEP OCT NOV DIC'.split()[t.tm_mon - 1]}"
+
+
 async def _poll_clima():
     while True:
         try:
             lugar = await posicion()
             async with httpx.AsyncClient(timeout=10) as c:
-                j = (await c.get(f"https://wttr.in/{lugar}?format=j1")).json()
+                j = (await c.get(f"https://wttr.in/{lugar}", params={"format": "j1", "lang": "es"})).json()
             cur, hoy = j["current_condition"][0], j["weather"][0]
             def min24(s):  # "06:30 AM" -> minutos desde medianoche
                 h, m = time.strptime(s, "%I:%M %p")[3:5]
                 return h * 60 + m
             S["clima"] = {"temp": int(cur["temp_C"]), "sens": int(cur["FeelsLikeC"]), "hum": int(cur["humidity"]),
-                          "desc": cur["weatherDesc"][0]["value"], "ciudad": j["nearest_area"][0]["areaName"][0]["value"],
+                          "desc": _es(cur), "ciudad": j["nearest_area"][0]["areaName"][0]["value"],
                           "max": int(hoy["maxtempC"]), "min": int(hoy["mintempC"]), "code": int(cur["weatherCode"]),
-                          "viento": int(cur["windspeedKmph"]), "dir": cur["winddir16Point"], "uv": int(cur["uvIndex"]),
+                          "viento": int(cur["windspeedKmph"]), "dir": cur["winddir16Point"].replace("W", "O"), "uv": int(cur["uvIndex"]),
                           "lluvia": max(int(h["chanceofrain"]) for h in hoy["hourly"]),
                           "sale": min24(hoy["astronomy"][0]["sunrise"]), "pone": min24(hoy["astronomy"][0]["sunset"]),
                           # horas de hoy y mañana: k = horas desde las 00:00 de hoy
