@@ -46,15 +46,15 @@ class Mapache:
 
     def posar(self, pose):
         M = self.matrices(pose)
-        R = M[:, :, :3].transpose(0, 2, 1).astype(np.float32)
-        Vb, Nb = self.v @ R + M[:, None, :, 3].astype(np.float32), self.n @ R  # todos los vértices con cada hueso
-        todos = np.arange(len(self.v))
-        v = sum(self.w[:, k, None] * Vb[self.wi[:, k], todos] for k in range(self.wi.shape[1]))  # skinning lineal
-        n = sum(self.w[:, k, None] * Nb[self.wi[:, k], todos] for k in range(self.wi.shape[1]))
+        Mf = M.astype(np.float32)
+        Mv = sum(self.w[:, k, None, None] * Mf[self.wi[:, k]] for k in range(self.wi.shape[1]))  # skinning lineal: matriz mezclada por vértice
+        v = np.einsum("vij,vj->vi", Mv[:, :, :3], self.v) + Mv[:, :, 3]
+        n = np.einsum("vij,vj->vi", Mv[:, :, :3], self.n)
         return v, n / np.linalg.norm(n, axis=1, keepdims=True), M
 
-    def pintar(self, pose, yaw=0.0, contorno=True):
-        """→ (gris TAM×TAM uint8, 0 = vacío; profundidad TAM×TAM; {ancla: (col, fila) o None si está tapada})."""
+    def pintar(self, pose, yaw=0.0, contorno=True, todas=False):
+        """→ (gris TAM×TAM uint8, 0 = vacío; profundidad TAM×TAM; {ancla: (col, fila) o None si está tapada}).
+        todas: {ancla: (col, fila, visible)}, también las tapadas (el tricornio va sobre la coronilla, que nunca se ve)."""
         v, n, M = self.posar(pose)
         a = np.radians(yaw)
         Rz = np.array([[np.cos(a), np.sin(a), 0], [-np.sin(a), np.cos(a), 0], [0, 0, 1]])
@@ -87,7 +87,8 @@ class Mapache:
             q = (M[b, :, :3] @ p + M[b, :, 3] - (CENTRO[0], 0, CENTRO[1])) @ V.T
             c, f = int(q[0] + TAM / 2), int(TAM / 2 - q[1])
             vis = 0 <= c < TAM and 0 <= f < TAM and q[2] <= Z[f, c] + 1.2
-            anclas[nombre] = (q[0] + TAM / 2, TAM / 2 - q[1]) if vis else None
+            xy = (q[0] + TAM / 2, TAM / 2 - q[1])
+            anclas[nombre] = (*xy, vis) if todas else xy if vis else None
         return G, Z, anclas
 
 

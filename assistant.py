@@ -513,6 +513,8 @@ async def main():
                 await asyncio.gather(*pending, return_exceptions=True)
         except Exception as e:
             print(f"\nError en la sesión Live: {e}")
+            if handle and "not found or expired" in str(e):  # 1008: el handle ya no vale; reintentarlo eran 2 fallos más
+                SESSION_HANDLE.clear()
         acciones.ST["session"] = None
         fallos = fallos + 1 if time.monotonic() - t0 < 15 else 0
         await asyncio.sleep(1)

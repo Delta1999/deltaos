@@ -11,12 +11,12 @@ from acciones import _fn, _s
 AQUI = Path(__file__).parent
 
 
-def clase_a_apuntes(url="", tema="", audio=""):
+def clase_a_apuntes(url="", tema="", audio="", profe=""):
     argv = [sys.executable, str(AQUI / "estudio_clase.py"), "--abrir"]
     if tema.strip():
         n = "".join(c for c in tema if c.isdigit())
         if not n:
-            return f"Error: «{tema}» no es un número de tema (0-23)."
+            return f"Error: «{tema}» no es un número de tema (1-23)."
         argv += ["--tema", n]
     if audio.strip():
         f = Path(audio).expanduser()
@@ -25,9 +25,12 @@ def clase_a_apuntes(url="", tema="", audio=""):
         argv += ["--audio", str(f)]
     elif url.strip():
         argv += ["--url", url.strip()]
+    if profe.strip():
+        argv += ["--profe", profe.strip()]
     r = acciones.lanzar("apuntes", argv, cwd=str(AQUI), timeout=6 * 3600)
     return (r + " Tarda entre 15 y 40 minutos por clase (transcribir, analizar al profesor y montar el PDF);"
-            " el resultado va a Temario_Guardia_Civil/Editados por mi/ y lo abro en Okular.")
+            " si el tema ya tenía clases, la junto con ellas en el mismo PDF. Va a Temario_Guardia_Civil/DeltaOs/"
+            " (la versión anterior queda en «Versiones anteriores») y lo abro en Okular.")
 
 
 acciones.registrar([
@@ -37,9 +40,11 @@ acciones.registrar([
         "preguntas fijas, mnemotecnias y esquemas. «Descárgate el audio de esta clase y pásalo a apuntes». "
         "Si está viendo el vídeo en el navegador, lee antes la URL de la barra con mirar_detalle y pásala. "
         "Sin URL ni audio usa lo último que bajó con la extensión Vimeo Media Downloader. "
-        "El tema lo saca del nombre del vídeo («T1_…»); si no está claro, pregúntaselo.",
+        "El tema lo saca del nombre del vídeo («T1_…»); si no está claro, pregúntaselo. Si el tema ya tiene clases "
+        "(de este u otro profesor), esta se AÑADE al mismo PDF, no lo sustituye. Si sabe de qué profesor es, pásalo.",
         {"url": _s("dirección de la página donde está el vídeo de la clase"),
-         "tema": _s("número del tema del temario (0-23), si se sabe"),
+         "tema": _s("número del tema del temario (1-23), si se sabe"),
+         "profe": _s("nombre del profesor de la clase (p. ej. «Paco Arriola»), si lo dice"),
          "audio": _s("ruta de un audio/vídeo ya descargado, si lo dice")}),
 ], [clase_a_apuntes])
 acciones.ETIQUETAS.update(clase_a_apuntes="Paso la clase a apuntes")

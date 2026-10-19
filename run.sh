@@ -7,8 +7,11 @@ exec 9>"${XDG_RUNTIME_DIR:-/tmp}/delta.lock"
 flock -n 9 || { echo "Delta ya está en marcha."; exit 0; }
 
 # Si no corre en una terminal interactiva (p.ej. inicio automático), guardar log.
+# Cada línea con su hora (2026-10-19: sin ella no se sabía cuándo pasó un fallo). 9>&-: el filtro no se queda el candado.
 if [ ! -t 1 ]; then
-  exec >> "$DIR/assistant.log" 2>&1
+  exec > >(exec 9>&-; while IFS= read -r l || [ -n "$l" ]; do
+    if [ -n "$l" ]; then printf '%(%d/%m %H:%M:%S)T %s\n' -1 "$l"; else echo; fi
+  done >> "$DIR/assistant.log") 2>&1
 fi
 
 # La clave vive en ~/.bashrc; run.sh no es interactivo, así que la extraemos aquí.

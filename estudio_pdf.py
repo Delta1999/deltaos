@@ -43,7 +43,13 @@ def _norm(w):
 
 def buscar(palabras, frag):
     """palabras = page.get_text('words'). Devuelve los rectángulos (uno por línea) del fragmento o []."""
-    toks = [t for t in (_norm(x) for x in frag.split()) if t]
+    toks = []  # «re- comendación» copiado del PDF también va junto
+    for x in frag.split():
+        if toks and toks[-1].endswith("-"):
+            toks[-1] += x
+        else:
+            toks.append(x)
+    toks = [t for t in map(_norm, toks) if t]
     seq, idx = [], []  # palabra normalizada y sus índices; «Euro-» + «peo» se juntan en una
     for i, w in enumerate(palabras):
         t = _norm(w[4])
@@ -69,11 +75,22 @@ def buscar(palabras, frag):
     return list(lineas.values())
 
 
+def situar(W, p, frags):
+    """Página (0-based) donde casan más fragmentos: la que dice el modelo, las vecinas y por último todo el tema.
+    El modelo se equivoca a menudo de página (cuenta la impresa, o la de otro lote)."""
+    cerca = sorted(range(len(W)), key=lambda i: (abs(i - p), i))
+    for paginas in (cerca[:1], cerca[1:41], cerca[41:]):
+        cuenta = {i: sum(bool(buscar(W[i], f)) for f in frags) for i in paginas}
+        mejor = max(cuenta, key=cuenta.get, default=None)
+        if mejor is not None and cuenta[mejor]:
+            return mejor
+    return None
+
+
 def subrayar(page, rects, tipo, info=""):
     a = page.add_highlight_annot(quads=[r.quad for r in rects])
     a.set_colors(stroke=FONDO[tipo])
-    if info:
-        a.set_info(content=info, title="Delta")
+    a.set_info(content=info, title="Delta")  # firma: lo que no lleve «Delta» lo anotó el usuario (ver tocado_a_mano)
     a.update()
 
 
@@ -167,6 +184,8 @@ PLANTILLA = """<!doctype html><html><head><meta charset="utf-8"><style>
 h1{font-family:KalamB;font-size:26pt;margin:0 0 6pt;display:inline-block;position:relative}
 h1 span{position:relative;z-index:1}.sub{font-family:Caveat;font-size:17pt;color:#555;margin:0 0 10pt}
 .lienzo{position:absolute;left:64pt;right:30pt;top:105pt;bottom:70pt}.arbol{position:absolute;left:0;top:0;transform-origin:0 0}
+.arbol.v>.r{flex-direction:column}.arbol.v>.r>.hijos{flex-direction:row;align-items:flex-start;margin:34pt 0 0;gap:22pt}
+.arbol.v>.r>.hijos>.r{flex-direction:column;align-items:flex-start}.arbol.v>.r>.hijos>.r>.hijos{margin:10pt 0 0 26pt}
 .r{display:flex;align-items:center}.hijos{display:flex;flex-direction:column;gap:7pt;margin-left:38pt}
 .n{padding:4pt 9pt;font-size:13pt;line-height:1.15;max-width:200pt;position:relative;z-index:1}
 .t-titulo{font-family:KalamB;font-size:18pt;max-width:150pt}.t-rama{font-family:KalamB}.t-dato{font-size:12.5pt}
@@ -180,7 +199,10 @@ svg.capa{position:absolute;left:0;top:0;overflow:visible;z-index:0}
 </style><script src="rough.js"></script></head><body>__CUERPO__<script>
 const PLUMAS=['#1d4fa3','#c0392b','#1e8449','#7d3c98','#d35400','#0e6e7d'];
 document.fonts.ready.then(()=>{document.querySelectorAll('.lienzo').forEach(lz=>{
- const a=lz.querySelector('.arbol'),k=Math.min(1.9,lz.clientWidth/a.scrollWidth,lz.clientHeight/a.scrollHeight);
+ const a=lz.querySelector('.arbol'),esc=()=>Math.min(1.9,lz.clientWidth/a.scrollWidth,lz.clientHeight/a.scrollHeight);
+ // árbol ancho y bajo = media hoja vacía: probar raíz arriba con las ramas en columnas y quedarse con lo que salga más grande
+ const kh=esc();a.classList.add('v');if(esc()<=kh)a.classList.remove('v');const k=esc();
+ const raiz=a.querySelector(':scope>.r');
  a.style.transform=`scale(${k})`;a.style.top=Math.max(0,(lz.clientHeight-a.scrollHeight*k)/2)+'px';const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('capa');
  svg.setAttribute('width',a.scrollWidth);svg.setAttribute('height',a.scrollHeight);a.prepend(svg);const rc=rough.svg(svg);
  const R=e=>{const b=e.getBoundingClientRect(),o=a.getBoundingClientRect();return{x:(b.left-o.left)/k,y:(b.top-o.top)/k,w:b.width/k,h:b.height/k}};
@@ -190,6 +212,13 @@ document.fonts.ready.then(()=>{document.querySelectorAll('.lienzo').forEach(lz=>
   else if(t==='ojo')svg.append(rc.ellipse(r.x+r.w/2,r.y+r.h/2,r.w+16,r.h+12,{stroke:'#c0142a',strokeWidth:1.3,roughness:1.8}));
   else svg.append(rc.line(r.x+6,r.y+r.h-3,r.x+r.w-6,r.y+r.h-3,{stroke:'#f4d03f',strokeWidth:7,roughness:1.2}));
   const p=n.parentElement.parentElement.closest('.r');if(!p)return;const q=R(p.querySelector(':scope>.n'));
+  const v=a.classList.contains('v');
+  if(v&&p===raiz){const x1=q.x+q.w/2,y1=q.y+q.h+2,x2=r.x+r.w/2,y2=r.y-3,m=(y1+y2)/2;  // raíz → columna
+   svg.append(rc.path(`M${x1} ${y1} C${x1} ${m},${x2} ${m},${x2} ${y2}`,{stroke:c,strokeWidth:1.2,roughness:.9}));
+   svg.append(rc.linearPath([[x2-4,y2-6],[x2,y2],[x2+4,y2-6]],{stroke:c,strokeWidth:1.2}));return}
+  if(v&&p.parentElement.parentElement===raiz){const x1=q.x+12,y1=q.y+q.h+2,x2=r.x-3,y2=r.y+r.h/2;  // rama → hijos debajo
+   svg.append(rc.linearPath([[x1,y1],[x1,y2],[x2,y2]],{stroke:c,strokeWidth:1.2,roughness:.8}));
+   svg.append(rc.linearPath([[x2-6,y2-4],[x2,y2],[x2-6,y2+4]],{stroke:c,strokeWidth:1.2}));return}
   const x1=q.x+q.w+2,y1=q.y+q.h/2,x2=r.x-3,y2=r.y+r.h/2,m=(x1+x2)/2;
   svg.append(rc.path(`M${x1} ${y1} C${m} ${y1},${m} ${y2},${x2} ${y2}`,{stroke:c,strokeWidth:1.2,roughness:.9}));
   svg.append(rc.linearPath([[x2-6,y2-4],[x2,y2],[x2-6,y2+4]],{stroke:c,strokeWidth:1.2}))});});
@@ -214,7 +243,7 @@ def _arbol(nodos):
         sub = "".join(rama(h, plumas[i % len(plumas)] if nivel == 0 else pluma, nivel + 1, vistos)
                       for i, h in enumerate(hijos.get(n["id"], [])))
         return (f'<div class="r"><div class="n t-{n["tipo"]}" data-tipo="{n["tipo"]}" data-pluma="{pluma}">'
-                f'{html.escape(n["texto"])}</div>' + (f'<div class="hijos">{sub}</div>' if sub else "") + "</div>")
+                f'{html.escape(re.sub(r"^(\W*ojo\b\W*)+", "", n["texto"], flags=re.I) if n["tipo"] == "ojo" else n["texto"])}</div>' + (f'<div class="hijos">{sub}</div>' if sub else "") + "</div>")
     return "".join(rama(r, "#1b2a5c", 0, set()) for r in raices)
 
 
@@ -238,16 +267,20 @@ def esquema_pdf(e, ancho, alto, destino):
     return _chromium(cuerpo, ancho, alto, destino)
 
 
+def _min(n):
+    return n.get("minuto", "").strip("[] ")
+
+
 def resumen_pdf(an, sueltas, ancho, alto, destino):
     esc = html.escape
     fijas = [n for n in an["notas"] if n["tipo"] == "pregunta_fija"]
     anad = [n for n in an["notas"] if n["tipo"] == "anadido"]
-    li = lambda n: f'<li>{esc(n["nota"])} <span class="pag">pág. {n["pagina"]} · {esc(n["minuto"])}</span></li>'
+    li = lambda n: f'<li>{esc(n["nota"])} <span class="pag">pág. {n["pagina"]} · {esc(_min(n))}</span></li>'
     mn = "".join(f'<div class="caja"><b>{esc(m["regla"])}</b> — {esc(m["significa"])} <span class="pag">'
                  f'{"truco del profe" if m["origen"] == "profesor" else "regla sugerida"} · pág. {m["pagina"]}</span></div>'
                  for m in an["mnemotecnias"])
     cuerpo = (f'<div class="hoja" style="height:auto;min-height:{alto}pt"><h1><span>Clase de {esc(an.get("profesor") or "la academia")}</span></h1>'
-              f'<p class="sub">Lo que hay que saberse de esta clase</p><div class="texto"><p>{esc(an["resumen"])}</p>'
+              f'<p class="sub">Lo que hay que saberse de esta clase</p><div class="texto">{"".join(f"<p>{esc(x)}</p>" for x in (an["resumen"] if isinstance(an["resumen"], list) else [an["resumen"]]))}'
               f'<h2>Preguntas fijas ({len(fijas)})</h2><ul>{"".join(map(li, fijas))}</ul>'
               f'<h2>Reglas para memorizar</h2>{mn}'
               + (f'<h2>Dicho en clase y no está en el tema</h2><ul>{"".join(map(li, anad))}</ul>' if anad else "")
@@ -256,19 +289,34 @@ def resumen_pdf(an, sueltas, ancho, alto, destino):
     return _chromium(cuerpo, ancho, alto, destino)
 
 
+def tocado_a_mano(pdf):
+    """¿Tiene anotaciones que no puso Delta (hechas en Okular)? Entonces no se puede pisar sin guardar copia."""
+    with pymupdf.open(pdf) as d:
+        return any(a.info.get("title") != "Delta" for pg in d for a in pg.annots())
+
+
 # ── Composición ──────────────────────────────────────────────────────────────
 
 def componer(tema_pdf, an, sub, destino, trabajo):
     src = pymupdf.open(tema_pdf)
     W, H = src[0].rect.width, src[0].rect.height
     out = pymupdf.open()
+    W_src = [pg.get_text("words") for pg in src]
     por_pag = {}
+
+    def poner(clave, item, pagina, frags):
+        q = situar(W_src, pagina - 1, frags) if frags else None
+        d = por_pag.setdefault(pagina - 1 if q is None else q, {"notas": [], "mnemo": [], "sub": []})
+        if item not in d[clave]:  # los lotes del subrayado a veces repiten fragmentos
+            d[clave].append(item)
+
     for n in an["notas"]:
-        por_pag.setdefault(n["pagina"] - 1, {"notas": [], "mnemo": [], "sub": []})["notas"].append(n)
+        poner("notas", n, n["pagina"], n["subrayar"])
     for m in an["mnemotecnias"]:
-        por_pag.setdefault(m["pagina"] - 1, {"notas": [], "mnemo": [], "sub": []})["mnemo"].append(m)
+        poner("mnemo", m, m["pagina"], [m["subrayar"]])
     for s in sub:
-        por_pag.setdefault(s["pagina"] - 1, {"notas": [], "mnemo": [], "sub": []})["sub"] += s["fragmentos"]
+        for f in s["fragmentos"]:
+            poner("sub", f, s["pagina"], [f])
     esquemas = {}
     for i, e in enumerate(an["esquemas"]):
         esquemas.setdefault(e["despues_de_pagina"] - 1, []).append((i, e))
@@ -281,13 +329,15 @@ def componer(tema_pdf, an, sub, destino, trabajo):
         mapa[p] = len(out)
         d = por_pag.get(p)
         if d:
-            palabras = src[p].get_text("words")
+            palabras = W_src[p]
             for f in d["sub"]:
                 tot["frag"] += 1
                 if r := buscar(palabras, f):
                     tot["ok"] += 1
                     subrayar(pg, r, "estudio")
             notas = []
+            r_mnemo = [buscar(palabras, m["subrayar"]) for m in d["mnemo"]]
+            pisado = [x for r in r_mnemo for x in r]
             for n in d["notas"]:
                 rects = []
                 for f in n["subrayar"]:
@@ -295,17 +345,18 @@ def componer(tema_pdf, an, sub, destino, trabajo):
                     if r := buscar(palabras, f):
                         tot["ok"] += 1
                         rects += r
-                        subrayar(pg, r, n["tipo"], f'Profe ({n["minuto"]}): {n["cita"]}')
+                        subrayar(pg, r, n["tipo"], f'{n.get("profe") or "Profe"} ({_min(n)}): {n["cita"]}')
                 if not rects:
                     tot["sueltas"].append(n)
                     continue
                 tot["notas"] += 1
-                cita = f'Profe ({n["minuto"]}): «{n["cita"][:110]}»' if n["tipo"] in ("pregunta_fija", "ojo") and n["cita"] else ""
+                if n["tipo"] in ("dato", "explicacion") and any(r.intersects(x) for r in rects for x in pisado):
+                    continue  # el recuadro de la mnemotecnia ya lo dice: la nota de margen sería el mismo truco dos veces
+                cita = f'{n.get("profe") or "Profe"} ({_min(n)}): «{n["cita"][:110]}»' if n["tipo"] in ("pregunta_fija", "ojo") and n["cita"] else ""
                 notas.append({"y": min(r.y0 for r in rects), "texto": _limpia(n["nota"]), "tinta": TINTA[n["tipo"]],
                               "etiqueta": ETIQUETA.get(n["tipo"]), "cita": _limpia(cita)})
-            for m in d["mnemo"]:
+            for m, r in zip(d["mnemo"], r_mnemo):
                 tot["frag"] += 1
-                r = buscar(palabras, m["subrayar"])
                 if r:
                     tot["ok"] += 1
                     subrayar(pg, r, "mnemo", m["significa"])

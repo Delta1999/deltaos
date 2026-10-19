@@ -12,3 +12,7 @@ skills/
 averias.log
 avisos.json
 ubicacion_fija.json
+movil_clave.txt
+delta_movil.log
+movil_vapid.pem
+movil_suscripciones.json

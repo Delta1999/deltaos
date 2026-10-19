@@ -1,0 +1,10 @@
+{
+  "name": "Delta",
+  "short_name": "Delta",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "es",
+  "icons": [{"src": "/icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]
+}

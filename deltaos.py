@@ -296,7 +296,14 @@ async def buscar_skills(consulta):
 
 
 async def instalar_skill(id_skill):
-    """Descarga la carpeta de la skill de GitHub. Sin confirmación (lo pidió el usuario), pero siempre avisa."""
+    """Pide permiso (2026-10-19: sus instrucciones las sigue Gemini) y descarga la skill."""
+    if not await acciones._confirmar(f"instalar la skill {id_skill.strip()[:80]} de GitHub", voz=True):
+        return "El usuario no quiso instalar esa skill."
+    return await _descargar_skill(id_skill)
+
+
+async def _descargar_skill(id_skill):
+    """Descarga la carpeta de la skill de GitHub y avisa."""
     partes = id_skill.strip().strip("/").removeprefix("https://github.com/").split("/")
     if len(partes) < 3:
         return "Error: el id debe ser owner/repo/skill."
@@ -338,8 +345,10 @@ async def usar_skill(nombre):
 
 async def sincronizar_skills():
     fuentes = [f.read_text().strip() for f in SKILLS.glob("*/.fuente")]
+    if fuentes and not await acciones._confirmar(f"actualizar {len(fuentes)} skills desde GitHub", voz=True):
+        return "El usuario no quiso actualizar las skills."
     for s in fuentes:
-        await instalar_skill(s)
+        await _descargar_skill(s)
     return f"Sincronizadas {len(fuentes)} skills con su origen." if fuentes else "No hay skills instaladas de un catálogo."
 
 
@@ -465,7 +474,7 @@ acciones.registrar([
     acciones._fn("buscar_skills", "Busca skills (capacidades con instrucciones) instaladas y en el catálogo público skills.sh.",
                  {"consulta": acciones._s("tema o tarea, en inglés suele dar más resultados")}),
     acciones._fn("instalar_skill",
-                 "Instala una skill del catálogo sin pedir permiso (el usuario lo autorizó); el usuario recibe un aviso. "
+                 "Instala una skill del catálogo; pide permiso al usuario antes de descargarla. "
                  "Devuelve sus instrucciones para usarla ya.",
                  {"id_skill": acciones._s("owner/repo/skill, tal como lo dio buscar_skills")}),
     acciones._fn("usar_skill", "Lee las instrucciones de una skill instalada para seguirlas.",

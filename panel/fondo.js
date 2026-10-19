@@ -205,14 +205,14 @@ const Imp = (() => {
     tramo(L, ROJO); g.rojaDe = L; g.mesh.instanceColor.needsUpdate = true;
   }
 
-  async function cargar(nombre) {
+  async function cargar(nombre, clave) {
     cargando = true;
     try {
       const [r, j] = await Promise.all([fetch('/impresora/gcode/' + encodeURIComponent(nombre)), fetch('/impresora/todo').then(r => r.json()).catch(() => ({}))]);
       if (!r.ok) throw new Error(r.status);
       const txt = new TextDecoder('latin1').decode(await r.arrayBuffer()); // 1 byte = 1 carácter: los índices son posiciones del archivo
       const hex = ((j.meta || {}).filament_colors || [])[0];
-      G = parsear(txt); archivo = nombre; montar(G, new THREE.Color(/^#[0-9a-f]{6}$/i.test(hex || '') ? hex : '#e6e6e6'));
+      G = parsear(txt); archivo = clave; montar(G, new THREE.Color(/^#[0-9a-f]{6}$/i.test(hex || '') ? hex : '#e6e6e6'));
       mostrado = objetivo = 0; ultPoll = 0;
     } catch (e) { G = null; $('fi-info').textContent = 'No pude leer el G-code'; }
     cargando = false;
@@ -230,7 +230,7 @@ const Imp = (() => {
   async function sondear() {
     try {
       const v = await (await fetch('/impresora/vivo')).json();
-      if (v.estado === 'offline' || !G || v.archivo !== archivo) return;
+      if (v.estado === 'offline' || !G || v.archivo + '#' + (D.impresora || {}).trabajo !== archivo) return;
       objetivo = hasta(G.off, v.pos);
       boqObj = new THREE.Vector3(v.boquilla[0] - G.cx, v.boquilla[2], -(v.boquilla[1] - G.cy));
     } catch (e) {}
@@ -241,7 +241,7 @@ const Imp = (() => {
     empezar();
     const p = D.impresora || {}, cv = $('fi-cv');
     if (cv.parentNode !== sitio) sitio.appendChild(cv);
-    if (p.archivo && p.archivo !== archivo && !cargando) cargar(p.archivo);
+    if (p.archivo && p.archivo + '#' + p.trabajo !== archivo && !cargando) cargar(p.archivo, p.archivo + '#' + p.trabajo);
     if (!G) { if (!mini) $('fi-info').textContent = cargando ? 'Leyendo el G-code…' : ''; return; }
     const ms = t * 1000;
     if (ms - ultFrame < (mini ? 125 : 33)) return; ultFrame = ms;

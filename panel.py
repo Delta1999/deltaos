@@ -181,7 +181,7 @@ async def _poll_sistema():
 
 
 async def _poll_impresora():
-    previo = None
+    previo, trabajo = None, 0
     while True:
         try:
             st = await acciones._impresora()
@@ -192,6 +192,10 @@ async def _poll_impresora():
                 "boquilla": [round(st["extruder"]["temperature"]), round(st["extruder"]["target"])],
                 "cama": [round(st["heater_bed"]["temperature"]), round(st["heater_bed"]["target"])],
             }
+            if ps["state"] in ("printing", "paused") and previo not in ("printing", "paused"):
+                trabajo += 1  # trabajo nuevo aunque se llame igual que el anterior (mismo nombre, otro G-code)
+                _meta.clear()
+            imp["trabajo"] = trabajo
             if ps["state"] in ("printing", "paused"):
                 imp["quedan"] = (await acciones._tiempo_restante_impresora())[0]
             S["impresora"] = imp  # se asigna entero: nadie lee una ficha a medias
@@ -482,12 +486,22 @@ async def _ws(request):
 
 
 async def _difusor(ST):
-    ultimo = None
+    ultimo, volver = None, None
     while True:
         await asyncio.sleep(0.4)
         try:
             sn = snapshot(ST)
             _vigila(sn)
+            # pide permiso: al modo mascota, que saca el bocadillo Sí/No; contestado, vuelve a la vista que había
+            ahora = VISTA.read_text().strip() if VISTA.exists() else "panel"
+            if sn["confirma"] and volver is None:
+                volver = ahora
+                if ahora != "mascota":
+                    vista("mascota")
+            elif not sn["confirma"] and volver is not None:
+                if volver != "mascota" and ahora == "mascota":  # si el usuario cambió de vista entretanto, se respeta
+                    vista(volver)
+                volver = None
             if S["modo"] == "alertas":
                 sn["nuevas"] = S["nuevas"] = 0
             msg = json.dumps(sn)

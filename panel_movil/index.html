@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icono.svg">
+<title>Delta</title>
+<style>
+@font-face{font-family:Doto;font-weight:900;src:url(/fonts/doto-900.ttf)}
+@font-face{font-family:"IBM Plex Mono";font-weight:400;src:url(/fonts/plexmono-400.ttf)}
+@font-face{font-family:"IBM Plex Mono";font-weight:500;src:url(/fonts/plexmono-500.ttf)}
+:root{--bg:#000;--fg:#f2f2f2;--dim:#6a6a6a;--faint:#141414;--line:#262626;--red:#ff2d1f;--ok:#f2f2f2;
+  --dot:Doto,monospace;--mono:"IBM Plex Mono",monospace}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:14px}
+body{display:flex;flex-direction:column;height:100dvh;padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 10px)}
+.lbl{color:var(--dim);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.big{font-family:var(--dot);font-weight:900;letter-spacing:.04em;line-height:1}
+
+header{display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:12px}
+header .big{font-size:44px}
+#est{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim)}
+#est i{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+#est.on i{background:var(--fg)}#est.mal i{background:var(--red)}
+
+#tarjetas{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:12px;scrollbar-width:none}
+#tarjetas::-webkit-scrollbar{display:none}
+.t{flex:0 0 78%;max-width:320px;scroll-snap-align:start;background:var(--faint);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:118px}
+.t .big{font-size:34px}
+.t .sub{color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.barra{height:6px;background:#222;border-radius:3px;overflow:hidden}.barra b{display:block;height:100%;background:var(--red);width:0}
+.fila{display:flex;gap:16px}.fila div{display:flex;flex-direction:column;gap:2px}.fila b{font-family:var(--dot);font-weight:900;font-size:20px}
+.alerta{color:var(--red)}
+ul.av{list-style:none;padding:0;display:flex;flex-direction:column;gap:4px;font-size:12px}
+ul.av li{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}ul.av span{color:var(--dim)}
+
+#chat{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.m{max-width:86%;padding:10px 12px;border-radius:14px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word}
+.m.yo{align-self:flex-end;background:var(--fg);color:#000;border-bottom-right-radius:4px}
+.m.d{align-self:flex-start;background:var(--faint);border:1px solid var(--line);border-bottom-left-radius:4px}
+.m.d.pensando{color:var(--dim)}
+.vacio{margin:auto;color:var(--dim);text-align:center;font-size:12px;line-height:1.6}
+
+form{display:flex;gap:8px;padding-top:8px}
+textarea{flex:1;resize:none;background:#0d0d0d;border:1px solid var(--line);color:var(--fg);font:inherit;font-size:16px;padding:11px 12px;border-radius:14px;max-height:120px}
+textarea:focus{outline:none;border-color:#555}
+button{flex:0 0 46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--faint);color:var(--fg);font:inherit;font-size:18px;display:grid;place-items:center}
+button:active{transform:scale(.94)}
+button.prim{background:var(--fg);color:#000;border:0}
+button.vivo{background:var(--red);border-color:var(--red);color:#000}
+button[hidden]{display:none}
+#mic{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#mic.espera{animation:latir 1s infinite}@keyframes latir{50%{opacity:.4}}
+#mic.vivo{transform:scale(1.12);box-shadow:0 0 0 6px #ff2d1f33}
+#herr{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;padding-top:6px}
+#herr button{flex:0 0 auto;height:30px;width:auto;border-radius:15px;padding:0 12px;font-size:11px;letter-spacing:.06em;color:var(--dim)}
+#herr button.vivo{color:#000}
+</style>
+</head>
+<body>
+<header>
+  <div class="big">DELTA<span style="color:var(--red)">.</span></div>
+  <div id="est"><i></i><span>…</span></div>
+</header>
+
+<section id="tarjetas" aria-label="Estado">
+  <article class="t" id="t-imp"><span class="lbl">Impresora</span><div class="big">—</div><div class="barra"><b></b></div><div class="sub"></div></article>
+  <article class="t" id="t-pc"><span class="lbl">PC de casa</span><div class="fila"></div><div class="sub"></div></article>
+  <article class="t" id="t-av"><span class="lbl">Avisos</span><ul class="av"></ul></article>
+  <article class="t" id="t-cl"><span class="lbl">Tiempo</span><div class="big">—</div><div class="sub"></div></article>
+</section>
+
+<main id="chat" aria-live="polite"><div class="vacio">Escríbale a Delta.<br>Consulta impresora, avisos y PC, y busca en internet.<br>Solo lectura: las órdenes, desde casa.</div></main>
+
+<div id="herr"><button id="push" type="button">🔔 AVISOS</button><button id="voz" type="button" aria-pressed="false">🔊 LEER</button><button id="nuevo" type="button">NUEVA</button></div>
+<form id="f">
+  <textarea id="txt" rows="1" placeholder="Escriba o mantenga 🎙" enterkeyhint="send" aria-label="Mensaje"></textarea>
+  <button id="mic" type="button" aria-label="Mantener pulsado para hablar con Delta">🎙</button>
+  <button class="prim" aria-label="Enviar">↑</button>
+</form>
+
+<script src="/voz.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const chat = $("#chat"), txt = $("#txt");
+let leer = false; try { leer = localStorage.getItem("leer") === "1" } catch {}
+
+function burbuja(clase, t){
+  chat.querySelector(".vacio")?.remove();
+  const d = document.createElement("div"); d.className = "m " + clase; d.textContent = t;
+  chat.append(d); chat.scrollTop = chat.scrollHeight; return d;
+}
+function limpia(t){ return t.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^\s*[*-]\s+/gm, "· ") }
+
+function hablarEnVoz(t){
+  if(!leer || !("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(t); u.lang = "es-ES";
+  const v = speechSynthesis.getVoices().find(v => v.lang === "es-ES"); if(v) u.voice = v;
+  speechSynthesis.speak(u);
+}
+
+async function post(ruta, cuerpo){
+  const r = await fetch(ruta, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(cuerpo)});
+  if(r.status === 401){ location.reload(); throw new Error("sesión"); }
+  return r.json();
+}
+
+$("#f").onsubmit = async e => {
+  e.preventDefault();
+  const t = txt.value.trim(); if(!t) return;
+  txt.value = ""; ajusta(); burbuja("yo", t);
+  const p = burbuja("d pensando", "…");
+  try { const {r} = await post("/hablar", {texto:t}); p.className = "m d"; p.textContent = limpia(r); hablarEnVoz(p.textContent); }
+  catch { p.className = "m d"; p.textContent = "Sin conexión con el PC de casa."; }
+  chat.scrollTop = chat.scrollHeight;
+};
+txt.addEventListener("keydown", e => { if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); $("#f").requestSubmit(); } });
+function ajusta(){ txt.style.height = "auto"; txt.style.height = txt.scrollHeight + "px" }
+txt.addEventListener("input", ajusta);
+
+$("#nuevo").onclick = async () => { await post("/hablar", {nuevo:true}); chat.replaceChildren(); burbuja("d", "Conversación nueva."); };
+const bVoz = $("#voz");
+function pintaVoz(){ bVoz.classList.toggle("vivo", leer); bVoz.setAttribute("aria-pressed", leer) }
+bVoz.onclick = () => { leer = !leer; try { localStorage.setItem("leer", leer ? "1" : "0") } catch {} ; if(!leer) speechSynthesis?.cancel(); pintaVoz(); };
+pintaVoz();
+
+// Voz de Delta (voz.js): mantener pulsado 🎙
+if (navigator.mediaDevices?.getUserMedia) montarVoz($("#mic"));
+else $("#mic").onclick = () => burbuja("d", "La voz necesita HTTPS: abra https://fedora.tail630f35.ts.net");
+
+// ---- avisos push (impresión terminada, Claude, recordatorios…) ----
+const bPush = $("#push");
+const b64 = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat(-s.length & 3)), c => c.charCodeAt(0));
+async function pintaPush(){
+  if(!("serviceWorker" in navigator) || !("PushManager" in window)) {  // requiere HTTPS y Chrome
+    bPush.textContent = "🔔 NO DISPONIBLE";
+    bPush.onclick = () => burbuja("d", `Este navegador no admite avisos (${isSecureContext ? "sin Web Push" : "no es HTTPS"}). Abra https://fedora.tail630f35.ts.net en Chrome.`);
+    return;
+  }
+  const reg = await navigator.serviceWorker.register("/sw.js");
+  const sub = await reg.pushManager.getSubscription();
+  const on = !!sub && Notification.permission === "granted";
+  bPush.textContent = on ? "🔔 ACTIVOS" : "🔔 AVISOS"; bPush.classList.toggle("vivo", on);
+}
+bPush.onclick = async () => {
+  try {
+    if(await Notification.requestPermission() !== "granted") { bPush.textContent = "🔔 BLOQUEADOS"; return; }
+    const reg = await navigator.serviceWorker.ready;
+    const {clave} = await (await fetch("/vapid")).json();
+    const sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64(clave)});
+    const {ok} = await post("/suscribir", sub.toJSON());
+    burbuja("d", ok ? "Avisos activados: le escribiré aquí cuando termine una impresión, Claude acabe o venza un recordatorio." : "No he podido mandar la notificación de prueba.");
+  } catch(e) { burbuja("d", "No se pudieron activar los avisos: " + e.message); }
+  pintaPush();
+};
+pintaPush().catch(() => {});
+
+// ---- estado (cada 5 s) ----
+const ESTADOS = {printing:"IMPRIMIENDO", paused:"EN PAUSA", complete:"TERMINADA", standby:"EN REPOSO", error:"ERROR", cancelled:"CANCELADA"};
+function hhmm(min){ return min == null ? "" : `${Math.floor(min/60)} h ${String(min%60).padStart(2,"0")} min` }
+
+function pinta(e){
+  const est = $("#est");
+  est.className = e.delta ? (e.conexion === "reconectando" ? "mal" : "on") : "mal";
+  est.querySelector("span").textContent = e.delta ? `PC ON · Delta ${e.estado}` : "PC o Delta apagados";
+
+  const imp = e.impresora, ti = $("#t-imp");
+  if(!e.delta){ ti.querySelector(".big").textContent = "—"; ti.querySelector(".sub").textContent = "Pregúntele a Delta en el chat"; ti.querySelector(".barra b").style.width = 0; }
+  else if(!imp?.online){ ti.querySelector(".big").textContent = "OFF"; ti.querySelector(".sub").textContent = "Sin conexión"; ti.querySelector(".barra b").style.width = 0; }
+  else {
+    const activa = ["printing","paused"].includes(imp.estado);
+    ti.querySelector(".big").textContent = activa ? imp.prog + "%" : (ESTADOS[imp.estado] || imp.estado);
+    ti.querySelector(".big").classList.toggle("alerta", imp.estado === "error");
+    ti.querySelector(".barra b").style.width = (activa ? imp.prog : 0) + "%";
+    ti.querySelector(".sub").textContent = [activa && imp.quedan ? "quedan " + imp.quedan : "", `boq ${imp.boquilla[0]}° · cama ${imp.cama[0]}°`, imp.archivo].filter(Boolean).join(" · ");
+  }
+
+  const pc = $("#t-pc"), s = e.sistema || {};
+  pc.querySelector(".fila").replaceChildren(...(e.delta ? [["CPU", s.cpu+"%"], ["RAM", s.ram+"%"], ["TEMP", s.temp+"°"]] : [["", "—"]]).map(([k,v]) => {
+    const d = document.createElement("div"); d.innerHTML = `<span class="lbl"></span><b></b>`;
+    d.firstChild.textContent = k; d.lastChild.textContent = v; return d; }));
+  const al = (e.alertas || []).at(-1), mov = (e.dispos || []).find(d => d.tipo === "phone");
+  pc.querySelector(".sub").textContent = al ? `${al.t} ${al.txt}` : e.claude?.estado && e.claude.estado !== "libre" ? "Claude: " + e.claude.estado : mov ? `${mov.nombre} · ${mov.carga ?? "?"}%` : "";
+  pc.querySelector(".sub").classList.toggle("alerta", !!al);
+
+  const ul = $("#t-av ul"), av = e.avisos || [];
+  ul.replaceChildren(...(av.length ? av : [{texto: e.delta ? "Nada programado" : "Desconocido"}]).map(a => {
+    const li = document.createElement("li"); const sp = document.createElement("span");
+    sp.textContent = a.t ? new Date(a.t*1000).toLocaleString("es-ES", {weekday:"short", hour:"2-digit", minute:"2-digit"}) + "  " : "";
+    li.append(sp, a.texto); return li; }));
+
+  const c = e.clima, tc = $("#t-cl");
+  tc.querySelector(".big").textContent = c ? c.temp + "°" : "—";
+  tc.querySelector(".sub").textContent = c ? `${c.ciudad} · ${c.min}°/${c.max}° · lluvia ${c.lluvia}% · viento ${c.viento} km/h` : "";
+}
+
+async function refresca(){
+  try { const r = await fetch("/estado", {cache:"no-store"}); if(r.status === 401) return location.reload(); pinta(await r.json()); }
+  catch { const est = $("#est"); est.className = "mal"; est.querySelector("span").textContent = "Sin conexión con casa"; }
+}
+refresca(); setInterval(() => document.hidden || refresca(), 5000);
+document.addEventListener("visibilitychange", () => document.hidden || refresca());
+</script>
+</body>
+</html>

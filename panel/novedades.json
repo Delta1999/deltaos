@@ -1,12 +1,37 @@
 [
  {
+  "f": "2026-10-19",
+  "t": "Cuando Delta necesita tu permiso pasa solo al modo mascota y el mapache saca un bocadillo con lo que quiere hacer y dos botones, Sí y No; al contestar vuelve a la vista que tenías. Además, instalar skills y abrir enlaces con datos (?…) ahora piden permiso, y leer claves o ficheros ocultos ya no pasa sin preguntar",
+  "como": "salta solo · pulsa Sí o No en el mapache (o dilo de palabra)"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Modo estudiante blindado: varias clases del mismo tema (y de distintos profesores) se juntan en un único PDF, cada nota firmada con su profesor; si anotaste el PDF en Okular, la versión anterior se guarda en «Versiones anteriores»; Delta comprueba que el audio esté entero antes de empezar",
+  "como": "«Pasa a apuntes esta clase de Paco Arriola» · se añade al PDF del tema"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Delta móvil con voz: mantén 🎙 y habla, Delta te contesta con su voz (Charon) y consulta impresora, avisos y PC. Además, avisos al móvil (impresión terminada, error, Claude Code…) y arranque automático con el PC",
+  "como": "en el móvil: mantener 🎙 · botón 🔔 AVISOS"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "Delta en el móvil: web aparte (127.0.0.1:7877) con estado de impresora, PC, avisos y tiempo, y chat de texto de solo lectura con búsqueda en internet",
+  "como": "Arranca ./delta_movil.sh y abre la web en el móvil con Tailscale"
+ },
+ {
+  "f": "2026-10-15",
+  "t": "La mascota es ahora el mapache 3D con esqueleto: animaciones de verdad (escucha, habla, trabaja, duerme, anda, salta, aterriza, se estira, bosteza…) y con el uniforme de guardia sigue llevando tricornio, placa y porra",
+  "como": "«modo mascota»"
+ },
+ {
   "f": "2026-10-15",
   "t": "DeltaOS v2.0 guardada. Botón «↺ Volver a v2.0» en el menú de la hora: vuelve a esta versión estable y reinicia (lo posterior queda guardado en git)",
   "como": "toca la hora → «↺ Volver a v2.0»"
  },
  {
   "f": "2026-10-15",
-  "t": "Modo estudiante: Delta baja el audio de la clase que estás viendo, la transcribe, analiza lo que recalca el profe y te deja el tema en PDF anotado a mano (subrayado por colores, notas al margen, preguntas fijas, mnemotecnias y esquemas) en «Editados por mi»",
+  "t": "Modo estudiante: Delta baja el audio de la clase que estás viendo, la transcribe, analiza lo que recalca el profe y te deja el tema en PDF anotado a mano (subrayado por colores, notas al margen, preguntas fijas, mnemotecnias y esquemas) en Temario_Guardia_Civil/DeltaOs",
   "como": "«Delta, descárgate el audio de esta clase y pásalo a apuntes»"
  },
  {

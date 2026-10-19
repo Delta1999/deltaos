@@ -1,6 +1,7 @@
 """Herramientas (function calling) que Gemini puede invocar + estado compartido."""
 import asyncio
 import json
+import os
 import re
 import shlex
 import socket
@@ -153,6 +154,10 @@ def _py_cad():
 
 # ---------- handlers ----------
 async def abrir(objetivo):
+    # una URL con ?… puede llevar datos fuera (instrucción inyectada desde la pantalla o una web): que lo vea el usuario
+    # ponytail: un dato metido en la ruta (web.com/DATO) no pregunta; si se ve abuso, preguntar por todo host nuevo
+    if re.match(r"https?://[^?#]*[?#]..", objetivo) and not await _confirmar(f"abrir {objetivo[:160]}", voz=True):
+        return "El usuario no quiso abrir esa URL."
     argv = ["xdg-open", objetivo] if ("/" in objetivo or ":" in objetivo) else ["gtk-launch", objetivo]
     subprocess.Popen(argv, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return f"Abriendo {objetivo}"
@@ -185,10 +190,17 @@ LECTURA = {"ps", "pgrep", "top", "free", "df", "du", "uptime", "uname", "lscpu",
            "sensors", "nproc", "whoami", "id", "date", "cal", "hostname", "ip", "ss", "cat", "head", "tail", "wc", "ls",
            "stat", "file", "grep", "rg", "find", "which", "whereis", "echo", "sort", "uniq", "cut", "tr", "column",
            "journalctl", "systemctl", "pactl", "rpm", "flatpak", "vmstat", "iostat", "zramctl", "swapon", "last", "w",
-           "who", "env", "printenv", "basename", "dirname", "realpath", "readlink", "md5sum", "sha256sum", "nvidia-smi"}
+           "who", "basename", "dirname", "realpath", "readlink", "md5sum", "sha256sum", "nvidia-smi"}
 PROHIBIDO = {"find": ("-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprintf", "-fls"),
-             "sort": ("-o", "--output", "--compress"), "rg": ("--pre",), "file": ("-C", "--compile"), "journalctl": ("--vacuum", "--rotate", "--flush", "--sync", "--setup-keys"),
-             "swapon": ("",), "env": ("",)}  # sin argumentos: con ellos env ejecuta programas y swapon activa swap
+             "sort": ("-o", "--output", "--compress"), "rg": ("--pre", "--hidden", "-u", "-.", "--no-ignore"),
+             "file": ("-C", "--compile"), "journalctl": ("--vacuum", "--rotate", "--flush", "--sync", "--setup-keys"),
+             "grep": ("-r", "-R", "--recursive", "--dereference-recursive", "-d", "--directories"),
+             "swapon": ("",)}  # swapon sin argumentos: con ellos activa swap
+# 2026-10-19: Gemini ve la pantalla y lee webs; una orden inyectada podía pedir «cat ~/.bashrc» sin preguntar y sacar
+# la clave por abrir(). Lo que toque secretos pide permiso aunque el programa sea de LECTURA:
+# variables ($), entornos de procesos, ficheros/carpetas ocultos (~/.bashrc, ~/.ssh, ~/.config) y nombres de claves.
+_SECRETO = re.compile(r"environ|(^|/)\.[^./]|clave|key|secret|token|passw|credential|\.pem$|id_(rsa|ed25519|ecdsa)|vapid|cookie", re.I)
+_COMODIN = re.compile(r"[*?\[{]")  # «cat movil_cl*» o «cat movil_cl{a,}ve.txt» esquivarían los nombres de arriba
 SUBORDEN = {"systemctl": {"status", "list-units", "list-timers", "list-unit-files", "is-active", "is-enabled", "show"},
             "pactl": {"list", "info", "get-default-sink", "get-default-source", "get-sink-volume", "get-sink-mute"},
             "rpm": {"-q", "-qa", "-qi", "-ql", "-qf"}, "flatpak": {"list", "info"}}
@@ -196,7 +208,7 @@ SUBORDEN = {"systemctl": {"status", "list-units", "list-timers", "list-unit-file
 
 def _solo_lectura(comando):
     """True si todo el comando son programas de LECTURA unidos por tuberías, && o ;, sin redirecciones ni subcomandos."""
-    if re.search(r"[<>`\n]|\$\(", comando):
+    if re.search(r"[<>`\n$]", comando):  # $ también: «echo $GEMINI_API_KEY»
         return False
     lex = shlex.shlex(comando, posix=True, punctuation_chars=True)
     lex.whitespace_split = True
@@ -219,6 +231,16 @@ def _solo_lectura(comando):
         prog, args = t[0], t[1:]
         if any(a.startswith(p) for a in args for p in PROHIBIDO.get(prog, ())):
             return False
+        if any(_SECRETO.search(a) for a in args):
+            return False
+        patron = 1 if prog in ("grep", "rg") else 0  # el primer argumento suelto de grep es el patrón, no un fichero
+        sueltos = [a for a in args if not a.startswith("-")]
+        if prog != "find" and any(_COMODIN.search(a) for a in sueltos[patron:]):
+            return False
+        if prog == "grep" and any(re.fullmatch(r"-[^-]*[rR]\w*", a) for a in args):
+            return False  # -nr, -ir… recorren carpetas enteras (~ con .bashrc dentro)
+        if prog == "ps" and any(re.fullmatch(r"[a-zA-Z]*e[a-zA-Z]*", a) for a in sueltos):
+            return False  # «ps e», «ps auxe»: enseña las variables de entorno de cada proceso
         if prog in SUBORDEN and (not args or args[0] not in SUBORDEN[prog]):
             return False
         if prog == "uniq" and len([a for a in args if not a.startswith("-")]) > 1:
@@ -245,7 +267,19 @@ async def ejecutar_shell(comando):
     if not _solo_lectura(comando) and not await _confirmar(f"ejecutar `{comando}`"):
         return "El usuario denegó la ejecución."
     code, out = await _run(["bash", "-lc", comando])
-    return f"[código {code}]\n{out}"
+    return f"[código {code}]\n{_tapar(out)}"
+
+
+def _tapar(texto):
+    """Último cinturón: si una clave conocida sale igualmente (comando aprobado sin mirar), Gemini no la ve.
+    ponytail: solo tapa el valor exacto; troceado o codificado (cut, tr) pasaría: para eso está _solo_lectura."""
+    claves = [v for k, v in os.environ.items() if re.search(r"KEY|TOKEN|SECRET|PASS", k) and len(v) >= 12]
+    f = Path(__file__).with_name("movil_clave.txt")
+    if f.exists():
+        claves.append(f.read_text().strip())
+    for c in filter(None, claves):
+        texto = texto.replace(c, "[secreto tapado]")
+    return texto
 
 
 async def preguntar_a_claude(tarea):
@@ -761,8 +795,18 @@ if __name__ == "__main__":
               "systemctl status ollama", "sort x | uniq -c", "top -b -n1 | head"]:
         assert _solo_lectura(c), c
     for c in ["rm -rf /", "ps > x", "ls; rm x", "find . -delete", "cat $(ls)", "sudo ls", "systemctl stop x",
-              "top", "sort -o x y", "uniq a b", "curl http://192.168.0.102:7125", "env rm x", "ls &", "echo `id`"]:
+              "top", "sort -o x y", "uniq a b", "curl http://192.168.0.102:7125", "env rm x", "ls &", "echo `id`",
+              # secretos (2026-10-19): todos pasaban sin preguntar
+              "env", "printenv GEMINI_API_KEY", "echo $GEMINI_API_KEY", "cat ~/.bashrc", "cat /home/x/.bashrc",
+              "grep -r KEY ~/.config", "grep -nr gemini ~", "cat movil_clave.txt", "cat movil_cl''ave.txt", "cat movil_*",
+              "head movil_cl{a,}ve.txt", "find / -name id_ed25519", "cat /proc/self/environ", "ps auxe", "ps e",
+              "tail ../.ssh/config", "rg --hidden gemini ~", "cat movil_vapid.pem", "ls ~/.gnupg"]:
         assert not _solo_lectura(c), c
+    for c in ["ps -eo pid,cmd --sort=-%mem | head", "ls -la ./trabajos", "cat ../README.md", "grep -i error assistant.log",
+              "journalctl -u ollama.service | tail", "ps aux | grep '[p]ython'", "find . -name '*.py'", "cut -d. -f1 x"]:
+        assert _solo_lectura(c), c  # lo de siempre sigue sin preguntar
+    os.environ["PRUEBA_API_KEY"] = "AIzaFalsaDePrueba1234"
+    assert "AIza" not in _tapar("export PRUEBA_API_KEY=AIzaFalsaDePrueba1234")
     for c in ["kill $(ps -eo pid,ni,cmd | awk '$2 < 0 {print $1}')", "pkill wireplumber", "killall kwin_wayland",
               "kill -9 -1", "kill `pgrep x`"]:
         assert _mata_sesion(c), c
