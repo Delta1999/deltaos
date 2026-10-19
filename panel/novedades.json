@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-19",
+  "t": "Barra de arriba reordenada en tres columnas (DELTA · TRABAJOS · ÚLTIMOS PASOS), con barras de progreso macizas, letra fija IBM Plex Mono y los pasos repetidos juntados con ×N (el más nuevo arriba)",
+  "como": "se ve sola arriba en el centro mientras Delta está en marcha"
+ },
+ {
+  "f": "2026-10-19",
   "t": "HUD para ver qué hace Delta de verdad: barra fija arriba con su estado, contexto y gasto de Gemini, Claude Code, las últimas herramientas con ✓/✗ según el resultado real y los trabajos en segundo plano con etapa, % y tiempo; el mapache lleva un globo con la etapa y el panel muestra lo mismo",
   "como": "se ve solo mientras Delta está en marcha"
  },

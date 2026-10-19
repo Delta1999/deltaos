@@ -32,7 +32,7 @@ from pathlib import Path
 
 import numpy as np
 from PyQt6.QtCore import QPoint, QPointF, QRect, Qt, QTimer, QUrl
-from PyQt6.QtGui import QColor, QPainter, QPixmap, QRegion
+from PyQt6.QtGui import QColor, QFontDatabase, QPainter, QPixmap, QRegion
 from PyQt6.QtWebSockets import QWebSocket
 from PyQt6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QToolTip, QVBoxLayout, QWidget
 
@@ -180,14 +180,19 @@ def tono(g, apagado, agobio):
     return QColor(g + 70, g // 3, g // 4) if agobio and g < 60 else QColor(g, g, g)
 
 HUD_FIN = 600                   # s que la barra sigue enseñando un trabajo ya acabado, con su ✓ o ✗
-HUD_PASOS = 5                   # herramientas en la barra
-ESTILO_HUD = ("background:rgba(0,0,0,200);color:#f2f2f2;border:1px solid #262626;border-radius:10px;padding:6px 12px;"
+HUD_PASOS = 4                   # herramientas en la barra (las repetidas seguidas cuentan como una, con ×N)
+ESTILO_HUD = ("background:rgba(0,0,0,215);color:#f2f2f2;border:1px solid #262626;border-radius:10px;padding:8px 14px;"
               "font-family:'IBM Plex Mono',monospace;font-size:12px")
+ESTILO_BARRA = ("#hud{background:rgba(0,0,0,215);border:1px solid #262626;border-radius:10px}"
+                "QLabel{color:#f2f2f2;font-family:'IBM Plex Mono',monospace;font-size:12px;background:transparent}"
+                "#raya{background:#262626}")
+GRIS_HUD, ROJO_HUD, LINEA_HUD = "#6e6e6e", "#ff2d1f", "#262626"
 
 
-def barra(pct, n=12):
+def barra(pct, n=12, color="#f2f2f2"):
+    """Barra de progreso maciza: lo hecho en `color`, lo que falta en gris oscuro."""
     k = round(n * max(0, min(100, pct)) / 100)
-    return "█" * k + "░" * (n - k)
+    return f"<span style='color:{color}'>{'█' * k}</span><span style='color:#333333'>{'█' * (n - k)}</span>"
 
 
 def reloj(s):
@@ -206,41 +211,68 @@ def trabajos_hud(d, ahora):
             if tr.get(n) == "en curso" or (g.get("fin") and ahora - g["fin"] < HUD_FIN)]
 
 
+def pasos_hud(pasos):
+    """Últimas herramientas, la más nueva arriba; las iguales seguidas se juntan: [(paso más reciente, veces)]."""
+    junto = []
+    for p in pasos or []:
+        if junto and (junto[-1][0].get("t"), junto[-1][0].get("e")) == (p.get("t"), p.get("e")):
+            junto[-1][1] += 1
+            junto[-1][0] = p
+        else:
+            junto.append([p, 1])
+    return [tuple(x) for x in junto[::-1][:HUD_PASOS]]
+
+
 def hud(d, ahora):
-    """Líneas de la barra (como claude-hud), solo con datos medidos por el código, nunca con lo que diga Gemini:
-    1) estado de Delta, contexto y gasto de Gemini, Claude Code; 2) últimas herramientas con su resultado real;
-    3+) trabajos en segundo plano con etapa, % y tiempo (salen de su log)."""
+    """Columnas de la barra (como claude-hud), en HTML, solo con datos medidos por el código, nunca con lo que diga
+    Gemini: DELTA (estado, contexto y gasto de Gemini, Claude Code) · TRABAJOS en segundo plano con etapa, % y tiempo
+    (salen de su log) · ÚLTIMOS PASOS (herramientas con su resultado real). Sin Delta, una sola."""
+    e = html.escape
+    rojo = lambda t: f"<span style='color:{ROJO_HUD}'>{t}</span>"
+    gris = lambda t: f"<span style='color:{GRIS_HUD}'>{t}</span>"
+    titulo = lambda t: f"<span style='color:{GRIS_HUD};font-size:10px'>{t}</span>"
     if not d:
-        return ["<b>DELTA</b> · <span style='color:#ff2d1f'>no está en marcha</span>"]
-    e, rojo, gris = html.escape, "<span style='color:#ff2d1f'>{}</span>", "<span style='color:#5a5a5a'>{}</span>"
+        return [f"<b>DELTA</b> · {rojo('no está en marcha')}"]
     est, u, cl = d.get("estado", ""), d.get("uso") or {}, d.get("claude") or {}
-    l1 = (rojo if est in ("escuchando", "trabajando") else "{}").format("●") + f" <b>DELTA {e(est.upper())}</b>"
+    clave = lambda k: gris(k.ljust(7).replace(" ", "&nbsp;"))  # letra fija: las claves alinean los valores
+
+    delta = [titulo("DELTA"), clave("") + (rojo("●") if est in ("escuchando", "trabajando") else "●") + f" <b>{e(est.upper())}</b>"]
     if est != "dormido" and d.get("conexion") not in (None, "conectado"):
-        l1 += " · " + rojo.format(e(d["conexion"]))
+        delta.append(clave("") + rojo(e(d["conexion"])))
     if u:
         tok = f"{u['tok'] / 1e6:.2f}M" if u.get("tok", 0) >= 1e6 else f"{u.get('tok', 0) / 1000:.1f}K"
-        l1 += f" │ Gemini ctx {u.get('ctx', 0)}% · {tok} tok · ≈{u.get('usd', 0):.2f} $"
+        ctx = u.get("ctx", 0)
+        delta.append(clave("Gemini") + barra(ctx, 8, ROJO_HUD if ctx >= 80 else "#f2f2f2") + f" {ctx:.0f}% ctx")
+        delta.append(clave("") + gris(f"{tok} tok · ≈{u.get('usd', 0):.2f} $".replace(".", ",")))
     ce = cl.get("estado", "libre")
-    l1 += " │ Claude " + (rojo.format(e(ce)) if ce == "esperando permiso" else e(ce))
+    delta.append(clave("Claude") + (rojo(e(ce)) if ce == "esperando permiso" else gris("libre") if ce == "libre" else e(ce)))
     if ce == "trabajando" and cl.get("pasos"):
-        l1 += " · " + e(corto(cl["pasos"][-1].get("t", ""), 40))
-    marca = {"hecho": "✓", "falló": rojo.format("✗")}
-    ps = (d.get("pasos") or [])[-HUD_PASOS:]
-    l2 = "  ".join(f"{marca.get(p.get('e'), rojo.format('●'))} {gris.format(p.get('h', '')[:5])} {e(corto(p.get('t', ''), 34))}"
-                   for p in ps) or gris.format("sin herramientas todavía")
-    lineas = [l1, l2]
+        delta.append(clave("") + gris(e(corto(cl["pasos"][-1].get("t", ""), 30))))
+
+    tra = [titulo("TRABAJOS")]
     for n, estado, g in trabajos_hud(d, ahora):
         n = e(re.sub(r"-\d+$", "", n))
         if estado == "en curso":
             pct = g.get("pct")
-            lineas.append(rojo.format("▶") + f" <b>{n}</b> " + (f"{pct:3d}% {barra(pct)} " if pct is not None else "") +
-                          e(corto(g.get("etapa") or "arrancando…", 60)) + " · " + gris.format(reloj(ahora - (g.get("ini") or ahora))))
+            tra.append(rojo("▶") + f" <b>{n}</b> " + (f"{barra(pct, 12, ROJO_HUD)} {pct:d}%" if pct is not None else ""))
+            tra.append("&nbsp;&nbsp;" + e(corto(g.get("etapa") or "arrancando…", 44)) + " · " +
+                       gris(reloj(ahora - (g.get("ini") or ahora))))
         else:
             ok = estado.startswith("terminó bien")
-            lineas.append(("✓" if ok else rojo.format("✗")) + f" <b>{n}</b> {e(estado)} · " +
-                          gris.format(time.strftime("%H:%M", time.localtime(g["fin"]))) +
-                          ("" if ok else " · " + e(corto(g.get("etapa", ""), 60))))
-    return lineas
+            tra.append(("✓" if ok else rojo("✗")) + f" <b>{n}</b> " +
+                       gris(e(estado) + " · " + time.strftime("%H:%M", time.localtime(g["fin"]))))
+            if not ok and g.get("etapa"):
+                tra.append("&nbsp;&nbsp;" + rojo(e(corto(g["etapa"], 44))))
+    if len(tra) == 1:
+        tra.append(gris("ninguno"))
+
+    marca = {"hecho": "✓", "falló": rojo("✗")}
+    pas = [titulo("ÚLTIMOS PASOS")] + [f"{marca.get(p.get('e'), rojo('●'))} {gris(p.get('h', '')[:5])} "
+                                       f"{e(corto(p.get('t', ''), 38))}" + (gris(f" ×{k}") if k > 1 else "")
+                                       for p, k in pasos_hud(d.get("pasos"))]
+    if len(pas) == 1:
+        pas.append(gris("sin herramientas todavía"))
+    return ["<br>".join(c) for c in (delta, tra, pas)]
 
 
 def globo(d, ahora):
@@ -251,6 +283,40 @@ def globo(d, ahora):
             return (f"{re.sub(r'-\d+$', '', n)} · " + (f"{pct} % · " if pct is not None else "") +
                     corto(g.get("etapa") or "arrancando…", 70))
     return ""
+
+
+class Barra(QFrame):
+    """La barra de arriba: hasta tres columnas de hud() separadas por una raya fina."""
+    def __init__(self, padre):
+        super().__init__(padre)
+        self.setObjectName("hud")
+        self.setStyleSheet(ESTILO_BARRA)
+        fila = QHBoxLayout(self)
+        fila.setContentsMargins(14, 8, 14, 8)
+        fila.setSpacing(16)
+        self.cols, self.rayas = [], []
+        for i in range(3):
+            if i:
+                r = QFrame(self, objectName="raya")
+                r.setFixedWidth(1)
+                fila.addWidget(r)
+                self.rayas.append(r)
+            c = QLabel(self, textFormat=Qt.TextFormat.RichText, alignment=Qt.AlignmentFlag.AlignTop)
+            fila.addWidget(c)
+            self.cols.append(c)
+        self.textos = None
+
+    def poner(self, cols):
+        if cols == self.textos:
+            return False
+        self.textos = cols
+        for i, c in enumerate(self.cols):
+            c.setText(cols[i] if i < len(cols) else "")
+            c.setVisible(i < len(cols))
+        for i, r in enumerate(self.rayas):
+            r.setVisible(i + 1 < len(cols))
+        self.adjustSize()
+        return True
 
 
 class Bocadillo(QFrame):
@@ -326,7 +392,7 @@ class Mascota(QWidget):
         self.bocadillo = Bocadillo(self, lambda c: self.ws.sendTextMessage(json.dumps({"cmd": c})))
         # barra fija arriba (estilo claude-hud) y globo del mapache con la etapa del trabajo: fuera de la máscara, el
         # ratón los atraviesa
-        self.barra = QLabel(self, textFormat=Qt.TextFormat.RichText, styleSheet=ESTILO_HUD)
+        self.barra = Barra(self)
         self.globo = QLabel(self, textFormat=Qt.TextFormat.PlainText, styleSheet=ESTILO_HUD.replace("#262626", "#ff2d1f"))
         self.globo.hide()
         self.mascara = QRegion()
@@ -384,10 +450,7 @@ class Mascota(QWidget):
 
     def pintar_hud(self, permiso):
         ahora = time.time()
-        txt = "<br>".join(hud(self.d, ahora))
-        if txt != self.barra.text():
-            self.barra.setText(txt)
-            self.barra.adjustSize()
+        self.barra.poner(hud(self.d, ahora))
         self.barra.move((self.width() - self.barra.width()) // 2, 6)
         g = "" if permiso else globo(self.d, ahora)  # el bocadillo de permiso manda
         if g != self.globo.text():
@@ -793,12 +856,16 @@ if __name__ == "__main__":
          "progreso": {"apuntes-1": {"etapa": "Transcribiendo: 3/4 tramos", "pct": 44, "ini": 1000, "fin": None},
                       "render-2": {"etapa": "Traceback", "pct": None, "ini": 1100, "fin": 1500},
                       "viejo-3": {"etapa": "", "pct": 100, "ini": 0, "fin": 1}}}
-    h = hud(d, 1600)
-    assert len(h) == 4 and "1.23M" in h[0] and "&lt;b&gt;" in h[1] and "✗" in h[1], h
-    assert " 44% █████░░░░░░░" in h[2] and "10:00" in h[2] and "apuntes-1" not in h[2] and "✗" in h[3], h
+    d["pasos"] += [{"t": "Mira", "e": "falló", "h": "16:35:00"}] * 2
+    h = "".join(hud(d, 1600))
+    assert "1,23M tok · ≈0,30 $" in h and "&lt;b&gt;" in h and "<b>a</b>" not in h, h
+    assert "█████</span><span style='color:#333333'>███████</span> 44%" in h and "10:00" in h and "apuntes-1" not in h and "render" in h, h
+    assert h.index("16:35") < h.index("16:33") and " ×3" in h and h.count("Mira") == 1, h  # la nueva arriba, juntas
     assert globo(d, 1600) == "apuntes · 44 % · Transcribiendo: 3/4 tramos" and globo({}, 0) == ""
-    assert hud({}, 0)[0].endswith("no está en marcha</span>")
+    assert len(hud(d, 1600)) == 3 and hud({}, 0)[0].endswith("no está en marcha</span>")
     app = QApplication(sys.argv)
+    for f in glob.glob(str(Path(__file__).with_name("panel") / "fonts" / "plexmono-*.ttf")):
+        QFontDatabase.addApplicationFont(f)  # la del panel: sin ella la barra cae a una proporcional y se descuadra
     app.setDesktopFileName("delta-mascota")
     app.setStyleSheet("QToolTip{background:#000;color:#f2f2f2;border:1px solid #262626;padding:8px;"
                       "font-family:'IBM Plex Mono',monospace;font-size:12px}")
