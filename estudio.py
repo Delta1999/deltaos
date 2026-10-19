@@ -12,6 +12,13 @@ AQUI = Path(__file__).parent
 
 
 def clase_a_apuntes(url="", tema="", audio="", profe=""):
+    # Gemini a veces la llama varias veces seguidas: dos trabajos bajarían y procesarían la misma clase a la vez
+    en_curso = [n for n, e in acciones.ST["trabajos"].items() if n.startswith("apuntes-") and e == "en curso"]
+    if en_curso:
+        return f"Ya estoy pasando una clase a apuntes (trabajo «{en_curso[0]}»): no lanzo otra. Te aviso al terminar."
+    from estudio_clase import VIDEO_ACADEMIA
+    if not VIDEO_ACADEMIA.search(url):
+        url = ""  # lo que Gemini lee de la pantalla suele salir cortado («app.procivil.es»): mejor el historial de Chrome
     detectada = ""
     argv = [sys.executable, str(AQUI / "estudio_clase.py"), "--abrir"]
     if tema.strip():
