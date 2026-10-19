@@ -164,6 +164,49 @@ async def _trabajo(nombre, argv, cwd, timeout, pre=None):
     await avisar(f"El trabajo «{nombre}» {estado}. Final del log: {cola}")
 
 
+def huerfanos():
+    """{nombre: (pid, log)} de los trabajos vivos que no sigue nadie: su salida va a trabajos/<nombre>.log pero Delta se
+    reinició mientras corrían (ST["trabajos"] solo vive en memoria). Con hijos que heredan el log, el de pid menor."""
+    vivos = {}
+    for pid in filter(str.isdigit, os.listdir("/proc")):
+        try:
+            log = Path(os.readlink(f"/proc/{pid}/fd/1"))
+        except OSError:
+            continue
+        if log.parent == TRABAJOS and log.suffix == ".log" and log.stem not in ST["trabajos"]:
+            if log.stem not in vivos or int(pid) < vivos[log.stem][0]:
+                vivos[log.stem] = (int(pid), log)
+    return vivos
+
+
+def _arranque(pid):
+    """Hora (epoch) a la que arrancó el proceso, de /proc."""
+    btime = next(int(l.split()[1]) for l in open("/proc/stat") if l.startswith("btime"))
+    ticks = int(open(f"/proc/{pid}/stat").read().rsplit(")", 1)[1].split()[19])
+    return btime + ticks / os.sysconf("SC_CLK_TCK")
+
+
+async def _seguir_huerfano(nombre, pid, log):
+    """Como _trabajo pero de un proceso que no es hijo nuestro: sin código de salida, falla si el log trae un Traceback."""
+    ST["trabajos"][nombre] = "en curso"
+    prog = ST.setdefault("progreso", {})[nombre] = {"etapa": "", "pct": None, "ini": _arranque(pid), "fin": None}
+    while os.path.exists(f"/proc/{pid}"):
+        prog.update(etapa(log))
+        await asyncio.sleep(2)
+    texto = log.read_text(errors="replace")
+    estado = "falló (Traceback en el log)" if "Traceback (most recent call last)" in texto else "terminó bien"
+    prog.update(etapa(log), fin=time.time())
+    ST["trabajos"][nombre] = estado
+    await avisar(f"El trabajo «{nombre}» {estado}. Final del log: {_clip(texto[-700:])}")
+
+
+def adoptar_trabajos():
+    """Al arrancar Delta: los trabajos que siguen vivos vuelven a la barra y al panel, y avisan al acabar."""
+    for nombre, (pid, log) in huerfanos().items():
+        print(f"🔁 Retomo el trabajo «{nombre}» (pid {pid}), que seguía en marcha")
+        tarea(_seguir_huerfano(nombre, pid, log))
+
+
 def lanzar(nombre, argv, cwd=WORMHOLE, timeout=900):
     nombre = f"{nombre}-{int(time.time()) % 100000}"
     tarea(_trabajo(nombre, argv, cwd, timeout))

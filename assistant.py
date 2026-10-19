@@ -482,6 +482,7 @@ async def main():
     if not args.sin_panel:
         await panel.start(acciones.ST, args.voice)
     acciones.tarea(acciones.vigilar_impresora())
+    acciones.adoptar_trabajos()  # los trabajos que siguen vivos de antes de reiniciar vuelven a la barra
     acciones.tarea(avisos.vigilar())
 
     acciones.tarea(audio_input_loop())  # el micro vive siempre; la sesión va y viene

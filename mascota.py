@@ -183,7 +183,7 @@ HUD_FIN = 600                   # s que la barra sigue enseñando un trabajo ya 
 HUD_PASOS = 4                   # herramientas en la barra (las repetidas seguidas cuentan como una, con ×N)
 ESTILO_HUD = ("background:rgba(0,0,0,215);color:#f2f2f2;border:1px solid #262626;border-radius:10px;padding:8px 14px;"
               "font-family:'IBM Plex Mono',monospace;font-size:12px")
-ESTILO_BARRA = ("#hud{background:rgba(0,0,0,215);border:1px solid #262626;border-radius:10px}"
+ESTILO_BARRA = ("#hud{background:rgba(0,0,0,235);border:1px solid #262626;border-radius:10px}"
                 "QLabel{color:#f2f2f2;font-family:'IBM Plex Mono',monospace;font-size:12px;background:transparent}"
                 "#raya{background:#262626}")
 GRIS_HUD, ROJO_HUD, LINEA_HUD = "#6e6e6e", "#ff2d1f", "#262626"
@@ -290,6 +290,7 @@ class Barra(QFrame):
     def __init__(self, padre):
         super().__init__(padre)
         self.setObjectName("hud")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)  # sin esto el fondo no se pinta y se lee lo de detrás
         self.setStyleSheet(ESTILO_BARRA)
         fila = QHBoxLayout(self)
         fila.setContentsMargins(14, 8, 14, 8)

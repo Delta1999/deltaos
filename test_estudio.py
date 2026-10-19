@@ -98,4 +98,28 @@ import estudio
 assert all(inspect.iscoroutinefunction(f) for f in acciones.HANDLERS.values()), \
     [n for n, f in acciones.HANDLERS.items() if not inspect.iscoroutinefunction(f)]
 
+# Delta se reinicia con un trabajo en marcha: lo retoma con su etapa y avisa al acabar (2026-10-19)
+import asyncio
+import time
+avisos_h = []
+async def _avisar(t, notificar=True):
+    avisos_h.append(t)
+acciones.avisar = _avisar
+acciones.TRABAJOS.mkdir(exist_ok=True)
+log_h = acciones.TRABAJOS / "prueba_huerfano-1.log"
+with open(log_h, "w") as f:
+    hijo = subprocess.Popen(["sh", "-c", "echo '[30%] Probando'; sleep 3; echo listo"], stdout=f, stderr=subprocess.STDOUT)
+async def _huerfano():
+    assert acciones.huerfanos()["prueba_huerfano-1"][0] == hijo.pid
+    acciones.adoptar_trabajos()
+    await asyncio.sleep(0.5)
+    g = acciones.ST["progreso"]["prueba_huerfano-1"]
+    assert acciones.ST["trabajos"]["prueba_huerfano-1"] == "en curso" and g["pct"] == 30 and abs(g["ini"] - time.time()) < 5, g
+    assert "prueba_huerfano-1" not in acciones.huerfanos()  # ya seguido: no se adopta dos veces
+    hijo.wait()
+    await asyncio.sleep(2.5)
+    assert acciones.ST["trabajos"]["prueba_huerfano-1"] == "terminó bien" and "listo" in avisos_h[-1], avisos_h
+asyncio.run(_huerfano())
+log_h.unlink()
+
 print("ok")
