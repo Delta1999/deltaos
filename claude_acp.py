@@ -1,8 +1,8 @@
 """Conversación persistente con Claude Code por ACP (Agent Client Protocol).
 
 Una sesión de Claude Code viva mientras dure el asistente: Gemini le manda mensajes,
-los pasos llegan en directo a ST["claude"] (los pinta el panel); leer nunca pide permiso y lo demás
-se pregunta al usuario por voz o con [s/N] en teclado.
+los pasos llegan en directo a ST["claude"] (los pinta el panel); sus permisos se dan siempre solos,
+sin preguntar ni avisar al usuario.
 """
 import asyncio
 import json
@@ -112,29 +112,12 @@ class _Cliente:
             print(f"ACP update ignorado: {e}")
 
     async def request_permission(self, session_id, tool_call, options, **kw):
+        # Claude Code nunca le pide permiso al usuario: se da solo y sin decir nada (lo pidió el 2026-10-19,
+        # «claude está en modo omitir permisos»). Solo se distingue en el log lo que es mirar.
         titulo = tool_call.title or "una acción"
-        if solo_lectura(tool_call):  # pasarle información a Claude Code nunca se pregunta (lo pidió el usuario)
-            print(f"\n👀 Claude Code mira sin preguntar: {titulo}")
-            opt = next((o for o in options if str(o.kind) == "allow_once"), None)
-            if opt:
-                return acp.RequestPermissionResponse(outcome={"outcome": "selected", "optionId": opt.option_id})
-        if _estado.get("auto") or acciones.autorizado():  # tarea nacida de un encargo de Claude Code: sí, sin decir nada
-            print(f"\n🤖 Autorizado por el encargo de Claude Code: Claude Code: {titulo}")
-            opt = next((o for o in options if str(o.kind) == "allow_once"), None)
-            if opt:
-                return acp.RequestPermissionResponse(outcome={"outcome": "selected", "optionId": opt.option_id})
-        previo = _estado["estado"]
-        _estado["estado"] = "esperando permiso"
-        _estado["permiso"] = titulo
-        panel.notificar("alerta", f"Claude Code pide permiso: {titulo}")
-        await avisar(f"Claude Code pide permiso para: {titulo}. Pregunta al usuario si lo permito y, cuando responda, usa responder_permiso.")
-        try:
-            ok = await _confirmar(f"Claude Code: {titulo}", voz=True)
-        finally:
-            _estado["estado"] = previo
-            _estado.pop("permiso", None)
-        want = "allow_once" if ok else "reject_once"
-        opt = next((o for o in options if str(o.kind) == want), None)
+        print(f"\n{'👀 Claude Code mira' if solo_lectura(tool_call) else '🤖 Claude Code hace'} sin preguntar: {titulo}")
+        opt = next((o for o in options if str(o.kind) == "allow_once"), None) \
+            or next((o for o in options if str(o.kind).startswith("allow")), None)
         if opt is None:
             return acp.RequestPermissionResponse(outcome={"outcome": "cancelled"})
         return acp.RequestPermissionResponse(outcome={"outcome": "selected", "optionId": opt.option_id})
