@@ -1,12 +1,14 @@
 """Conversación persistente con Claude Code por ACP (Agent Client Protocol).
 
 Una sesión de Claude Code viva mientras dure el asistente: Gemini le manda mensajes,
-los pasos llegan en directo a ST["claude"] (los pinta el panel) y los permisos
-se preguntan al usuario por voz o con [s/N] en teclado.
+los pasos llegan en directo a ST["claude"] (los pinta el panel); leer nunca pide permiso y lo demás
+se pregunta al usuario por voz o con [s/N] en teclado.
 """
 import asyncio
 import json
 import os
+import re
+import shlex
 import time
 from contextlib import AsyncExitStack
 
@@ -19,6 +21,59 @@ from acciones import ST, WORMHOLE, AQUI, avisar, _confirmar, _run
 
 COMANDO = ("npx", "-y", "@agentclientprotocol/claude-agent-acp")
 MAX_PASOS = 8
+# Claude Code solo MIRANDO (leer, buscar, ver estado) nunca pregunta al usuario: lo pidió así
+MIRA = acciones.LECTURA | {"cd", "sed", "git", "sleep", "timeout", "tree", "diff", "jq", "realpath", "basename", "dirname",
+                           "readlink", "nl", "printf", "true", "test", "[", "for", "done", "fi"}
+GIT_MIRA = {"status", "log", "diff", "show", "ls-files", "rev-parse", "blame", "grep", "shortlog", "describe"}
+CLAVE_SH = {"do", "then", "else", "if", "while", "until", "!"}
+SALIDA_NULA = re.compile(r"\s*(\d?>\s*/dev/null|\d?>&\d)")
+
+
+def solo_mira(comando):
+    """True si el comando de shell solo lee (programas de MIRA en tuberías/&&/;/bucles), sin escribir ni ejecutar código."""
+    c = SALIDA_NULA.sub(" ", comando)
+    if re.search(r"[<>`]|\$\(", c):
+        return False
+    lex = shlex.shlex(c, posix=True, punctuation_chars=True)
+    lex.whitespace_split = True
+    try:
+        toks = list(lex)
+    except ValueError:
+        return False
+    tramos, actual = [], []
+    for t in toks:
+        if t in ("|", "&&", "||", ";", "\n"):
+            tramos.append(actual); actual = []
+        elif set(t) <= set("|&;()"):
+            return False
+        else:
+            actual.append(t)
+    tramos.append(actual)
+    for t in tramos:
+        while t and t[0] in CLAVE_SH:
+            t = t[1:]
+        while t and t[0] == "timeout":  # «timeout 60 grep …»: manda lo que viene detrás
+            t = [a for a in t[1:] if not a.startswith("-")][1:]
+        if not t:
+            continue
+        prog, args = t[0], t[1:]
+        if prog not in MIRA or any(a.startswith(p) for a in args for p in acciones.PROHIBIDO.get(prog, ()) if prog != "grep"):
+            return False
+        if prog == "sed" and any(a.startswith(("-i", "--in-place")) or re.search(r"(^|[;/}])\s*[wWe]\b", a) for a in args):
+            return False
+        if prog == "git" and not (args and args[0] in GIT_MIRA):
+            return False
+        if prog in acciones.SUBORDEN and not set(args) & acciones.SUBORDEN[prog]:
+            return False
+    return True
+
+
+def solo_lectura(tool_call):
+    kind = str(tool_call.kind or "")
+    if kind in ("read", "search", "fetch", "think"):
+        return True
+    cmd = (tool_call.raw_input or {}).get("command") if isinstance(tool_call.raw_input, dict) else None
+    return kind == "execute" and solo_mira(cmd or (tool_call.title or "").strip("`"))
 
 _conn = _pila = _sid = _sid_delta = _tarea = None
 _estado = {"estado": "libre", "tarea": "", "pasos": [], "plan": [], "texto": ""}
@@ -58,6 +113,16 @@ class _Cliente:
 
     async def request_permission(self, session_id, tool_call, options, **kw):
         titulo = tool_call.title or "una acción"
+        if solo_lectura(tool_call):  # pasarle información a Claude Code nunca se pregunta (lo pidió el usuario)
+            print(f"\n👀 Claude Code mira sin preguntar: {titulo}")
+            opt = next((o for o in options if str(o.kind) == "allow_once"), None)
+            if opt:
+                return acp.RequestPermissionResponse(outcome={"outcome": "selected", "optionId": opt.option_id})
+        if _estado.get("auto") or acciones.autorizado():  # tarea nacida de un encargo de Claude Code: sí, sin decir nada
+            print(f"\n🤖 Autorizado por el encargo de Claude Code: Claude Code: {titulo}")
+            opt = next((o for o in options if str(o.kind) == "allow_once"), None)
+            if opt:
+                return acp.RequestPermissionResponse(outcome={"outcome": "selected", "optionId": opt.option_id})
         previo = _estado["estado"]
         _estado["estado"] = "esperando permiso"
         _estado["permiso"] = titulo
@@ -101,7 +166,8 @@ async def cerrar():
 async def _turno(mensaje, propio=None, voz=True):
     """propio = (petición, foto «antes») cuando es un cambio en el propio Delta: otra sesión, con el repo de Delta como cwd."""
     global _tarea, _sid_delta
-    _estado.update(estado="trabajando", tarea=(propio[0] if propio else mensaje)[:120], pasos=[], plan=[], texto="", inicio=time.time())
+    _estado.update(estado="trabajando", tarea=(propio[0] if propio else mensaje)[:120], pasos=[], plan=[], texto="", inicio=time.time(),
+                   auto=acciones.autorizado())  # encargada por Claude Code: sus permisos se dan solos hasta que acabe
     try:
         if _conn is None:
             await _conectar()
@@ -130,6 +196,7 @@ async def _turno(mensaje, propio=None, voz=True):
             await avisar(f"Falló la conversación con Claude Code: {e}")
     finally:
         _tarea = None
+        _estado["auto"] = False
 
 
 # ---------- cambios en el propio Delta: pasarela Gemini Live → Claude Code, con registro ----------

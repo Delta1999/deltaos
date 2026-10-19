@@ -1,6 +1,21 @@
 [
  {
   "f": "2026-10-19",
+  "t": "Delta ya no pregunta si deja a Claude Code mirar cosas: leer, buscar o ver el estado (grep, ls, git diff…) y pasarle una tarea se autorizan solos; lo que escribe o borra sigue preguntando, salvo en los encargos que hace el propio Claude Code",
+  "como": "sale solo; en el registro aparece «👀 Claude Code mira sin preguntar»"
+ },
+ {
+  "f": "2026-10-19",
+  "t": "Clase → PDF aguanta el filtro de Gemini: si un trozo del audio lo bloquea por error, lo parte en trozos más pequeños y solo deja sin transcribir unos minutos (con una nota) en vez de perder la clase",
+  "como": "sale solo al pedir «aplica esta clase al PDF»"
+ },
+ {
+  "f": "2026-10-19",
+  "t": "Mascota a elegir: el mapache de siempre o un gato carey 3D de puntos de colores con su propio esqueleto (anda a cuatro patas, se sienta sobre las ancas, se tumba, se hace una rosquilla para dormir, se lava, se estira…) con los mismos estados, iconos y paseos",
+  "como": "«pon el gato» / «quiero el mapache»; la mascota flotante cambia sola en un par de segundos"
+ },
+ {
+  "f": "2026-10-19",
   "t": "Barra de arriba reordenada en tres columnas (DELTA · TRABAJOS · ÚLTIMOS PASOS), con barras de progreso macizas, letra fija IBM Plex Mono y los pasos repetidos juntados con ×N (el más nuevo arriba)",
   "como": "se ve sola arriba en el centro mientras Delta está en marcha"
  },

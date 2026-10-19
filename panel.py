@@ -476,6 +476,8 @@ async def _ws(request):
                     _llave(msg["llave"])
                 if isinstance(msg.get("pegar"), str):
                     _pegar(request.app["ST"], msg["pegar"])
+                if isinstance(msg.get("encargo"), str) and msg["encargo"].strip():  # delta_pide.py (Claude Code)
+                    await acciones.encargo_claude(msg["encargo"].strip()[:2000])
                 if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "vista_panel", "vista_mascota", "tiempo", "reset_v2"):
                     _cmd(request.app["ST"], msg["cmd"])
                 g = msg.get("geo")

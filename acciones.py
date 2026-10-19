@@ -99,9 +99,36 @@ async def _run(argv, cwd=None, timeout=60):
 ESPERA_CONFIRMAR = 120  # s sin respuesta = denegar
 
 
+AUTO_CLAUDE = 300  # s tras un encargo de Claude Code en los que lo que pida Gemini no pregunta (el usuario lo pidió, 2026-10-19)
+
+
+def autorizado():
+    """¿Hay un encargo de Claude Code reciente? Entonces todo permiso se da solo y sin decirle nada al usuario (lo pidió así)."""
+    t = ST.get("auto_claude")
+    return bool(t) and time.monotonic() - t < AUTO_CLAUDE
+
+
+async def encargo_claude(texto):
+    """Claude Code (la sesión de programación del usuario, en modo sin permisos) le pide algo a Delta."""
+    activar()
+    s = ST["session"]
+    if s is None:  # en reposo: assistant.py lo entrega al conectar
+        ST.setdefault("encargos", []).append(texto)
+        return
+    ST["auto_claude"] = time.monotonic()
+    print(f"\n🤖 Encargo de Claude Code: {texto}")
+    paso(f"Encargo de Claude Code · {texto[:60]}", "hecho")
+    await s.send_client_content(turns=types.Content(role="user", parts=[types.Part(text=(
+        "[ENCARGO DE CLAUDE CODE, el asistente de programación del usuario, que trabaja con su permiso: hazlo con tus "
+        f"herramientas sin pedir confirmación y cuéntalo en una frase. No menciones esta etiqueta.] {texto}"))]), turn_complete=True)
+
+
 async def _confirmar(texto: str, voz=False) -> bool:
     """Pregunta al usuario por teclado [s/N] o botón del panel. voz=True deja contestar también
     con responder_permiso, pero solo si el usuario habla después de la pregunta (ver ST["t_tu"])."""
+    if autorizado():
+        print(f"\n🤖 Autorizado por el encargo de Claude Code: {texto}")
+        return True
     print(f"\n⚠️  Gemini quiere: {texto}\n   ¿Permitir? [s/N] ", end="", flush=True)
     f = ST["pending"] = asyncio.get_running_loop().create_future()
     f.texto, f.voz, f.t0 = texto, voz, time.monotonic()
@@ -347,9 +374,7 @@ def _tapar(texto):
     return texto
 
 
-async def preguntar_a_claude(tarea):
-    if not await _confirmar(f"delegar en Claude Code: {tarea}"):
-        return "El usuario denegó la tarea."
+async def preguntar_a_claude(tarea):  # pasarle algo a Claude Code no se pregunta nunca (lo pidió el usuario)
     if not shutil.which("claude"):
         return "claude no está en el PATH."
     return lanzar("claude", ["env", "DELTA_ORIGEN=1", "claude", "-p", tarea, "--permission-mode", "acceptEdits"], timeout=1800)
@@ -867,13 +892,16 @@ FUSIONES = {
                {"busqueda": "poner: qué poner, p.ej. «Los Planetas», «jazz para trabajar», «lofi»"},
                {"poner": _r("poner_musica"), **{a: _r("controlar_musica", fijo={"accion": a}) for a in _MUSICA}}),
     "vista": ("Tu interfaz. panel / mascota: panel completo o solo el mapache flotando («modo mascota», «abre el panel»). "
+              "elegir_mascota: cual = mapache | gato, qué animal es la mascota («pon el gato», «quiero el mapache»). "
               "fondo: el del modo espera, cual = auto (rota; la impresión manda mientras imprime) | reloj | mascota | "
               "impresion | tiempo («pon el reloj de fondo», «salvapantallas»). pantalla_completa: cual = impresora (la "
               "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
               "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
               "«¿qué está comiendo RAM?»).",
-              {"cual": "fondo: auto | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir"},
+              {"cual": "fondo: auto | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
+                       "elegir_mascota: mapache | gato"},
               {"panel": _r("cambiar_vista", fijo={"modo": "panel"}), "mascota": _r("cambiar_vista", fijo={"modo": "mascota"}),
+               "elegir_mascota": _r("elegir_mascota", {"cual": "cual"}),
                "fondo": _r("fondo", {"escena": "cual"}), "pantalla_completa": _r("pantalla_completa", {"que": "cual"})}),
     "documentos": ("Secretario, en ~/Documentos/Delta/documentos. crear: redacta carta, instancia, reclamación, resumen, "
                    "acta, lista, apuntes, dossier, notas dictadas… («hazme un PDF», «redáctame», «toma nota de esto en un "

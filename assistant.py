@@ -504,6 +504,8 @@ async def main():
                 await panel.entregar_pegado(acciones.ST)  # antes que los avisos: «¿qué hacemos con el texto?» lo necesita
                 for aviso in acciones.ST.pop("avisos", []):  # llegaron mientras estaba colgado
                     await acciones.avisar(aviso, notificar=False)
+                for encargo in acciones.ST.pop("encargos", []):
+                    await acciones.encargo_claude(encargo)
                 tasks = [asyncio.create_task(receive_and_play_loop(session)), asyncio.create_task(centinela())]
                 if not args.no_screen:
                     tasks.append(asyncio.create_task(screen_capture_loop(session, args.interval)))

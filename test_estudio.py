@@ -65,6 +65,21 @@ with tempfile.TemporaryDirectory() as d:
     clases = [{"audio": str(corto), "profe": ""}]
     assert ec.misma_clase(otro, clases) == corto and ec.misma_clase(largo, clases) == largo
 
+# un tramo que el filtro de Gemini bloquea se parte por mitades; los tiempos de cada trozo se desplazan a su sitio
+with tempfile.TemporaryDirectory() as d:
+    largo = Path(d) / "t00.ogg"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono", "-t", "1000", "-c:a", "libopus", str(largo)], check=True)
+    def falso(ogg, dur):
+        if dur > 300:
+            raise ec.Bloqueado("PROHIBITED_CONTENT")
+        return [{"t": 10, "quien": "PROFESOR", "texto": ogg.name}]
+    real, ec.transcribir_audio = ec.transcribir_audio, falso
+    try:
+        r = ec.sin_bloqueos(largo, 1000)
+    finally:
+        ec.transcribir_audio = real
+    assert [x["t"] for x in r] == [10, 260, 510, 760], r
+
 # el PDF anterior solo se guarda en «Versiones anteriores» si tiene anotaciones que no son de Delta
 import pymupdf
 import estudio_pdf
@@ -97,6 +112,21 @@ import inspect
 import estudio
 assert all(inspect.iscoroutinefunction(f) for f in acciones.HANDLERS.values()), \
     [n for n, f in acciones.HANDLERS.items() if not inspect.iscoroutinefunction(f)]
+
+# Claude Code solo mirando (pasarle información) no pregunta al usuario; lo que escribe o ejecuta código, sí
+import claude_acp
+from acp.schema import ToolCallUpdate
+mira = claude_acp.solo_mira
+assert mira("cd ~/x && grep -rlIi --exclude-dir={.git,.venv} -E 'a|b' . 2>/dev/null | head -30; ls ~ ~/Escritorio")
+assert mira("for f in a.log b.log; do echo \"== $f\"; tail -25 $f; done; sed -n 1,40p x.py; git diff --stat")
+assert mira("timeout 60 grep -rn x ~ ; sleep 20; ps -eo pid,cmd | grep -v grep")
+for malo in ("rm -rf x", "cat a > b", "echo hola >> f", "sed -i s/a/b/ f", "sed 's/a/b/w out' f", "git commit -am x",
+             "git push", "find . -delete", "cd x && python3 -c 'print(1)'", "ls $(rm x)", "ls `rm x`", "touch f",
+             "timeout 5 rm x", "cat f | tee g", "systemctl restart x", "rg --pre sh x"):
+    assert not mira(malo), malo
+tc = lambda kind, cmd=None: ToolCallUpdate(tool_call_id="1", kind=kind, title=f"`{cmd}`" if cmd else "Leer x", raw_input={"command": cmd} if cmd else None)
+assert claude_acp.solo_lectura(tc("read")) and claude_acp.solo_lectura(tc("search")) and claude_acp.solo_lectura(tc("execute", "git log -3"))
+assert not claude_acp.solo_lectura(tc("edit")) and not claude_acp.solo_lectura(tc("execute", "rm x"))
 
 # Delta se reinicia con un trabajo en marcha: lo retoma con su etapa y avisa al acabar (2026-10-19)
 import asyncio
