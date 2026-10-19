@@ -292,7 +292,7 @@ async def buscar_skills(consulta):
         j = (await c.get("https://skills.sh/api/search", params={"q": consulta})).json()
     remotas = [f"{s['source']}/{s['skillId']} ({s.get('installs', 0)} instalaciones)" for s in j.get("skills", [])[:8]]
     return (f"Instaladas que encajan: {', '.join(local) or 'ninguna'}. Catálogo skills.sh: {'; '.join(remotas) or 'nada'}. "
-            "Para instalar, instalar_skill con el id owner/repo/skill (la más instalada suele ser la buena).")
+            "Para instalar, skills accion=instalar con que = el id owner/repo/skill (la más instalada suele ser la buena).")
 
 
 async def instalar_skill(id_skill):

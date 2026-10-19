@@ -1,5 +1,6 @@
 """Herramientas (function calling) que Gemini puede invocar + estado compartido."""
 import asyncio
+import inspect
 import json
 import os
 import re
@@ -755,6 +756,112 @@ ETIQUETAS = {"estado_impresora": "Miro la impresora", "historial_impresora": "Le
              "consultar_clima": "Consulto el tiempo", "abrir": "Abro", "dormir": "A dormir"}
 MAX_PASOS = 7
 
+# Fusión (2026-10-19): 55 herramientas confundían al modelo; las de un mismo tema van en una con «accion».
+# nombre → (descripción, {parámetro: descripción}, {accion: (herramienta real, {param real: param fusionado}, {param real: valor fijo})})
+def _r(real, ren=None, fijo=None):
+    return real, ren or {}, fijo or {}
+
+_MUSICA = ("pausa", "seguir", "siguiente", "anterior", "subir", "bajar", "parar", "que_suena")
+FUSIONES = {
+    "impresora": ("Impresora 3D, SOLO LECTURA. estado: temperaturas, progreso, tiempo restante, capa, velocidad, flujo, "
+                  "ventilador, filamento y Klipper. historial: impresiones recientes, cola y errores de Klipper. "
+                  "avisar_antes: aviso cuando falten N minutos para que acabe la impresión.",
+                  {"minutos_antes": "para avisar_antes: minutos antes del final (por defecto 5)"},
+                  {"estado": _r("estado_impresora"), "historial": _r("historial_impresora"),
+                   "avisar_antes": _r("programar_aviso_impresora")}),
+    "avisos": ("Temporizadores, recordatorios y alarmas (sobreviven a reinicios). programar: «avísame en 20 minutos», "
+               "«recuérdame a las 18:30 llamar a Juan», «despiértame a las 8» (tipo alarma: suena en bucle hasta "
+               "accion=parar_alarma). ver: los pendientes y la hora actual. cancelar: los que contengan texto, o «todos».",
+               {"texto": "programar: qué recordar («sacar la pizza»); cancelar: parte del texto o «todos»",
+                "en_minutos": "programar: dentro de cuántos minutos, p.ej. 20 o 1.5",
+                "a_las": "programar: hora HH:MM (la próxima vez que llegue) o AAAA-MM-DD HH:MM",
+                "tipo": "programar: aviso (por defecto, suena una vez) | alarma (en bucle)",
+                "repetir": "programar: vacío | diario"},
+               {"programar": _r("programar_aviso"), "ver": _r("ver_avisos"),
+                "cancelar": _r("cancelar_aviso", {"cual": "texto"}), "parar_alarma": _r("parar_alarma")}),
+    "claude": ("Claude Code, el agente de código del repo WORMHOLE. hablar: UNA conversación persistente que recuerda lo "
+               "anterior (vale «ahora hazlo más grueso»), trabaja en segundo plano y avisa; úsala para toda petición de "
+               "código, CAD o archivos del repo. tarea_suelta: un disparo sin memoria (pide confirmación). "
+               "estado: qué hace ahora. cancelar: interrumpe su tarea.",
+               {"mensaje": "hablar/tarea_suelta: lo que quieres que haga, completo y claro"},
+               {"hablar": _r("hablar_con_claude"), "tarea_suelta": _r("preguntar_a_claude", {"tarea": "mensaje"}),
+                "estado": _r("estado_claude"), "cancelar": _r("cancelar_claude")}),
+    "memoria": ("Memoria persistente (sobrevive a reinicios). recordar: guarda una nota. olvidar: borra las notas que "
+                "contengan texto. anotar_mejora: cuando el USUARIO pida una función NUEVA que aún no tienes, para el "
+                "programador; una avería que persiste (micro, audio, impresora…) anótala UNA sola vez, no repitas.",
+                {"texto": "la nota, el fragmento a borrar o la mejora descrita con claridad"},
+                {"recordar": _r("recordar", {"nota": "texto"}), "olvidar": _r("olvidar", {"fragmento": "texto"}),
+                 "anotar_mejora": _r("anotar_mejora", {"descripcion": "texto"})}),
+    "skills": ("Skills (capacidades con instrucciones). buscar: en las instaladas y en el catálogo skills.sh (en inglés "
+               "da más resultados). instalar: descarga una del catálogo, pide permiso al usuario y devuelve sus "
+               "instrucciones. usar: lee las instrucciones de una instalada para seguirlas. actualizar: todas desde su origen.",
+               {"que": "buscar: tema; instalar: id owner/repo/skill tal como lo dio buscar; usar: nombre de la skill"},
+               {"buscar": _r("buscar_skills", {"consulta": "que"}), "instalar": _r("instalar_skill", {"id_skill": "que"}),
+                "usar": _r("usar_skill", {"nombre": "que"}), "actualizar": _r("sincronizar_skills")}),
+    "musica": ("Música de YouTube. poner: busca y pone (canción, artista, estilo o lista; sustituye a la que sonara). "
+               "El resto controla la que pusiste.",
+               {"busqueda": "poner: qué poner, p.ej. «Los Planetas», «jazz para trabajar», «lofi»"},
+               {"poner": _r("poner_musica"), **{a: _r("controlar_musica", fijo={"accion": a}) for a in _MUSICA}}),
+    "vista": ("Tu interfaz. panel / mascota: panel completo o solo el mapache flotando («modo mascota», «abre el panel»). "
+              "fondo: el del modo espera, cual = auto (rota; la impresión manda mientras imprime) | reloj | mascota | "
+              "impresion | tiempo («pon el reloj de fondo», «salvapantallas»). pantalla_completa: cual = impresora (la "
+              "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
+              "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
+              "«¿qué está comiendo RAM?»).",
+              {"cual": "fondo: auto | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir"},
+              {"panel": _r("cambiar_vista", fijo={"modo": "panel"}), "mascota": _r("cambiar_vista", fijo={"modo": "mascota"}),
+               "fondo": _r("fondo", {"escena": "cual"}), "pantalla_completa": _r("pantalla_completa", {"que": "cual"})}),
+    "documentos": ("Secretario, en ~/Documentos/Delta/documentos. crear: redacta carta, instancia, reclamación, resumen, "
+                   "acta, lista, apuntes, dossier, notas dictadas… («hazme un PDF», «redáctame», «toma nota de esto en un "
+                   "archivo»); con buscar=sí busca antes en la web y cita fuentes; para investigar a fondo usa investigar y "
+                   "luego convertir. convertir: un informe o documento ya hecho a pdf, docx u odt. enviar_al_movil: lo "
+                   "manda al móvil por KDE Connect (los informes van en PDF).",
+                   {"encargo": "crear: qué documento y para qué, con TODOS los datos; si dicta el texto, cópialo literal",
+                    "nombre": "convertir/enviar_al_movil: parte del nombre del documento o informe",
+                    "formato": "crear: pdf (por defecto) | docx | odt | txt | md; convertir: pdf | docx | odt",
+                    "buscar": "crear: sí si hace falta buscar datos en internet",
+                    "al_movil": "crear: sí si quiere que se lo mande al móvil al terminar"},
+                   {"crear": _r("crear_documento"), "convertir": _r("convertir_documento"),
+                    "enviar_al_movil": _r("enviar_al_movil")}),
+    "taller": ("trabajos: los trabajos en segundo plano y su estado. proyectos: sin nombre lista los recientes; con nombre "
+               "lee su ESTADO.md para decir dónde se dejó.",
+               {"nombre": "proyectos: parte del nombre del proyecto, opcional"},
+               {"trabajos": _r("ver_trabajos"), "proyectos": _r("estado_proyectos")}),
+    "clima": ("consultar: el tiempo ahora y la previsión de hasta 3 días; sin lugar, donde está el usuario. Úsala siempre "
+              "que pregunte por el tiempo, la temperatura, el viento o la lluvia. fijar_ubicacion: dónde está el usuario "
+              "(«estoy en Chiclana»); no hay GPS, así que esto manda; lugar=auto la borra.",
+              {"lugar": "ciudad o sitio; en consultar, vacío = donde está el usuario", "dias": "consultar: 1 a 3 (por defecto 1)"},
+              {"consultar": _r("consultar_clima"), "fijar_ubicacion": _r("fijar_ubicacion")}),
+    "movil": ("El móvil del usuario. notificaciones: lee las que tiene (WhatsApp, Telegram, correo, llamadas…). sonar: lo "
+              "hace sonar a todo volumen para encontrarlo. Para contestar usa responder_notificacion o enviar_sms.",
+              {}, {"notificaciones": _r("notificaciones_movil"), "sonar": _r("sonar_movil")}),
+}
+
+
+def fusionar():
+    """Sustituye las herramientas de FUSIONES por la fusionada; llamar tras registrar todos los módulos."""
+    reales = {r for _, _, ramas in FUSIONES.values() for r, _, _ in ramas.values()}
+    DECLARATIONS[:] = [d for d in DECLARATIONS if d.name not in reales]
+    for nombre, (desc, props, ramas) in FUSIONES.items():
+        DECLARATIONS.append(_fn(nombre, desc, {"accion": _s(" | ".join(ramas)), **{k: _s(v) for k, v in props.items()}},
+                                req=["accion"]))
+        async def explica(*_, _n=nombre, _r=ramas, **__):
+            return f"Error: {_n} necesita accion = {' | '.join(_r)}"
+        HANDLERS[nombre] = explica
+    TOOLS[1] = types.Tool(function_declarations=DECLARATIONS)
+
+
+def _real(nombre, args):
+    """(fusionada, args) → (herramienta real, sus args). Con accion inválida devuelve la fusionada, que explica el error."""
+    if nombre not in FUSIONES or args.get("accion") not in FUSIONES[nombre][2]:
+        return nombre, args
+    real, ren, fijo = FUSIONES[nombre][2][args.pop("accion")]
+    acepta = inspect.signature(HANDLERS[real]).parameters
+    de = {f: r for r, f in ren.items()}
+    args = {de.get(k, k): v for k, v in args.items()}
+    args = {k: v for k, v in args.items() if k in acepta}
+    return real, {**args, **{k: v for k, v in fijo.items() if k in acepta}}
+
 
 def paso(texto, estado="en curso"):
     """Paso visible en el recuadro de estado del panel; devuelve el dict para marcarlo «hecho»/«falló»."""
@@ -764,19 +871,20 @@ def paso(texto, estado="en curso"):
     return p
 
 
-def _paso(fc):
-    arg = next((str(v) for v in (fc.args or {}).values() if v), "")
-    return paso(ETIQUETAS.get(fc.name, fc.name.replace("_", " ").capitalize()) + (f" · {arg[:60]}" if arg else ""))
+def _paso(nombre, args):
+    arg = next((str(v) for v in args.values() if v), "")
+    return paso(ETIQUETAS.get(nombre, nombre.replace("_", " ").capitalize()) + (f" · {arg[:60]}" if arg else ""))
 
 
 async def atender(session, tool_call):
     ST["ultima"] = time.monotonic()
     for fc in tool_call.function_calls:
         print(f"\n🔧 {fc.name}({dict(fc.args or {})})")
-        ST["herramienta"] = fc.name
-        paso = _paso(fc)
+        nombre, args = _real(fc.name, dict(fc.args or {}))
+        ST["herramienta"] = nombre
+        paso = _paso(nombre, args)
         try:
-            out = await HANDLERS[fc.name](**(fc.args or {}))
+            out = await HANDLERS[nombre](**args)
             paso["e"] = "falló" if str(out).startswith("Error") else "hecho"
         except Exception as e:
             out = f"Error: {e}"

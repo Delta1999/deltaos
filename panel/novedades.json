@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-19",
+  "t": "Delta tiene menos herramientas y mejor ordenadas (de 55 a 34): avisos, música, vista, Claude, memoria, skills, documentos, clima, móvil e impresora van agrupadas por tema, así que se equivoca menos al elegir. Para ti no cambia nada",
+  "como": "pídelo igual que siempre"
+ },
+ {
+  "f": "2026-10-19",
   "t": "Cuando Delta necesita tu permiso pasa solo al modo mascota y el mapache saca un bocadillo con lo que quiere hacer y dos botones, Sí y No; al contestar vuelve a la vista que tenías. Además, instalar skills y abrir enlaces con datos (?…) ahora piden permiso, y leer claves o ficheros ocultos ya no pasa sin preguntar",
   "como": "salta solo · pulsa Sí o No en el mapache (o dilo de palabra)"
  },

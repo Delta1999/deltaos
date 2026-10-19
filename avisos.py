@@ -127,7 +127,7 @@ async def _disparar(a, retraso):
     tarde = f" (con {round(retraso / 60)} min de retraso: el ordenador estaba apagado o suspendido)" if retraso > 120 else ""
     if a["tipo"] == "alarma":
         acciones.tarea(_alarma_en_bucle())
-        await acciones.avisar(f"Alarma: {a['texto']}{tarde}. Sigue sonando hasta que el usuario diga que pares (parar_alarma).")
+        await acciones.avisar(f"Alarma: {a['texto']}{tarde}. Sigue sonando hasta que el usuario diga que pares (avisos accion=parar_alarma).")
     else:
         _sonar("complete.oga")
         await acciones.avisar(f"Recordatorio que te pidió el usuario: {a['texto']}{tarde}.")
