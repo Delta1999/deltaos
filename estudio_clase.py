@@ -18,6 +18,7 @@ import tempfile
 import threading
 import sys
 import time
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
@@ -212,6 +213,28 @@ def misma_clase(f, clases):
 def tema_de(nombre):
     m = re.search(r"(?:^|[^a-z])t(?:ema)?[ _-]?0?(\d{1,2})(?:[^0-9]|$)", nombre.lower())
     return int(m.group(1)) if m else None
+
+
+def sin_tildes(t):
+    return unicodedata.normalize("NFKD", t.lower()).encode("ascii", "ignore").decode()
+
+
+def tema_por_titulo(nombre, temas=None):
+    """Sin «T4» en el título: el tema cuyo nombre casa mejor («Constitución» → Tema 04 - Derecho Constitucional).
+    Cada palabra del tema (≥ 5 letras) cuenta por su raíz de 8 letras; gana quien case más palabras y, a igualdad, la
+    mayor proporción (Penal → T8, Procesal Penal → T9); con empate, nada."""
+    temas = temas or [f.stem for f in TEMARIO.glob("Tema [0-9][0-9] - *.pdf")]
+    t, nota = sin_tildes(nombre), {}
+    for tm in temas:
+        n = int(tm[5:7])
+        pal = [w[:8] for w in re.findall(r"[a-z]{5,}", sin_tildes(tm.split(" - ", 1)[1]))]
+        if n and pal:
+            k = sum(w in t for w in pal)
+            nota[n] = (k, k / len(pal))
+    orden = sorted(nota.items(), key=lambda x: x[1], reverse=True)
+    if orden and orden[0][1][0] > 0 and (len(orden) == 1 or orden[1][1] < orden[0][1]):
+        return orden[0][0]
+    return None
 
 
 # ── 1. Temario y resumen en texto, con su número de página ──────────────────
@@ -509,7 +532,7 @@ def main():
         a.audio = [f]
     for f in a.audio:
         comprobar_audio(f)
-    a.tema = a.tema or tema_de(a.audio[0].name)
+    a.tema = a.tema or tema_de(a.audio[0].name) or tema_por_titulo(a.audio[0].name)
     if not a.tema:
         sys.exit(f"No sé de qué tema es «{a.audio[0].name}»: dímelo (--tema N)")
     if not 1 <= a.tema <= 23:

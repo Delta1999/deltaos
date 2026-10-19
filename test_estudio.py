@@ -14,6 +14,12 @@ assert ec.tema_de("T1_DDHH_(1ºP_Curso…).mp3") == 1
 assert ec.tema_de("T2_Igualdad_(Curso_PRO).mp3") == 2
 assert ec.tema_de("Tema 14 - Interior.mp3") == 14
 assert ec.tema_de("Clase_sin_numero.mp3") is None
+# sin «T4» en el título: por el nombre del tema, para que todas las de Constitución vayan al mismo PDF
+temas = [f.stem for f in sorted(ec.TEMARIO.glob("Tema [0-9][0-9] - *.pdf"))]
+assert ec.tema_por_titulo("PRO_MILITARES_-_Constitución_Española_Parte_3_-_Paco_Arriola [123].mp4", temas) == 4
+assert ec.tema_por_titulo("Derecho Penal - clase 2", temas) == 8
+assert ec.tema_por_titulo("Derecho procesal penal", temas) == 9
+assert ec.tema_por_titulo("Clase_sin_numero.mp3", temas) is None
 assert ec.tema_de("PRO_MILITARES_-_T1_DDHH_Carta_de_las_NNUU [1236086480].mp4") == 1  # nombre que pone bajar()
 
 # la página de la academia lleva el id de Vimeo y el título acaba en el profesor
