@@ -37,6 +37,7 @@ MEDIOS = {".mp3", ".m4a", ".mp4", ".webm", ".ogg", ".opus", ".mkv", ".wav", ".aa
 TRANSCRIBE = "gemini-3.8-flash"
 ANALIZA = "gemini-pro-latest"
 TRAMO = 1800  # s por trozo de audio: ~8 k tokens de salida, holgado
+TROZO_MIN = 225  # s: un trozo así de corto que el filtro de Gemini siga bloqueando se queda sin transcribir
 TIEMPO_MAX = 900  # s por petición a Gemini: sin esto una respuesta que no llega cuelga la clase entera
 DUR_IGUAL = 2  # s: dos audios que difieren menos que esto son el mismo vídeo
 CLASE_MIN = 300  # s: menos que esto es un corte o una descarga fallida, no una clase
@@ -86,13 +87,21 @@ def duracion(f):
     return float(r.stdout)
 
 
+class Bloqueado(Exception):
+    """El filtro de contenido de Gemini rechaza la entrada: repetir la misma petición no sirve."""
+
+
 def generar(modelo, contenido, esquema, intentos=6):
     """generate_content con salida JSON validada por esquema y reintentos (cuota, 5xx)."""
     for i in range(intentos):
         try:
             r = gem().models.generate_content(model=modelo, contents=contenido, config=types.GenerateContentConfig(
                 response_mime_type="application/json", response_json_schema=esquema, temperature=0.4))
+            if r.prompt_feedback and r.prompt_feedback.block_reason:
+                raise Bloqueado(r.prompt_feedback.block_reason.name)
             return json.loads(r.text)
+        except Bloqueado:
+            raise
         except Exception as e:
             if i == intentos - 1:
                 raise
@@ -289,11 +298,7 @@ def trocear(audio, dirt):
     return sorted(dirt.glob("*.ogg"))
 
 
-def transcribir_tramo(ogg):
-    cache = ogg.with_suffix(".json")
-    if cache.exists():
-        return json.loads(cache.read_text())
-    dur = duracion(ogg)
+def transcribir_audio(ogg, dur):
     f = gem().files.upload(file=str(ogg))
     try:
         while f.state and f.state.name == "PROCESSING":
@@ -310,6 +315,34 @@ def transcribir_tramo(ogg):
             continue
         ant = max(ant, t)
         limpio.append({**s, "t": ant})
+    return limpio
+
+
+def sin_bloqueos(ogg, dur):
+    """Si el filtro de Gemini bloquea el audio (falso positivo en clase), lo parte por mitades hasta TROZO_MIN
+    y deja una nota en el trozo que siga bloqueado: perder unos minutos, no la clase entera."""
+    try:
+        return transcribir_audio(ogg, dur)
+    except Bloqueado as e:
+        if dur < 2 * TROZO_MIN:
+            log(f"  {ogg.name}: Gemini sigue bloqueándolo ({e}); {hms(dur)} sin transcribir")
+            return [{"t": 0, "quien": "OTRO", "texto": f"[{hms(dur)} sin transcribir: el filtro de Gemini bloqueó este trozo del audio]"}]
+        log(f"  {ogg.name}: Gemini lo bloquea ({e}); lo parto en dos")
+    res = []
+    with tempfile.TemporaryDirectory() as d:
+        for k, (ini, larg) in enumerate(((0, dur / 2), (dur / 2, dur - dur / 2))):
+            trozo = Path(d) / f"{ogg.stem}_{k}.ogg"
+            subprocess.run(["ffmpeg", "-v", "error", "-ss", str(ini), "-t", str(larg), "-i", str(ogg), "-c:a", "libopus",
+                            "-b:a", "24k", str(trozo)], check=True)
+            res += [{**s, "t": s["t"] + int(ini)} for s in sin_bloqueos(trozo, duracion(trozo))]
+    return res
+
+
+def transcribir_tramo(ogg):
+    cache = ogg.with_suffix(".json")
+    if cache.exists():
+        return json.loads(cache.read_text())
+    limpio = sin_bloqueos(ogg, duracion(ogg))
     guardar(cache, limpio)
     log(f"  {ogg.parent.name}/{ogg.name}: {len(limpio)} intervenciones")
     return limpio
