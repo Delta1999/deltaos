@@ -37,5 +37,5 @@ Si te llama Delta: NO reinicies Delta (eres un proceso hijo suyo); di al final s
   y después `echo mascota > $XDG_RUNTIME_DIR/delta-vista` si estaba en modo mascota.
 - Tras cada arranque/reinicio (lo pidió el usuario): revisar en `assistant.log` las líneas `🩺 servicios:` (`comprobar_servicios.sh`) y `🔊 audio:` (`comprobar_audio.sh`); si hay ⚠️, arreglarlo o decírselo antes de dar Delta por buena.
 
-## Versión estable v2.0
-Tag `v2.0`. El botón «↺ Volver a v2.0» del menú de la hora (ws `reset_v2` → `reset_v2.sh`) hace `git reset --hard v2.0` y reinicia Delta; antes guarda lo posterior en el tag `antes-del-reset-<fecha>` y lo no commiteado en un stash. Para una versión estable nueva, mover el tag solo si el usuario lo pide.
+## Versión estable v2.1
+Tag `v2.1` (antes `v2.0`, que sigue existiendo). El botón «↺ Volver a v2.1» del menú de la hora (ws `reset_v2` → `reset_v2.sh`) hace `git reset --hard v2.1` y reinicia Delta; antes guarda lo posterior en el tag `antes-del-reset-<fecha>` y lo no commiteado en un stash. Para una versión estable nueva, mover el tag solo si el usuario lo pide.

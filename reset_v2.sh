@@ -1,10 +1,10 @@
 #!/bin/bash
-# Botón «Volver a v2.0» del panel (menú de la hora): devuelve DeltaOS a la versión estable y lo reinicia.
+# Botón «Volver a v2.1» del panel (menú de la hora): devuelve DeltaOS a la versión estable y lo reinicia.
 # Lo posterior NO se pierde: commits en el tag antes-del-reset-<fecha>, cambios sin commit en un stash.
 # No toca lo ignorado por git: memoria, avisos, logs, .venv, perfil del navegador.
 # Lo lanza panel.py en una sesión aparte (start_new_session): sobrevive a que mate a Delta.
 cd "$(dirname "$0")" || exit 1
-VERSION=v2.0
+VERSION=v2.1
 F=$(date +%F_%H%M%S)
 exec >>assistant.log 2>&1
 git rev-parse -q --verify "$VERSION" >/dev/null || { echo "♻️ reset: no existe $VERSION"; exit 1; }
