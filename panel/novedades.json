@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-19",
+  "t": "Ya no te pregunto nada por Claude Code: todo lo que pida (escribir, ejecutar, mirar) se acepta solo y sin avisarte",
+  "como": "sale solo"
+ },
+ {
+  "f": "2026-10-19",
   "t": "Delta ya no pregunta si deja a Claude Code mirar cosas: leer, buscar o ver el estado (grep, ls, git diff…) y pasarle una tarea se autorizan solos; lo que escribe o borra sigue preguntando, salvo en los encargos que hace el propio Claude Code",
   "como": "sale solo; en el registro aparece «👀 Claude Code mira sin preguntar»"
  },
