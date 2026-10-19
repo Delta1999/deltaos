@@ -2,7 +2,7 @@
 """Clase → apuntes: audio de una clase + tema del temario → PDF anotado.
 
 Uso: estudio_clase.py [--tema 1] (--audio clase.mp3 [--profe "Nombre"] … | --url <página del vídeo> | nada)
-Sin audio ni URL usa lo último que bajó la extensión de Vimeo. Sin tema, lo saca del nombre («T1_DDHH…»).
+Sin audio ni URL coge la clase abierta en Chrome (historial) y, si no hay, lo último que bajó la extensión. Sin tema, lo saca del nombre («T1_DDHH…»).
 Cada tema junta TODAS sus clases (temaNN/clases.json, en orden de llegada) en un solo PDF: una clase nueva se añade.
 Cada etapa deja su caché en ~/Documentos/Delta/estudio/temaNN/<clase>/ y se reanuda sola.
 """
@@ -11,13 +11,17 @@ import fcntl
 import json
 import os
 import re
+import shutil
+import sqlite3
 import subprocess
+import tempfile
 import threading
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import pymupdf
 from google import genai
@@ -33,6 +37,7 @@ TRANSCRIBE = "gemini-3.8-flash"
 ANALIZA = "gemini-pro-latest"
 TRAMO = 1800  # s por trozo de audio: ~8 k tokens de salida, holgado
 TIEMPO_MAX = 900  # s por petición a Gemini: sin esto una respuesta que no llega cuelga la clase entera
+DUR_IGUAL = 2  # s: dos audios que difieren menos que esto son el mismo vídeo
 CLASE_MIN = 300  # s: menos que esto es un corte o una descarga fallida, no una clase
 RUIDO = re.compile(r"P\s?R\s?O\s?C\s?I\s?V\s?I\s?L|IVIL\.ES|INGRESO G[Cc]|Todos los derechos", re.I)
 
@@ -91,10 +96,52 @@ def generar(modelo, contenido, esquema, intentos=6):
 
 # ── 0. Conseguir el audio ───────────────────────────────────────────────────
 
+VIDEO_ACADEMIA = re.compile(r"procivil\.es/content/video/(\d+)")  # el número es el id de Vimeo
+CHROME = Path.home() / ".config/google-chrome"
+
+
+def clase_abierta(horas=12):
+    """(url, título) de la última clase abierta en Chrome, sacada del historial: leer la barra de una captura no es fiable."""
+    mejor = None
+    for hist in CHROME.glob("*/History"):
+        with tempfile.TemporaryDirectory() as d:  # Chrome tiene la base bloqueada: se lee una copia
+            shutil.copy(hist, Path(d) / "h")
+            con = sqlite3.connect(Path(d) / "h")
+            fila = con.execute("SELECT url, last_visit_time FROM urls WHERE url LIKE '%procivil.es/content/video/%' "
+                               "ORDER BY last_visit_time DESC LIMIT 1").fetchone()
+            con.close()
+        if fila and (not mejor or fila[1] > mejor[1]):
+            mejor = fila
+    if not mejor or time.time() - (mejor[1] / 1e6 - 11644473600) > horas * 3600:  # tiempos de Chrome: µs desde 1601
+        return None
+    return mejor[0], parse_qs(urlparse(mejor[0]).query).get("title", [""])[0]
+
+
+def profe_de(titulo):
+    """La academia acaba el título con el profesor: «… - Parte 1 -  Paco Arriola»."""
+    ult = titulo.rsplit(" - ", 1)[-1].strip() if " - " in titulo else ""
+    return ult if re.fullmatch(r"[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+( [A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3}", ult) else ""
+
+
 def bajar(url):
     """yt-dlp con la página que se está viendo: el Vimeo embebido de la academia pide referer y sesión."""
     dest = TRABAJO / "descargas"
     dest.mkdir(parents=True, exist_ok=True)
+    m = VIDEO_ACADEMIA.search(url)
+    if m:
+        # la web de la academia es una app JS que yt-dlp no entiende; el reproductor de Vimeo con su referer, sí
+        vid = m.group(1)
+        hecho = [f for f in dest.iterdir() if f"[{vid}]" in f.name and f.suffix in MEDIOS]
+        if hecho:
+            return hecho[0]
+        nombre = re.sub(r"[^\w-]+", "_", parse_qs(urlparse(url).query).get("title", [vid])[0])[:90].strip("_")
+        r = subprocess.run(["yt-dlp", "-f", "bestaudio", "-N", "8", "--referer", "https://app.procivil.es/", "-o",
+                            str(dest / f"{nombre} [{vid}].%(ext)s"), f"https://player.vimeo.com/video/{vid}"],
+                           capture_output=True, text=True)
+        hecho = [f for f in dest.iterdir() if f"[{vid}]" in f.name and f.suffix in MEDIOS]
+        if r.returncode == 0 and hecho:
+            return hecho[0]
+        log("yt-dlp no pudo con Vimeo →", (r.stderr.strip().splitlines() or ["?"])[-1][:200])
     for galletas in (["--cookies-from-browser", "chrome"], ["--cookies-from-browser", "firefox"], []):
         antes = set(dest.iterdir())
         r = subprocess.run(["yt-dlp", "-f", "bestaudio/best", "--no-playlist", "--referer", url, *galletas,
@@ -142,6 +189,18 @@ def juntar(clases, audios, profes):
         elif p:
             ya["profe"] = p
     return out
+
+
+def misma_clase(f, clases):
+    """El mismo vídeo bajado por otra vía (extensión o yt-dlp) se llama distinto pero dura lo mismo: se reutiliza la clase
+    que ya estaba para no transcribirla dos veces ni meterla repetida en el PDF."""
+    d = duracion(f)
+    for c in clases:
+        p = Path(c["audio"])
+        if p.name != f.name and p.exists() and abs(duracion(p) - d) < DUR_IGUAL:
+            log(f"{f.name} es la misma clase que {p.name} (dura lo mismo): no la duplico")
+            return p
+    return f
 
 
 def tema_de(nombre):
@@ -413,6 +472,14 @@ def main():
     ap.add_argument("--abrir", action="store_true", help="abre el PDF en Okular al acabar")
     a = ap.parse_args()
 
+    if not a.audio and not a.url:
+        abierta = clase_abierta()
+        if abierta:
+            a.url = abierta[0]
+            log(f"Clase abierta en Chrome: {abierta[1] or a.url}")
+    if a.url and not a.audio and not a.profe:
+        p = profe_de(parse_qs(urlparse(a.url).query).get("title", [""])[0])
+        a.profe = [p] if p else []
     if not a.audio:
         f = bajar(a.url) if a.url else None
         if not f:
@@ -441,7 +508,8 @@ def main():
         log(f"Otra clase del tema {a.tema} se está procesando: espero a que acabe y junto esta con ella")
         fcntl.flock(cerrojo, fcntl.LOCK_EX)
     f_clases = carpeta / "clases.json"
-    clases = juntar(json.loads(f_clases.read_text()) if f_clases.exists() else [], a.audio, a.profe)
+    clases = json.loads(f_clases.read_text()) if f_clases.exists() else []
+    clases = juntar(clases, [misma_clase(f, clases) for f in a.audio], a.profe)
     guardar(f_clases, clases)
     audios, profes = [Path(c["audio"]) for c in clases], [c["profe"] for c in clases]
 

@@ -14,6 +14,12 @@ assert ec.tema_de("T1_DDHH_(1ºP_Curso…).mp3") == 1
 assert ec.tema_de("T2_Igualdad_(Curso_PRO).mp3") == 2
 assert ec.tema_de("Tema 14 - Interior.mp3") == 14
 assert ec.tema_de("Clase_sin_numero.mp3") is None
+assert ec.tema_de("PRO_MILITARES_-_T1_DDHH_Carta_de_las_NNUU [1236086480].mp4") == 1  # nombre que pone bajar()
+
+# la página de la academia lleva el id de Vimeo y el título acaba en el profesor
+assert ec.VIDEO_ACADEMIA.search("https://app.procivil.es/content/video/1236086480?title=PRO").group(1) == "1236086480"
+assert ec.profe_de("PRO / MILITARES - T1 DDHH Carta de las NNUU - Parte 1 -  Paco Arriola") == "Paco Arriola"
+assert ec.profe_de("T2 Igualdad - Parte 1") == "" and ec.profe_de("Sin guiones") == ""
 assert ec.segundos("1:02:03") == 3723 and ec.segundos("[P2·0:05:28]") == 328
 
 # una clase nueva se AÑADE al final; la repetida no se duplica y solo actualiza el profe
@@ -46,6 +52,12 @@ with tempfile.TemporaryDirectory() as d:
     assert r.returncode and "invalid choice" in r.stderr, r.stderr
     r = corre("--audio", str(Path(d) / "no_existe.mp3"))
     assert r.returncode and "No existe" in r.stderr, r.stderr
+    # el mismo vídeo bajado por otra vía (otro nombre, misma duración) reutiliza la clase; otra duración es otra clase
+    otro, largo = Path(d) / "T1_otro_nombre.mp4", Path(d) / "T1_largo.mp3"
+    subprocess.run(["ffmpeg", "-v", "error", "-i", str(corto), str(otro)], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono", "-t", "20", str(largo)], check=True)
+    clases = [{"audio": str(corto), "profe": ""}]
+    assert ec.misma_clase(otro, clases) == corto and ec.misma_clase(largo, clases) == largo
 
 # el PDF anterior solo se guarda en «Versiones anteriores» si tiene anotaciones que no son de Delta
 import pymupdf

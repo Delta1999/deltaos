@@ -128,5 +128,10 @@
   "f": "2026-10-15",
   "t": "Arregladas las dos voces de Delta",
   "como": ""
+ },
+ {
+  "f": "2026-10-19",
+  "t": "Clase → PDF en un comando: detecta la clase de ProCivil abierta en Chrome, baja su audio de Vimeo, saca tema y profesor del título y la junta en el PDF del tema (DeltaOs/)",
+  "como": "«Delta, aplica esta clase al PDF»"
  }
 ]
