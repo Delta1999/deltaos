@@ -11,7 +11,8 @@ from acciones import _fn, _s
 AQUI = Path(__file__).parent
 
 
-def clase_a_apuntes(url="", tema="", audio="", profe=""):
+async def clase_a_apuntes(url="", tema="", audio="", profe=""):
+    # async: atender() hace await; síncrona devolvía «str can't be awaited» y Gemini decía que había fallado aunque el trabajo arrancaba
     # Gemini a veces la llama varias veces seguidas: dos trabajos bajarían y procesarían la misma clase a la vez
     en_curso = [n for n, e in acciones.ST["trabajos"].items() if n.startswith("apuntes-") and e == "en curso"]
     if en_curso:

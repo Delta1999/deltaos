@@ -86,4 +86,10 @@ with tempfile.TemporaryDirectory() as d:
     f.write_text("hola\nTraceback x\n")
     assert acciones.etapa(f) == {"pct": None, "etapa": "Traceback x"}
 
+# atender() hace await de cada herramienta: una síncrona da error aunque haga su trabajo
+import inspect
+import estudio
+assert all(inspect.iscoroutinefunction(f) for f in acciones.HANDLERS.values()), \
+    [n for n, f in acciones.HANDLERS.items() if not inspect.iscoroutinefunction(f)]
+
 print("ok")
