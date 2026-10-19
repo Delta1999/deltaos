@@ -17,6 +17,7 @@ ojos (parpadean, rojos al escuchar), boca (habla con la voz, grita, sonríe al a
 Patrulla: con Delta en espera y tú delante, ronda con tricornio, placa y porra; a veces se para y da el alto.
 """
 import glob
+import html
 import json
 import math
 import os
@@ -178,6 +179,79 @@ def tono(g, apagado, agobio):
     g = round(g * apagado)
     return QColor(g + 70, g // 3, g // 4) if agobio and g < 60 else QColor(g, g, g)
 
+HUD_FIN = 600                   # s que la barra sigue enseñando un trabajo ya acabado, con su ✓ o ✗
+HUD_PASOS = 5                   # herramientas en la barra
+ESTILO_HUD = ("background:rgba(0,0,0,200);color:#f2f2f2;border:1px solid #262626;border-radius:10px;padding:6px 12px;"
+              "font-family:'IBM Plex Mono',monospace;font-size:12px")
+
+
+def barra(pct, n=12):
+    k = round(n * max(0, min(100, pct)) / 100)
+    return "█" * k + "░" * (n - k)
+
+
+def reloj(s):
+    s = int(s)
+    return f"{s // 60}:{s % 60:02d}" if s < 3600 else f"{s // 3600} h {s // 60 % 60:02d}"
+
+
+def corto(t, n):
+    return t if len(t) <= n else t[:n - 1] + "…"
+
+
+def trabajos_hud(d, ahora):
+    """[(nombre, estado, progreso)] en curso o acabados hace menos de HUD_FIN, del más viejo al más nuevo."""
+    tr, pg = d.get("trabajos") or {}, d.get("progreso") or {}
+    return [(n, tr.get(n, ""), g) for n, g in sorted(pg.items(), key=lambda x: x[1].get("ini") or 0)
+            if tr.get(n) == "en curso" or (g.get("fin") and ahora - g["fin"] < HUD_FIN)]
+
+
+def hud(d, ahora):
+    """Líneas de la barra (como claude-hud), solo con datos medidos por el código, nunca con lo que diga Gemini:
+    1) estado de Delta, contexto y gasto de Gemini, Claude Code; 2) últimas herramientas con su resultado real;
+    3+) trabajos en segundo plano con etapa, % y tiempo (salen de su log)."""
+    if not d:
+        return ["<b>DELTA</b> · <span style='color:#ff2d1f'>no está en marcha</span>"]
+    e, rojo, gris = html.escape, "<span style='color:#ff2d1f'>{}</span>", "<span style='color:#5a5a5a'>{}</span>"
+    est, u, cl = d.get("estado", ""), d.get("uso") or {}, d.get("claude") or {}
+    l1 = (rojo if est in ("escuchando", "trabajando") else "{}").format("●") + f" <b>DELTA {e(est.upper())}</b>"
+    if est != "dormido" and d.get("conexion") not in (None, "conectado"):
+        l1 += " · " + rojo.format(e(d["conexion"]))
+    if u:
+        tok = f"{u['tok'] / 1e6:.2f}M" if u.get("tok", 0) >= 1e6 else f"{u.get('tok', 0) / 1000:.1f}K"
+        l1 += f" │ Gemini ctx {u.get('ctx', 0)}% · {tok} tok · ≈{u.get('usd', 0):.2f} $"
+    ce = cl.get("estado", "libre")
+    l1 += " │ Claude " + (rojo.format(e(ce)) if ce == "esperando permiso" else e(ce))
+    if ce == "trabajando" and cl.get("pasos"):
+        l1 += " · " + e(corto(cl["pasos"][-1].get("t", ""), 40))
+    marca = {"hecho": "✓", "falló": rojo.format("✗")}
+    ps = (d.get("pasos") or [])[-HUD_PASOS:]
+    l2 = "  ".join(f"{marca.get(p.get('e'), rojo.format('●'))} {gris.format(p.get('h', '')[:5])} {e(corto(p.get('t', ''), 34))}"
+                   for p in ps) or gris.format("sin herramientas todavía")
+    lineas = [l1, l2]
+    for n, estado, g in trabajos_hud(d, ahora):
+        n = e(re.sub(r"-\d+$", "", n))
+        if estado == "en curso":
+            pct = g.get("pct")
+            lineas.append(rojo.format("▶") + f" <b>{n}</b> " + (f"{pct:3d}% {barra(pct)} " if pct is not None else "") +
+                          e(corto(g.get("etapa") or "arrancando…", 60)) + " · " + gris.format(reloj(ahora - (g.get("ini") or ahora))))
+        else:
+            ok = estado.startswith("terminó bien")
+            lineas.append(("✓" if ok else rojo.format("✗")) + f" <b>{n}</b> {e(estado)} · " +
+                          gris.format(time.strftime("%H:%M", time.localtime(g["fin"]))) +
+                          ("" if ok else " · " + e(corto(g.get("etapa", ""), 60))))
+    return lineas
+
+
+def globo(d, ahora):
+    """Lo que dice el mapache en su globo mientras hay un trabajo en curso: etapa y %."""
+    for n, estado, g in trabajos_hud(d, ahora):
+        if estado == "en curso":
+            pct = g.get("pct")
+            return (f"{re.sub(r'-\d+$', '', n)} · " + (f"{pct} % · " if pct is not None else "") +
+                    corto(g.get("etapa") or "arrancando…", 70))
+    return ""
+
 
 class Bocadillo(QFrame):
     """Pide permiso (2026-10-19): qué quiere hacer Delta, en corto, y Sí / No encima de la cabeza del mapache."""
@@ -250,6 +324,11 @@ class Mascota(QWidget):
         self.ws.disconnected.connect(lambda: (self.d.clear(), QTimer.singleShot(3000, self.conectar)))
         self.conectar()
         self.bocadillo = Bocadillo(self, lambda c: self.ws.sendTextMessage(json.dumps({"cmd": c})))
+        # barra fija arriba (estilo claude-hud) y globo del mapache con la etapa del trabajo: fuera de la máscara, el
+        # ratón los atraviesa
+        self.barra = QLabel(self, textFormat=Qt.TextFormat.RichText, styleSheet=ESTILO_HUD)
+        self.globo = QLabel(self, textFormat=Qt.TextFormat.PlainText, styleSheet=ESTILO_HUD.replace("#262626", "#ff2d1f"))
+        self.globo.hide()
         self.mascara = QRegion()
         reloj = QTimer(self, interval=50)
         reloj.timeout.connect(self.tic)
@@ -296,11 +375,28 @@ class Mascota(QWidget):
             mascara = mascara.united(QRegion(b.geometry()))
         else:
             b.hide()
+        self.pintar_hud(b.isVisible())
         if mascara != self.mascara and self.windowHandle():
             self.windowHandle().setMask(mascara)  # solo el mapache (y el bocadillo) reciben el ratón; el resto lo deja pasar
             self.mascara = mascara
         self.update(caja.united(self.caja or caja).adjusted(-12, -12, 12, 12))  # solo su recuadro: repintar la capa entera costaría
         self.caja = caja
+
+    def pintar_hud(self, permiso):
+        ahora = time.time()
+        txt = "<br>".join(hud(self.d, ahora))
+        if txt != self.barra.text():
+            self.barra.setText(txt)
+            self.barra.adjustSize()
+        self.barra.move((self.width() - self.barra.width()) // 2, 6)
+        g = "" if permiso else globo(self.d, ahora)  # el bocadillo de permiso manda
+        if g != self.globo.text():
+            self.globo.setText(g)
+            self.globo.adjustSize()
+        self.globo.setVisible(bool(g))
+        if g:
+            self.globo.move(round(min(max(self.px + SW / 2 - self.globo.width() / 2, 8), self.width() - self.globo.width() - 8)),
+                            round(max(self.py + OREJAS - self.globo.height() - 26, 8)))
 
     def mover(self, dt, ahora, parado):
         suelo = self.height() - SH
@@ -690,6 +786,18 @@ if __name__ == "__main__":
     assert (x0, x1) == (500, 500 + 800 - SW) and y + PIES == 404
     assert percha((40, 0, 2520, 1080), (40, 0), 2520, 1080 - SH) is None   # maximizada: no cabe encima
     assert percha((540, 400, SW - 10, 600), (40, 0), 2520, 1080 - SH) is None  # más estrecha que el mapache
+    # barra y globo: trabajo en curso con su etapa, acabado con ✓ / ✗, uno viejo ya no sale; nada de HTML ajeno
+    d = {"estado": "trabajando", "uso": {"ctx": 12.5, "tok": 1_234_567, "usd": 0.3}, "claude": {"estado": "libre"},
+         "pasos": [{"t": "Paso la clase <b>a</b> apuntes", "e": "hecho", "h": "16:33:01"}, {"t": "Mira", "e": "falló", "h": "16:34:00"}],
+         "trabajos": {"apuntes-1": "en curso", "render-2": "falló (código 1)", "viejo-3": "terminó bien"},
+         "progreso": {"apuntes-1": {"etapa": "Transcribiendo: 3/4 tramos", "pct": 44, "ini": 1000, "fin": None},
+                      "render-2": {"etapa": "Traceback", "pct": None, "ini": 1100, "fin": 1500},
+                      "viejo-3": {"etapa": "", "pct": 100, "ini": 0, "fin": 1}}}
+    h = hud(d, 1600)
+    assert len(h) == 4 and "1.23M" in h[0] and "&lt;b&gt;" in h[1] and "✗" in h[1], h
+    assert " 44% █████░░░░░░░" in h[2] and "10:00" in h[2] and "apuntes-1" not in h[2] and "✗" in h[3], h
+    assert globo(d, 1600) == "apuntes · 44 % · Transcribiendo: 3/4 tramos" and globo({}, 0) == ""
+    assert hud({}, 0)[0].endswith("no está en marcha</span>")
     app = QApplication(sys.argv)
     app.setDesktopFileName("delta-mascota")
     app.setStyleSheet("QToolTip{background:#000;color:#f2f2f2;border:1px solid #262626;padding:8px;"

@@ -1,6 +1,16 @@
 [
  {
   "f": "2026-10-19",
+  "t": "HUD para ver qué hace Delta de verdad: barra fija arriba con su estado, contexto y gasto de Gemini, Claude Code, las últimas herramientas con ✓/✗ según el resultado real y los trabajos en segundo plano con etapa, % y tiempo; el mapache lleva un globo con la etapa y el panel muestra lo mismo",
+  "como": "se ve solo mientras Delta está en marcha"
+ },
+ {
+  "f": "2026-10-19",
+  "t": "Clase → PDF en un comando: detecta la clase de ProCivil abierta en Chrome, baja su audio de Vimeo, saca tema y profesor del título y la junta en el PDF del tema (DeltaOs/)",
+  "como": "«Delta, aplica esta clase al PDF»"
+ },
+ {
+  "f": "2026-10-19",
   "t": "Delta tiene menos herramientas y mejor ordenadas (de 55 a 34): avisos, música, vista, Claude, memoria, skills, documentos, clima, móvil e impresora van agrupadas por tema, así que se equivoca menos al elegir. Para ti no cambia nada",
   "como": "pídelo igual que siempre"
  },
@@ -128,10 +138,5 @@
   "f": "2026-10-15",
   "t": "Arregladas las dos voces de Delta",
   "como": ""
- },
- {
-  "f": "2026-10-19",
-  "t": "Clase → PDF en un comando: detecta la clase de ProCivil abierta en Chrome, baja su audio de Vimeo, saca tema y profesor del título y la junta en el PDF del tema (DeltaOs/)",
-  "como": "«Delta, aplica esta clase al PDF»"
  }
 ]

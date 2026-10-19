@@ -64,6 +64,11 @@ def log(*a):
     print(time.strftime("%H:%M:%S"), *a, flush=True)
 
 
+def avance(pct, *a):
+    """Etapa con su % para el HUD de Delta (acciones.etapa lee el último «[NN%]» del log)."""
+    log(f"[{pct}%]", *a)
+
+
 def hms(s):
     s = int(s)
     return f"{s // 3600}:{s // 60 % 60:02d}:{s % 60:02d}"
@@ -135,6 +140,7 @@ def bajar(url):
         if hecho:
             return hecho[0]
         nombre = re.sub(r"[^\w-]+", "_", parse_qs(urlparse(url).query).get("title", [vid])[0])[:90].strip("_")
+        avance(2, "Bajando el audio de la clase…")
         r = subprocess.run(["yt-dlp", "-f", "bestaudio", "-N", "8", "--referer", "https://app.procivil.es/", "-o",
                             str(dest / f"{nombre} [{vid}].%(ext)s"), f"https://player.vimeo.com/video/{vid}"],
                            capture_output=True, text=True)
@@ -300,8 +306,16 @@ def transcribir_con_reintentos(ogg, veces=5):
 def transcribir(audios, base):
     """Devuelve [{parte, t (s desde el inicio de su parte), quien, texto}]."""
     tramos = [(i, j, ogg) for i, a in enumerate(audios, 1) for j, ogg in enumerate(trocear(a, base / f"audio{i}"))]
+    hechos = []
+
+    def uno(x):
+        segs = transcribir_con_reintentos(x[2])
+        hechos.append(x)
+        avance(12 + 43 * len(hechos) // len(tramos), f"Transcribiendo: {len(hechos)}/{len(tramos)} tramos")
+        return segs
+
     with ThreadPoolExecutor(4) as ex:
-        res = list(ex.map(lambda x: transcribir_con_reintentos(x[2]), tramos))
+        res = list(ex.map(uno, tramos))
     return [{**s, "parte": i, "t": s["t"] + j * TRAMO} for (i, j, _), segs in zip(tramos, res) for s in segs]
 
 
@@ -382,7 +396,8 @@ def analizar(trans, partes, doc, resumen, base, profes=()):
         bloques.setdefault((s["parte"], s["t"] // HORA), []).append(s)
     bloques = list(bloques.values())
     tema = texto_paginas(doc, range(len(doc)))
-    log(f"Análisis de profesorado con {ANALIZA}: {len(bloques)} partes…")
+    avance(60, f"Analizando al profesor con {ANALIZA}: {len(bloques)} partes…")
+    hechas = []
 
     def una(k, bl):
         f = base / f"analisis_{k:02d}.json"
@@ -393,6 +408,8 @@ def analizar(trans, partes, doc, resumen, base, profes=()):
                                                        resumen=resumen or "(no hay)"), ESQ_ANALISIS)
             guardar(f, an)
             log(f"  parte {k + 1}/{len(bloques)}: {len(an['notas'])} notas")
+        hechas.append(k)
+        avance(60 + 20 * len(hechas) // len(bloques), f"Analizando al profesor: {len(hechas)}/{len(bloques)} partes")
         return json.loads(f.read_text())
 
     with ThreadPoolExecutor(3) as ex:
@@ -518,7 +535,7 @@ def main():
     base.mkdir(exist_ok=True)
     doc = pymupdf.open(tema_pdf)
     resumen = texto_resumen(a.tema)
-    log(f"Tema {a.tema}, {len(audios)} clase(s): " + "; ".join(f"{x.name} ({p or '¿profe?'})" for x, p in zip(audios, profes)))
+    avance(10, f"Tema {a.tema}, {len(audios)} clase(s): " + "; ".join(f"{x.name} ({p or '¿profe?'})" for x, p in zip(audios, profes)))
     log(f"Tema {a.tema}: {len(doc)} págs; resumen del año pasado: {resumen.count('=== PÁGINA')} págs")
 
     f_trans = base / "transcripcion.json"
@@ -528,24 +545,24 @@ def main():
         for f in (f_trans, base / "esquemas.json"):
             f.unlink(missing_ok=True)
     if not f_trans.exists():
-        log("Transcribiendo…")
+        avance(12, "Transcribiendo…")
         guardar(f_trans, transcribir(audios, base))
     trans = json.loads(f_trans.read_text())
     partes = max(s["parte"] for s in trans)
     texto_clase = "\n".join(f"[{minuto(s, partes)}] {s['quien']}: {s['texto']}" for s in trans)
     (base / "transcripcion.md").write_text(f"# Clase · Tema {a.tema} · {a.fecha}\n\n" + texto_clase.replace("\n", "\n\n"))
-    log(f"Transcripción: {len(trans)} intervenciones, {len(texto_clase)} caracteres")
+    avance(55, f"Transcripción: {len(trans)} intervenciones, {len(texto_clase)} caracteres")
 
     f_sub = base / "subrayado.json"
     if not f_sub.exists():
-        log("Subrayado de estudio…")
+        avance(57, "Subrayado de estudio…")
         guardar(f_sub, subrayado(doc, resumen))
 
     an = analizar(trans, partes, doc, resumen, base, profes)  # con los bloques en caché solo junta: sin coste
     guardar(base / "analisis.json", an)
     f_esq = base / "esquemas.json"
     if not f_esq.exists() and an["esquemas"]:
-        log(f"Esquemas a fondo con {ANALIZA}…")
+        avance(82, f"Esquemas a fondo con {ANALIZA}…")
         guardar(f_esq, esquemas(an, doc))
     if f_esq.exists():
         an["esquemas"] = json.loads(f_esq.read_text())
@@ -555,6 +572,7 @@ def main():
     SALIDA.mkdir(exist_ok=True)
     destino = SALIDA / f"{tema_pdf.stem} (Delta).pdf"
     tmp = SALIDA / f".{destino.stem}.tmp.pdf"  # el PDF bueno no se toca hasta que el nuevo está entero
+    avance(92, "Montando el PDF…")
     informe = estudio_pdf.componer(tema_pdf, an, json.loads(f_sub.read_text()), tmp, base)
     viejas = SALIDA / "Versiones anteriores"
     for f in SALIDA.glob(f"{tema_pdf.stem} (Delta*.pdf"):
@@ -565,6 +583,7 @@ def main():
             log(f"Copia de la versión anterior en «{viejas.name}/»")
     os.replace(tmp, destino)
     log(informe)
+    avance(100, f"LISTO: {destino.name}")
     print(f"LISTO {destino}")
     if a.abrir:
         subprocess.Popen(["okular", str(destino)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)

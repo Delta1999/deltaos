@@ -126,19 +126,40 @@ def entrada_stdin(linea: str):
 
 
 # ---------- trabajos en segundo plano ----------
+def etapa(log):
+    """Etapa y % de un trabajo según su log: la última línea con «[NN%]» (estudio_clase las pone) o, si no hay, la última."""
+    with open(log, "rb") as f:
+        f.seek(max(0, f.seek(0, 2) - 4096))
+        lineas = [re.sub(r"^\d\d:\d\d:\d\d ", "", l).strip() for l in f.read().decode(errors="replace").splitlines()]
+    lineas = [l for l in lineas if l]
+    con = [l for l in lineas if re.match(r"\[\d+%\]", l)]
+    if con:
+        m = re.match(r"\[(\d+)%\]\s*(.*)", con[-1])
+        return {"pct": int(m.group(1)), "etapa": m.group(2)[:120]}
+    return {"pct": None, "etapa": (lineas[-1] if lineas else "")[:120]}
+
+
 async def _trabajo(nombre, argv, cwd, timeout, pre=None):
     TRABAJOS.mkdir(exist_ok=True)
     log = TRABAJOS / f"{nombre}.log"
     ST["trabajos"][nombre] = "en curso"
+    prog = ST.setdefault("progreso", {})[nombre] = {"etapa": "", "pct": None, "ini": time.time(), "fin": None}
+    fin = time.monotonic() + timeout
     with open(log, "w") as f:
         p = await asyncio.create_subprocess_exec(*argv, cwd=cwd, stdout=f, stderr=asyncio.subprocess.STDOUT)
-        try:
-            await asyncio.wait_for(p.wait(), timeout)
-            estado = "terminó bien" if p.returncode == 0 else f"falló (código {p.returncode})"
-        except asyncio.TimeoutError:
-            p.kill()
-            estado = f"se cortó por timeout de {timeout}s"
+        while True:
+            try:
+                await asyncio.wait_for(p.wait(), 2)
+                estado = "terminó bien" if p.returncode == 0 else f"falló (código {p.returncode})"
+                break
+            except asyncio.TimeoutError:
+                prog.update(etapa(log))  # el HUD enseña lo que dice el log, no lo que cuente Gemini
+                if time.monotonic() > fin:
+                    p.kill()
+                    estado = f"se cortó por timeout de {timeout}s"
+                    break
     cola = _clip(log.read_text(errors="replace")[-700:])
+    prog.update(etapa(log), fin=time.time())
     ST["trabajos"][nombre] = estado
     await avisar(f"El trabajo «{nombre}» {estado}. Final del log: {cola}")
 

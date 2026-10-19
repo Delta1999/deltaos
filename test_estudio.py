@@ -77,4 +77,13 @@ with tempfile.TemporaryDirectory() as d:
     doc.saveIncr()
     assert estudio_pdf.tocado_a_mano(f)
 
+# el HUD saca etapa y % de la última línea «[NN%]» del log del trabajo, aunque luego vengan otras
+import acciones
+with tempfile.TemporaryDirectory() as d:
+    f = Path(d) / "x.log"
+    f.write_text("16:00:00 [12%] Transcribiendo…\n16:01:00 [23%] Transcribiendo: 1/4 tramos\n16:01:02   audio1/t00.ogg: 9 intervenciones\n\n")
+    assert acciones.etapa(f) == {"pct": 23, "etapa": "Transcribiendo: 1/4 tramos"}
+    f.write_text("hola\nTraceback x\n")
+    assert acciones.etapa(f) == {"pct": None, "etapa": "Traceback x"}
+
 print("ok")

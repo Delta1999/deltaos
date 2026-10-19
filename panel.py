@@ -160,6 +160,7 @@ def snapshot(ST):
         "pasos": ST.get("pasos", []),
         "confirma": getattr(ST["pending"], "texto", None) if ST["pending"] and not ST["pending"].done() else None,
         "trabajos": ST["trabajos"],
+        "progreso": ST.get("progreso", {}),
         "claude": ST.get("claude"),
         "memoria": _memoria(),
         "sueno": max(0, round(acciones.INACTIVIDAD - (ahora - ST["ultima"]))) if ST["activo"] else None,

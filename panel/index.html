@@ -73,7 +73,7 @@ footer{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.15fr) minma
 /* pasos y consumo en el recuadro de estado */
 #pasos{position:absolute;top:22px;right:26px;width:min(560px,56%);background:rgba(0,0,0,.78);border:1px solid var(--line);border-radius:16px;padding:14px 16px 10px;display:none}
 #pasos.on{display:block}
-.p{display:grid;grid-template-columns:62px 1fr 18px;gap:10px;font-size:14px;line-height:1.5;color:var(--dim)}
+.p{display:grid;grid-template-columns:62px 1fr minmax(18px,auto);gap:10px;font-size:14px;line-height:1.5;color:var(--dim)}
 .p span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .p.cur{color:var(--fg)}.p.cur b{color:var(--red);animation:pul 1s ease-in-out infinite}.p.mal b{color:var(--red)}
 .p b{font-weight:500;text-align:right}
@@ -285,7 +285,8 @@ function pintar(d){
   document.body.classList.toggle('sinagenda',!(d.avisos||[]).length&&!tr.length&&!(mv&&mv.length&&!d.priv));
   const grupos=mv?Object.entries(mv.reduce((o,x)=>((o[x.app]=o[x.app]||[]).push(x.quien),o),{})):[];
   $('agenda').innerHTML=`<span class="lbl">Agenda · avisos</span>`+((d.avisos||[]).map(a=>`<div class="ag"><b class="${a.tipo==='alarma'?'r':''}">${a.t.slice(11,16)}</b><span>${a.tipo==='alarma'?'⏰ ':''}${esc(a.texto)}</span><span class="lbl">${falta(a.t)}</span></div>`).join('')||'<div class="vacio">Sin avisos ni alarmas. «Avísame en 20 min…»</div>')+
-   (tr.length?`<div class="lbl" style="margin-top:16px">En curso</div>`+tr.map(([n])=>`<div class="ag"><b class="r">●</b><span>${esc(n)}</span><span></span></div>`).join(''):'')+
+   (tr.length?`<div class="lbl" style="margin-top:16px">En curso</div>`+tr.map(([n])=>{const g=(d.progreso||{})[n]||{};
+     return `<div class="ag"><b class="r">${g.pct==null?'●':g.pct+'%'}</b><span>${esc(n)}${g.etapa?' · '+esc(g.etapa):''}</span><span class="lbl">${g.ini?mmss(ahora/1e3-g.ini):''}</span></div>`+(g.pct!=null?bar(g.pct,true):'')}).join(''):'')+
    `<div class="lbl" style="margin-top:16px">Móvil${mv?' · '+mv.length:''}</div>`+(mv==null?'<div class="vacio">No conectado.</div>':d.priv?'<div class="vacio">Oculto (privacidad).</div>':
     grupos.slice(0,4).map(([app,q])=>`<div class="ag"><b>${q.length}</b><span>${esc(app)} · ${esc([...new Set(q)].join(', '))}</span><span></span></div>`).join('')||'<div class="vacio">Sin notificaciones.</div>');
 
@@ -306,11 +307,12 @@ function pintar(d){
   if(d.evento&&d.evento.id!==(window._ev||0)){window._ev=d.evento.id;celebrar(d.evento)}
 
   const ps=d.pasos||[],cl=d.claude&&d.claude.estado==='trabajando'&&d.claude.pasos.length?d.claude.pasos[d.claude.pasos.length-1]:null,
-   vivo=d.estado!=='dormido'||ps.some(p=>p.e==='en curso')||cl;
-  $('pasos').className=vivo&&(ps.length||cl)?'on':'';
+   vivo=d.estado!=='dormido'||ps.some(p=>p.e==='en curso')||cl||tr.length;
+  $('pasos').className=vivo&&(ps.length||cl||tr.length)?'on':'';
   $('pasos').innerHTML='<div class="lbl" style="margin-bottom:8px">Pasos</div>'+ps.map(p=>
     `<div class="p ${p.e==='en curso'?'cur':p.e==='falló'?'mal':''}"><span>${p.h.slice(0,5)}</span><span>${esc(p.t)}</span><b>${p.e==='hecho'?'✓':p.e==='falló'?'✗':'●'}</b></div>`).join('')+
-    (cl?`<div class="p cur"><span>CLAUDE</span><span>${esc(cl.t)}</span><b>●</b></div>`:'');
+    (cl?`<div class="p cur"><span>CLAUDE</span><span>${esc(cl.t)}</span><b>●</b></div>`:'')+
+    tr.map(([n])=>{const g=(d.progreso||{})[n]||{};return `<div class="p cur"><span>${g.pct==null?'···':g.pct+'%'}</span><span>${esc(n.replace(/-\d+$/,''))} · ${esc(g.etapa||'arrancando…')}</span><b>${g.ini?mmss(ahora/1e3-g.ini):'●'}</b></div>`+(g.pct!=null?bar(g.pct,true):'')}).join('');
   const u=d.uso;
   $('uso').innerHTML=u?`Contexto <b>${u.ctx}%</b> · <b>${u.tok>=1e6?(u.tok/1e6).toFixed(2)+'M':(u.tok/1000).toFixed(1)+'K'}</b> tokens<br>Gasto <b>0 €</b> · gratis (de pago ≈ ${u.usd.toFixed(3)} $)`:'';
 
