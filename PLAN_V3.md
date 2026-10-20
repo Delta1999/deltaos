@@ -172,6 +172,20 @@ De `mejoras_pendientes.log`:
 - [ ] Modo «no molestar» / silencio: que deje de escuchar un rato (pedido el 13/10)
 - [ ] Mandar capturas de pantalla al móvil por KDE Connect (pedido el 15/10)
 
+## Fase 12 — Versión virgen para enseñar al público
+
+Una copia presentable de Delta, sin nada personal dentro.
+
+- **Repositorio nuevo, sin historial.** No se publica este repo: `personalidad.txt` está
+  versionado desde el principio, así que el pasado de los commits lleva datos personales
+  aunque el último commit no los lleve. Repo nuevo con un commit inicial, no reescritura.
+- **`personalidad.ejemplo.txt` de carácter neutro**: el mismo esqueleto de apartados
+  (tono, límites, PROACTIVIDAD…) pero sin la voz, los nombres ni las costumbres del usuario.
+  En el repo público va este fichero; `personalidad.txt` pasa a `.gitignore` y se copia
+  del ejemplo en la primera ejecución.
+- Repasar el resto de lo que sí está versionado antes de publicar (chuleta, `novedades.json`,
+  rutas absolutas con el nombre de usuario).
+
 ---
 
 ## Fuera de v3
