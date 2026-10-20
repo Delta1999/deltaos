@@ -63,9 +63,21 @@ def dormir_ahora():
     _musica_vol()
 
 
-async def avisar(texto: str, notificar=True):
+PUERTA = None  # proactivo.py la pone; sin ese módulo, avisar() no filtra nada
+
+
+async def avisar(texto: str, notificar=True, motivo=None, urgente=False, espera=0.0):
     """Aviso proactivo: notificación de escritorio y el modelo lo dice en voz alta.
-    Sin sesión (colgada en reposo o reconectando): se guarda y se despierta; assistant.py lo dice al conectar."""
+    Sin sesión (colgada en reposo o reconectando): se guarda y se despierta; assistant.py lo dice al conectar.
+
+    Con «motivo» es Delta quien decide hablar, así que pasa por la puerta de proactivo.py
+    (privacidad, no molestar, de noche, no repetirse). Sin motivo es algo que pidió el usuario
+    —una alarma, un recordatorio, un trabajo que termina— y eso no se filtra nunca."""
+    if motivo is not None and PUERTA is not None:
+        callar = PUERTA(motivo, urgente, espera)
+        if callar:
+            print(f"🤐 me callo «{motivo}»: {callar}")
+            return f"Callado: {callar}."
     if notificar:
         subprocess.Popen(["notify-send", "Delta", texto[:200]], stderr=subprocess.DEVNULL)
     activar()
@@ -860,14 +872,17 @@ FUSIONES = {
                    "avisar_antes": _r("programar_aviso_impresora")}),
     "avisos": ("Temporizadores, recordatorios y alarmas (sobreviven a reinicios). programar: «avísame en 20 minutos», "
                "«recuérdame a las 18:30 llamar a Juan», «despiértame a las 8» (tipo alarma: suena en bucle hasta "
-               "accion=parar_alarma). ver: los pendientes y la hora actual. cancelar: los que contengan texto, o «todos».",
+               "accion=parar_alarma). ver: los pendientes y la hora actual. cancelar: los que contengan texto, o «todos». "
+               "no_molestar: deja de avisar por tu cuenta un rato («no me molestes», «déjame en paz», «silencio»); lo "
+               "que él te pidió sigue sonando, y sin en_minutos (o con 0) vuelves a avisar.",
                {"texto": "programar: qué recordar («sacar la pizza»); cancelar: parte del texto o «todos»",
-                "en_minutos": "programar: dentro de cuántos minutos, p.ej. 20 o 1.5",
+                "en_minutos": "programar: dentro de cuántos minutos, p.ej. 20 o 1.5; no_molestar: cuántos callado",
                 "a_las": "programar: hora HH:MM (la próxima vez que llegue) o AAAA-MM-DD HH:MM",
                 "tipo": "programar: aviso (por defecto, suena una vez) | alarma (en bucle)",
                 "repetir": "programar: vacío | diario"},
                {"programar": _r("programar_aviso"), "ver": _r("ver_avisos"),
-                "cancelar": _r("cancelar_aviso", {"cual": "texto"}), "parar_alarma": _r("parar_alarma")}),
+                "cancelar": _r("cancelar_aviso", {"cual": "texto"}), "parar_alarma": _r("parar_alarma"),
+                "no_molestar": _r("no_molestar", {"minutos": "en_minutos"})}),
     "claude": ("Claude Code, el agente de código del repo WORMHOLE. hablar: UNA conversación persistente que recuerda lo "
                "anterior (vale «ahora hazlo más grueso»), trabaja en segundo plano y avisa; úsala para toda petición de "
                "código, CAD o archivos del repo. tarea_suelta: un disparo sin memoria (pide confirmación). "

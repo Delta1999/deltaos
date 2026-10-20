@@ -158,7 +158,7 @@ def snapshot(ST):
     return {
         **S,
         "mic": mic, "salud": _salud(ST, mic), "lat": ST.get("lat"), "priv": bool(ST.get("privacidad")),
-        "vista": _vista_actual(),
+        "vista": _vista_actual(), "nomol": ST.get("no_molestar", 0) > ahora,
         "estado": _estado(ST),
         "conexion": "conectado" if ST["session"] else "en reposo" if ST.get("reposo") else "reconectando",
         "herramienta": ST.get("herramienta"),

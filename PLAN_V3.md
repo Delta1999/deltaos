@@ -74,13 +74,28 @@ Delta no recuerda ninguna conversación anterior.
 - Resumen al cerrar sesión, inyectado en las instrucciones de sistema al arrancar
 - La fusión `memoria` no cambia de forma: mismas tres acciones por fuera
 
-## Fase 5 — Proactividad
+## Fase 5 — Proactividad ✅ (2026-10-20)
 
-Generaliza `vigilar_impresora()` y los avisos persistentes a un motor de reglas
-«cuando pase X, dímelo»: disparadores periódicos y por evento.
+Hablar solo ya se podía (`acciones.avisar`), pero sin freno: cualquier aviso sonaba a cualquier
+hora y tantas veces como hiciera falta. Lo que faltaba era la puerta.
 
-Primeras reglas: resumen de la mañana (agenda + tiempo + impresora), clase o cita médica a
-la vuelta de la esquina, impresión que falla, correo que importa.
+`proactivo.py`:
+- **Qué dice por su cuenta**: calor del procesador (≥ 88 °C), memoria (RAM ≥ 95 % *y* swap ≥ 70 %,
+  que con la swap intacta el 86 % es lo normal en esta máquina), disco (< 4 GB) y batería (≤ 15 %
+  sin enchufar). Calor y memoria piden dos rondas seguidas: un pico no es un problema.
+- **Cuándo se calla**: privacidad, «no molestar», de noche (23:00–08:00) salvo urgencias, espera
+  por motivo para no repetirse, y tope de 4 interrupciones por hora. Uno por ronda, nunca dos
+  seguidos.
+- La puerta vale para **todo** el que avise: `acciones.avisar(..., motivo=…)` pasa por ella. Sin
+  `motivo` —alarmas, recordatorios, trabajos terminados— no se filtra nada, que lo pidió él.
+- «No me molestes 45 minutos» entra en la fusión `avisos`, no como herramienta suelta (siguen 35).
+- El panel lo enseña en el subtítulo y en la tira, para que no parezca que se ha quedado mudo.
+
+`personalidad.txt` lleva el apartado PROACTIVIDAD: cómo entra (una frase, el dato, la cifra y se
+aparta), nunca dos avisos juntos, una sola salida concreta, sin ironía en lo urgente, y si le
+dicen que lo deje estar, se deja estar.
+
+Test: `test_proactivo.py`.
 
 ## Fase 6 — Visión en vivo
 
