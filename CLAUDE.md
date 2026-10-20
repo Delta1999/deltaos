@@ -17,7 +17,7 @@ Repositorio canónico: `~/gemini-live-assistant`. Trabaja aquí, sobre estos arc
 - No exponer endpoints HTTP que hagan hablar a Delta (para eso está el buzón 0700). Las órdenes del panel van por el WebSocket, que comprueba Origin.
 - No integrar listas de canales de pago (DAZN/AceStream).
 - No tocar `~/.config/opencode`, `~/.gemini` ni `~/.agents`.
-- Sin commits salvo que el usuario los pida.
+- Commit sin preguntar al terminar cada cambio verificado (solo tus ficheros), formato `tipo(ámbito): descripción` en español. Push nunca sin pedirlo. Excepción: si te llama Delta (`mejorar_delta`), NO hagas commits; el registro antes/después depende de que los cambios queden sin commitear.
 - Nunca `pkill -f`/`pgrep -f` con un patrón literal que aparezca en tu propio comando: usa `A="assist"; pgrep -f "/${A}ant.py"`.
 - Respuestas y textos en español de España.
 
