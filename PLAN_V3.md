@@ -97,11 +97,22 @@ dicen que lo deje estar, se deja estar.
 
 Test: `test_proactivo.py`.
 
-## Fase 6 — Visión en vivo
+## Fase 6 — Visión en vivo  ✅ HECHA (2026-10-20)
 
 `gemini-3.8-live` acepta vídeo como entrada nativa. `mirar_detalle` es solo una captura puntual.
 «Mira lo que estoy haciendo» mientras se monta una pieza o se pelea con OrcaSlicer.
 No gasta ni un slot: es una modalidad de entrada, no una herramienta.
+
+- [x] `ver_en_vivo(minutos)` en `assistant.py`. En reposo la pantalla ya se miraba cada 8 s y solo
+      si cambiaba algo (`UMBRAL_CAMBIO = 1.5`); en directo es cada `VIVO_RITMO = 1.5` s y con
+      `VIVO_UMBRAL = 0.4`, que nota un gesto o una pieza girando.
+- [x] Mira aunque Delta esté dormida: le has pedido que te siga, no que te conteste.
+- [x] Se apaga sola (`VIVO_MAX = 30` min) porque es la entrada más cara que tiene, y el modo
+      privacidad la bloquea de entrada.
+- [x] Sin herramienta plana: entra en la fusión `pantalla` junto a `mirar_detalle`. Siguen 35.
+- [x] Testigo **● REC** en la cabecera del panel, y como chip en la tira del modo invisible.
+      Fuera del dock a propósito: un testigo de grabación que hay que buscar con la rueda no sirve.
+- [x] `test_vivo.py`. Destapó que aceptaba 0,5 min mientras el error prometía «entre 1 y 30».
 
 ## Fase 7 — Modo invisible ✅ (2026-10-20)
 
@@ -132,10 +143,21 @@ mostrar algo. Decoración de terminal pero minimalista. Se cierra sola al acabar
 otra regla de KWin y otro proceso que colocar a mano en Wayland, donde ya hay baile de
 `kdotool` para el panel. Se despliega en tarjeta con decoración de terminal y se vuelve a encoger.
 
-## Fase 9 — Dock de iconos con scroll
+## Fase 9 — Dock de iconos con scroll  ✅ HECHA (2026-10-20)
 
 Iconos de calendario, KDE Connect, impresora, clima… en el mínimo espacio: el ratón encima y
 la rueda los va deslizando. Se añaden sin rediseñar nada.
+
+**Decidido (20/10): va en el sitio de la hora, y la hora es el primer hueco**, en vez de en la
+tira. La rueda sube el siguiente desde abajo como los rodillos de una tragaperras.
+
+- [x] 6 huecos: hora+fecha, próximo aviso, impresora, sistema, tiempo, móvil.
+- [x] Sin iconos nuevos: el panel habla en matriz de puntos, así que cada hueco es su cifra
+      grande y su rótulo. Cada dato ya estaba en el panel; aquí solo se repite en pequeño.
+- [x] Vuelve sola a la hora a los 12 s. Un reloj que se ha movido un momento tiene que volver
+      a ser un reloj.
+- [x] El clic de la hora sigue abriendo la chuleta: la rueda no se lo pisa.
+- [ ] **Pendiente**: cuando haya calendario (Fase 2), añadir el hueco de la próxima clase/cita.
 
 ## Fase 10 — Impresora con escritura
 
