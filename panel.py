@@ -386,8 +386,8 @@ def _cmd(ST, cmd):
         acciones.tarea(_abrir_tiempo())
     elif cmd == "cerrar_visor":
         S["visor"] = None
-    elif cmd == "reset_v2":  # botón del menú de la hora; sesión aparte para sobrevivir al reinicio de Delta
-        subprocess.Popen([str(Path(__file__).with_name("reset_v2.sh"))], start_new_session=True,
+    elif cmd == "reset_estable":  # botón del menú de la hora; sesión aparte para sobrevivir al reinicio de Delta
+        subprocess.Popen([str(Path(__file__).with_name("reset_estable.sh"))], start_new_session=True,
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     elif cmd == "dormir":
         acciones.dormir_ahora() if ST["activo"] else acciones.activar()
@@ -552,7 +552,7 @@ async def _ws(request):
                     _pegar(request.app["ST"], msg["pegar"])
                 if isinstance(msg.get("encargo"), str) and msg["encargo"].strip():  # delta_pide.py (Claude Code)
                     await acciones.encargo_claude(msg["encargo"].strip()[:2000])
-                if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "vista_panel", "vista_mascota", "tiempo", "reset_v2"):
+                if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "vista_panel", "vista_mascota", "tiempo", "reset_estable"):
                     _cmd(request.app["ST"], msg["cmd"])
                 g = msg.get("geo")
                 if g and len(g) == 3 and all(isinstance(x, (int, float)) for x in g) and g[2] <= PRECISA:

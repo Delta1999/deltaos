@@ -1,8 +1,11 @@
 # Delta v3 — plan
 
-Estado: **acordado el 2026-10-20**, sin empezar.
-v1 = el tag que se ponga a lo que hay hoy (los tags `v2.0`/`v2.1` son nomenclatura antigua,
-no tocarlos). Lo siguiente es **v3** para que no haya confusión.
+Estado: **v3 etiquetada el 2026-10-21** (tag `v3.0`). Acordado el 2026-10-20.
+Hechas las fases 0, 1, 4, 5, 6, 7, 8 y 9, más la tele en directo y el fondo «delta».
+Quedan la 2 (calendario) y la 3 (correo), paradas a la espera del OAuth de Google, y
+la 10, la 11 y la 12.
+v1 = `ec76e9a`, el último commit antes de empezar v3 (los tags `v2.0`/`v2.1` son nomenclatura
+antigua, no tocarlos).
 
 Principio que manda sobre todo lo demás: **el presupuesto de herramientas está lleno.**
 El 19/10 hubo que fusionar 55 herramientas en 12 porque el modelo se confundía
@@ -24,7 +27,7 @@ suelta por capacidad: o entra en una fusión existente, o entra por el puente MC
 - [x] Averías de micro borradas de `averias.log` a mano (backup en `/tmp/averias.bak`).
 - [ ] **Pendiente**: que las averías caduquen solas. Nadie purga `averias.log`, así que las notas
       para Claude Code envejecen sin fecha de caducidad. No es urgente: no afecta a lo que dice Delta.
-- [ ] Tag de v1.
+- [x] Tag de v1: `ec76e9a`, lo último antes de empezar v3.
 
 ## Fase 1 — Puente MCP  ✅ HECHA (2026-10-20)
 
