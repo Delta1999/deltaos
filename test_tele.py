@@ -72,7 +72,9 @@ except ValueError as e:
 # Acción dentro de la fusión «musica», no herramienta nueva: el presupuesto de herramientas manda.
 assert "tele" in acciones.FUSIONES["musica"][2], acciones.FUSIONES["musica"][2].keys()
 assert "poner_tele" not in acciones.DECLARATIONS, "la plana se absorbe al fusionar"
-assert asyncio.run(acciones.HANDLERS["musica"](accion="tele", canal="canal plus")).startswith("Error")
+real, args = acciones._real("musica", {"accion": "tele", "canal": "canal plus"})
+assert (real, args) == ("poner_tele", {"canal": "canal plus"}), (real, args)
+assert asyncio.run(acciones.HANDLERS[real](**args)).startswith("Error")
 
 # Es el mismo mpv que la música, a propósito: así «para», «pausa» y «sube» siguen valiendo.
 assert "MPV_SOCK" in dir(acciones) and acciones.MPV_SOCK == "/tmp/delta-mpv.sock"

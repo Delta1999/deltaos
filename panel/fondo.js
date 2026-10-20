@@ -4,6 +4,7 @@
 // Pantalla completa (clic en la tarjeta o herramienta «pantalla_completa»): impresora con todos los datos, o sistema.
 import * as THREE from '/three.module.js';
 import * as Mapache from '/mapache3d.js';
+import * as Delta from '/delta.js';
 
 const $ = i => document.getElementById(i);
 const ESPERA = 30e3, PAUSA = 120e3, ROTA = 90e3;
@@ -12,7 +13,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&
 
 const hhmm = () => new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
 const imprime = d => d.impresora && d.impresora.online && ['printing', 'paused'].includes(d.impresora.estado);
-const escenas = d => (imprime(d) ? ['impresion'] : []).concat(['reloj', 'mascota'], d.clima ? ['tiempo'] : []);
+const escenas = d => (imprime(d) ? ['impresion'] : []).concat(['delta', 'reloj', 'mascota'], d.clima ? ['tiempo'] : []);
 
 function elegir(d, saltar) {
   if (full && !saltar) return full === 'impresora' ? 'impresion' : 'sistema';
@@ -26,7 +27,8 @@ function elegir(d, saltar) {
 function poner(e) {
   if (e === escena) return;
   escena = e; desdeEscena = performance.now();
-  for (const n of ['reloj', 'mascota', 'impresion', 'tiempo', 'sistema']) $('f-' + n).classList.toggle('on', n === e);
+  for (const n of ['delta', 'reloj', 'mascota', 'impresion', 'tiempo', 'sistema']) $('f-' + n).classList.toggle('on', n === e);
+  if (e === 'delta') Delta.entrar();  // cada vez que se pone, la secuencia de arranque desde cero
   if (e === 'sistema') Sis.ya();
   if (e === 'impresion') Imp.empezar();
   if (e === 'tiempo') meteo(D);
@@ -99,6 +101,7 @@ function meteo(d) {
 function bucle(ms) {
   if (!on) return;
   const t = ms / 1000;
+  if (escena === 'delta') Delta.pintar($('fd-cv'), D);
   if (escena === 'mascota') Mapache.pintar(t, $('fm-cv'));
   if (escena === 'impresion') Imp.pintar(t, $('f-impresion'), false);
   if (escena === 'impresion' && full) Imp.ficha(t);

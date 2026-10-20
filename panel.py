@@ -814,7 +814,7 @@ async def start(ST, voz):
         app.router.add_get("/ws", _ws)
         app.router.add_get("/mapache.txt", lambda r: web.FileResponse(AQUI / "panel" / "mapache.txt"))
         app.router.add_static("/fonts", AQUI / "panel" / "fonts")
-        for js in ("fondo.js", "mapache3d.js", "three.module.js", "novedades.json"):
+        for js in ("fondo.js", "delta.js", "mapache3d.js", "three.module.js", "novedades.json", "logo.json"):
             app.router.add_get("/" + js, lambda r, js=js: web.FileResponse(AQUI / "panel" / js))
         app.router.add_get("/impresora/vivo", _vivo)
         app.router.add_get("/impresora/gcode/{n}", _gcode)

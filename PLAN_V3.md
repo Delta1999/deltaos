@@ -239,6 +239,35 @@ script suelto en Descargas; lo que se integró fue reescrito en `tele.py`.
 No es un canal de pago: es TDT en abierto, el mismo flujo que la web pública. La regla del
 proyecto («no integrar listas de canales de pago») sigue intacta.
 
+### Fondo «delta»: el logotipo en matriz de puntos  ✅ HECHA (2026-10-21, a petición del usuario)
+
+Estética Nothing OS sobre el salvapantallas: negro, blanco y **un solo** acento rojo, movimiento
+seco a pasos discretos (nada de curvas suaves ni glow). Una escena nueva, `delta`, que reúne las
+cuatro ideas que pidió el usuario en vez de retocar las cinco escenas que ya había.
+
+- [x] `panel/delta.js`: secuencia de arranque de 3 s — punto blanco (0,3 s) → oleada de rejilla
+      (0,6 s) → los puntos convergen en la cabeza (1,5 s) → `DELTAOS` impreso por columnas en
+      tipografía de puntos (2,2 s) → vúmetro y línea de estado con testigo rojo (3,0 s).
+- [x] Reacciona a la voz: en reposo late con el nivel de Delta cuando habla y con el del micro
+      cuando escucha. Así se ve de un vistazo que el micro está vivo, que es la avería que más
+      veces nos ha pillado (ver Fase 0).
+- [x] Anillo de puntos girando alrededor de la cabeza, blanco al escuchar y rojo al trabajar.
+      Solo aparece cuando hay algo en marcha, para que signifique algo.
+- [x] El logo no está dibujado a mano: `trazar_logo.py` rasteriza `panel/logo_fuente.jpeg` a
+      `panel/logo.json` (rejilla 104×97, 2411 puntos, 8 del ojo). El ojo rojo se detecta por
+      máscara de color **antes** del umbral de luminancia, si no se perdía. `--giro 4.0` por
+      defecto: el logotipo venía inclinado −2,03° y así queda a plomo.
+- [x] Sin texto «by Jarvis / Intelligent AI System»: la escena solo dibuja `DELTAOS`.
+- [x] La colocación de cada elemento se encadena del anterior y no de un porcentaje de pantalla;
+      con porcentajes el vúmetro se metía dentro del nombre a 800×600.
+- [x] Acción `fondo` de la fusión `vista` («pon el logo», «pon el escudo»): **sigue habiendo 35
+      herramientas**, ninguna suelta nueva.
+- [x] `test_logo.py`. Verificado también en el panel de verdad: la escena monta, el ojo rojo
+      enciende y la línea de estado lleva las cifras reales de la máquina.
+- [x] De paso, cuatro entradas de `panel/novedades.json` escritas ayer con otras claves
+      (`fecha/titulo/texto` y `d`) no salían en el menú de la hora, que filtra por `f`.
+      Normalizadas al esquema `{f, t, como}`.
+
 ## Fuera de v3
 
 - **Etsy**: descartado por el usuario.

@@ -983,12 +983,12 @@ FUSIONES = {
               "Imágenes, Descargas, Escritorio o Documentos/Delta) o URL, enseña además una foto, captura o plano. "
               "Para una web, un mapa, una búsqueda o un producto usa mostrar: en modo invisible el visor sale dentro de "
               "la propia barra. "
-              "fondo: el del modo espera, cual = auto (rota; la impresión manda mientras imprime) | reloj | mascota | "
-              "impresion | tiempo («pon el reloj de fondo», «salvapantallas»). pantalla_completa: cual = impresora (la "
+              "fondo: el del modo espera, cual = auto (rota; la impresión manda mientras imprime) | delta (el logo del "
+              "sistema en puntos) | reloj | mascota | impresion | tiempo («pon el reloj de fondo», «pon el logo», «salvapantallas»). pantalla_completa: cual = impresora (la "
               "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
               "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
               "«¿qué está comiendo RAM?»).",
-              {"cual": "fondo: auto | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
+              {"cual": "fondo: auto | delta | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
                        "elegir_mascota: mapache | gato",
                "texto": "tarjeta: lo que enseñar en la barra, una cosa por línea",
                "titulo": "tarjeta: rótulo (opcional)",

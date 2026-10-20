@@ -443,7 +443,7 @@ async def elegir_mascota(cual):
     return f"Hecho: ahora la mascota es el {cual}."
 
 
-ESCENAS = ("auto", "reloj", "mascota", "impresion", "tiempo")
+ESCENAS = ("auto", "delta", "reloj", "mascota", "impresion", "tiempo")
 
 
 async def fondo(escena):
@@ -579,10 +579,10 @@ acciones.registrar([
                  "«quiero el mapache», «cambia la mascota»…",
                  {"cual": acciones._s("mapache | gato")}),
     acciones._fn("fondo",
-                 "Elige el fondo del modo espera del panel (sale cuando duermes): reloj grande, la mascota en el centro, "
+                 "Elige el fondo del modo espera del panel (sale cuando duermes): delta (el logo del sistema en matriz de puntos, «pon el logo», «pon el escudo»), reloj grande, la mascota en el centro, "
                  "la estación meteo, o la impresión en vivo (recorrido 3D de la boquilla). auto = va rotando y la impresión manda mientras imprime. "
                  "Úsalo cuando diga «pon el reloj de fondo», «fondo de la impresora», «salvapantallas»…",
-                 {"escena": acciones._s("auto | reloj | mascota | impresion | tiempo")}),
+                 {"escena": acciones._s("auto | delta | reloj | mascota | impresion | tiempo")}),
     acciones._fn("pantalla_completa",
                  "Pone a pantalla completa en el panel: impresora (la pieza en 3D en vivo con TODO: capas, tiempos, "
                  "filamento, temperaturas con gráfica, velocidades, flujo, ventiladores, histórico), tiempo (Nothing Weather "
