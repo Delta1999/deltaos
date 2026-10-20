@@ -359,6 +359,23 @@ async def cambiar_vista(modo):
     return f"Hecho: vista {modo}."
 
 
+async def mostrar_en_tira(texto, titulo="", segundos=""):
+    """Fase 8: enseña algo concreto en la tira del modo invisible, que crece en una tarjeta
+    y se vuelve a encoger sola. En panel completo no hace falta —ahí ya se ve todo—,
+    así que solo tiene sentido con la tira puesta."""
+    if not str(texto or "").strip():
+        return "Error: no hay nada que enseñar."
+    if not panel._vista_actual().startswith("invisible"):
+        return ("Error: la tarjeta es de la tira del modo invisible, y ahora está el panel entero. "
+                "Dilo en voz alta, o cambia a modo invisible antes.")
+    try:
+        seg = float(str(segundos).replace(",", ".")) if str(segundos).strip() else 40
+    except ValueError:
+        return 'Error: segundos tiene que ser un número, p.ej. "30".'
+    puesto = panel.tarjeta(titulo or "DELTA", texto, seg)
+    return f"Hecho: lo tiene en la tira {puesto:g} segundos. Dile en una frase qué le has puesto."
+
+
 async def elegir_mascota(cual):
     if cual not in ("mapache", "gato"):
         return "Error: cual es mapache o gato."
@@ -456,6 +473,11 @@ acciones.registrar([
                  "móvil, internet/Gemini, impresora, disco, RAM y temperatura, y arranca lo que esté caído. Úsalo cuando "
                  "diga «pasar C.O.S.», «pasa las COS», «comprobaciones operativas», «¿está todo bien?». Contesta breve: "
                  "si sale OK, que todo está operativo (y las notas sin ⚠️ en una frase); si hay ⚠️, di cada fallo."),
+    acciones._fn("mostrar_en_tira",
+        "Enseña un texto corto en la tira del modo invisible, que crece en una tarjeta y se encoge sola. Para cifras, listas o resultados que se leen mejor escritos que dichos («apúntamelo ahí», «ponlo en pantalla»). Solo funciona con el modo invisible puesto.",
+        {"texto": acciones._s("lo que enseñar, una cosa por línea"),
+         "titulo": acciones._s("rótulo de la tarjeta (opcional)"),
+         "segundos": acciones._s("cuánto dejarla puesta, 5-180 (por defecto 40)")}, req=["texto"]),
     acciones._fn("mostrar",
                  "Muestra contenido en la pantalla del panel (DeltaOS), integrado y sin marcos: webs, búsquedas de Google, "
                  "un vídeo de YouTube (lo reproduce), Wikipedia, Google Maps o un informe. Úsalo cuando el usuario diga "
@@ -518,4 +540,4 @@ acciones.registrar([
                  "Apagar y reiniciar piden confirmación: pregúntale «¿Seguro, señor?» y si dice que sí usa responder_permiso.",
                  {"accion": acciones._s("suspender | apagar | reiniciar | cancelar"),
                   "minutos": acciones._s("minutos de espera; 0 = ahora")}, req=["accion"]),
-], (pasar_cos, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia))
+], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia))

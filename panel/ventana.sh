@@ -3,7 +3,7 @@
 # Vista (fichero $VISTA, lo escriben Delta, el panel y la mascota): «panel» = panel a pantalla completa en la
 # pantalla secundaria, mascota oculta; «mascota» = panel minimizado, solo el mapache flotando;
 # «invisible» = mascota oculta y el panel encogido a una tira de estado en la esquina superior derecha,
-# siempre encima y sin robar el foco.
+# siempre encima y sin robar el foco; «invisible-grande» = esa misma tira con una tarjeta desplegada.
 # Al cambiar las pantallas se elige sola: con HDMI, panel; solo el portátil, mascota.
 # Uso: ventana.sh [NOMBRE_SALIDA]   p.ej. eDP-1 o HDMI-A-1
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -11,6 +11,7 @@ URL="http://127.0.0.1:7876"
 SALIDA="${1:-$PANEL_PANTALLA}"
 VISTA="${XDG_RUNTIME_DIR:-/tmp}/delta-vista"
 TIRA_AN=700 TIRA_AL=152 TIRA_M=24  # la tira del modo invisible: ancho, alto y margen con la esquina
+TIRA_ALTA=470  # «invisible-grande»: la misma tira con una tarjeta desplegada (Fase 8)
 
 # Imprime «x y ancho alto vista_por_defecto» de la pantalla del panel según las pantallas encendidas
 destino() {
@@ -29,14 +30,17 @@ aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
   if [ "$3" = mascota ]; then
     # mostrarla sin activarla: la mascota es una capa del tamaño de la pantalla y se quedaría con el teclado
     kdotool windowminimize "$1"; [ -n "$M" ] && kdotool windowstate --remove MINIMIZED "$M"
-  elif [ "$3" = invisible ]; then
+  elif [ "${3%%-*}" = invisible ]; then
+    # «invisible-grande» es la misma tira con la tarjeta abierta: solo cambia el alto, así que
+    # no hace falta otra ventana, otra regla de KWin ni otro proceso al que perseguir.
+    H=$TIRA_AL; [ "$3" = invisible-grande ] && H=$TIRA_ALTA
     # sin windowactivate: la tira no debe robarle el teclado a lo que esté haciendo el usuario
     [ -n "$M" ] && kdotool windowminimize "$M"
     TX=$((X + AN - TIRA_AN - TIRA_M)) TY=$((Y + TIRA_M))
     kdotool windowstate --remove FULLSCREEN --remove MINIMIZED "$1"
     kdotool windowstate --add NO_BORDER --add SKIP_TASKBAR --add KEEP_ABOVE "$1"
-    kdotool windowmove "$1" "$TX" "$TY"; kdotool windowsize "$1" "$TIRA_AN" "$TIRA_AL"
-    sleep 1; kdotool windowmove "$1" "$TX" "$TY"; kdotool windowsize "$1" "$TIRA_AN" "$TIRA_AL"
+    kdotool windowmove "$1" "$TX" "$TY"; kdotool windowsize "$1" "$TIRA_AN" "$H"
+    sleep 1; kdotool windowmove "$1" "$TX" "$TY"; kdotool windowsize "$1" "$TIRA_AN" "$H"
   else
     [ -n "$M" ] && kdotool windowminimize "$M"
     kdotool windowactivate "$1"

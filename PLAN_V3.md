@@ -137,14 +137,28 @@ el panel guarda 40 frases en vez de 2 (`panel.FRASES`).
 Toca: `panel/ventana.sh` (rama nueva en `aplicar()` con su geometría), `panel/index.html`
 (layout que solo pinta el recuadro de estado), y la fusión `vista` gana `invisible`.
 
-## Fase 8 — Ventana emergente estilo terminal
+## Fase 8 — Tarjeta emergente en la tira  ✅ HECHA (2026-10-20)
 
 Aparece cuando se pide información concreta, cuando hay una búsqueda, o cuando DeltaOS quiere
-mostrar algo. Decoración de terminal pero minimalista. Se cierra sola al acabar.
+mostrar algo. Se cierra sola al acabar.
 
 **Decidido (20/10): la tira de la Fase 7 que crece**, no ventana aparte. Una sola ventana evita
 otra regla de KWin y otro proceso que colocar a mano en Wayland, donde ya hay baile de
-`kdotool` para el panel. Se despliega en tarjeta con decoración de terminal y se vuelve a encoger.
+`kdotool` para el panel.
+
+- [x] `panel.tarjeta()` guarda título, líneas y caducidad en `_TARJETA` (estado del panel, no de
+      la sesión) y escribe `invisible-grande` en el fichero de vista.
+- [x] `ventana.sh` reconoce `invisible-grande` y sube la tira de 152 a 470 px de alto. La misma
+      ventana: ni regla de KWin nueva ni segundo proceso.
+- [x] La caducidad se mira en `snapshot()`, no con un temporizador: si algo se cae con la
+      tarjeta puesta, al siguiente latido se encoge sola.
+- [x] Herramienta `vista accion=tarjeta` (absorbida por la fusión: siguen siendo 35).
+- [x] **Apariencia DeltaOS, no decoración de terminal** (corregido por el usuario el 20/10): nada
+      de los tres círculos de macOS ni números de línea. Título rojo en versales con el cuadrado
+      rojo, viñeta roja por renglón y línea tenue entre ellos, como la chuleta y el visor.
+      Ojo: la clase no puede llamarse `bar` — esa ya es la barra de puntos del panel y le pintaba
+      la fila de círculos encima del título.
+- [x] `test_tarjeta.py`.
 
 ## Fase 9 — Dock de iconos con scroll  ✅ HECHA (2026-10-20)
 

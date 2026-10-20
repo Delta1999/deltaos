@@ -1,5 +1,10 @@
 [
  {
+  "fecha": "2026-10-20",
+  "titulo": "La tira que crece",
+  "texto": "En modo invisible, Delta puede escribirte algo en la propia tira: dile «apúntamelo ahí» y la tira se despliega en una tarjeta con el texto, con la misma pinta que el resto de DeltaOS. Se encoge sola."
+ },
+ {
   "f": "2026-10-20",
   "t": "Ahora aviso por mi cuenta del calor del procesador, la memoria, el disco y la batería — y sé cuándo callarme: en privacidad, de noche, y sin repetirme.",
   "como": "«No me molestes 45 minutos» si no quiere oírme"

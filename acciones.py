@@ -923,15 +923,18 @@ FUSIONES = {
                {"poner": _r("poner_musica"), **{a: _r("controlar_musica", fijo={"accion": a}) for a in _MUSICA}}),
     "vista": ("Tu interfaz. panel / mascota / invisible: panel completo, solo el animal flotando («modo mascota»), o "
               "ni animal ni panel y solo una tira de estado en una esquina («modo invisible», «quítate de en medio», «esconde la mascota», «quita el bicho del escritorio», «no quiero verte»). "
-              "elegir_mascota: cual = mapache | gato, qué animal es la mascota («pon el gato», «quiero el mapache»). "
+              "elegir_mascota: cual = mapache | gato, qué animal es la mascota («pon el gato», «quiero el mapache»). ""tarjeta: enseña «texto» escrito en la tira del modo invisible (crece y se encoge sola); para cifras, listas o resultados que se leen mejor que se oyen («apúntamelo ahí», «ponlo en pantalla»). "
               "fondo: el del modo espera, cual = auto (rota; la impresión manda mientras imprime) | reloj | mascota | "
               "impresion | tiempo («pon el reloj de fondo», «salvapantallas»). pantalla_completa: cual = impresora (la "
               "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
               "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
               "«¿qué está comiendo RAM?»).",
               {"cual": "fondo: auto | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
-                       "elegir_mascota: mapache | gato"},
-              {"panel": _r("cambiar_vista", fijo={"modo": "panel"}), "mascota": _r("cambiar_vista", fijo={"modo": "mascota"}),
+                       "elegir_mascota: mapache | gato",
+               "texto": "tarjeta: lo que enseñar en la tira, una cosa por línea",
+               "titulo": "tarjeta: rótulo (opcional)"},
+              {"tarjeta": _r("mostrar_en_tira", {"texto": "texto", "titulo": "titulo"}),
+               "panel": _r("cambiar_vista", fijo={"modo": "panel"}), "mascota": _r("cambiar_vista", fijo={"modo": "mascota"}),
                "invisible": _r("cambiar_vista", fijo={"modo": "invisible"}),
                "elegir_mascota": _r("elegir_mascota", {"cual": "cual"}),
                "fondo": _r("fondo", {"escena": "cual"}), "pantalla_completa": _r("pantalla_completa", {"que": "cual"})}),

@@ -160,6 +160,7 @@ def snapshot(ST):
         "mic": mic, "salud": _salud(ST, mic), "lat": ST.get("lat"), "priv": bool(ST.get("privacidad")),
         "vista": _vista_actual(), "nomol": ST.get("no_molestar", 0) > ahora,
         "vivo": ST.get("vivo", 0) > ahora,  # directo de pantalla: el panel enciende el REC
+        "tarjeta": _tarjeta_viva(ahora),
         "estado": _estado(ST),
         "conexion": "conectado" if ST["session"] else "en reposo" if ST.get("reposo") else "reconectando",
         "herramienta": ST.get("herramienta"),
@@ -301,6 +302,55 @@ VISTA = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "delta-vista"  # venta
 
 def vista(modo):
     VISTA.write_text(modo)
+
+
+TARJETA_MAX = 180      # s como mucho con la tira crecida; se encoge sola
+_TARJETA = None        # estado del panel, no de la sesión: ST es de acciones y aquí no pinta nada
+
+
+def tarjeta(titulo, texto, segundos=40):
+    """Fase 8: la tira crece y enseña algo concreto, en vez de abrir otra ventana.
+
+    Se eligió hacerla crecer y no una ventana aparte porque bajo Wayland cada ventana nueva es
+    otra regla de KWin y otro baile de kdotool; aquí solo cambia el alto de la que ya está.
+    Quien la encoge es la propia caducidad, no una orden: si Delta se cae con la tarjeta puesta,
+    el siguiente snapshot la quita igual."""
+    global _TARJETA
+    seg = max(5, min(TARJETA_MAX, float(segundos or 40)))
+    _TARJETA = {"titulo": str(titulo or "").strip()[:60],
+                "lineas": [l.strip() for l in str(texto or "").splitlines() if l.strip()][:14],
+                "hasta": time.monotonic() + seg}
+    _ajustar_tira()
+    return seg
+
+
+def quitar_tarjeta():
+    global _TARJETA
+    _TARJETA = None
+    _ajustar_tira()
+
+
+def _ajustar_tira():
+    """La tira crecida es otra vista para ventana.sh («invisible-grande»), no un modo nuevo: así
+    reutiliza el bucle que ya recoloca la ventana cuando cambia el fichero, sin más carreras."""
+    v = _vista_actual()
+    if not v.startswith("invisible"):
+        return
+    quiere = "invisible-grande" if _TARJETA else "invisible"
+    if v != quiere:
+        VISTA.write_text(quiere)
+
+
+def _tarjeta_viva(ahora):
+    """Caduca aquí, que es por donde pasa todo: si Delta se cayó con la tarjeta puesta, el
+    primer snapshot tras volver la quita y encoge la tira."""
+    tj = _TARJETA
+    if not tj:
+        return None
+    if tj["hasta"] <= ahora:
+        quitar_tarjeta()
+        return None
+    return {"titulo": tj["titulo"], "lineas": tj["lineas"]}
 
 
 def _vista_actual():
