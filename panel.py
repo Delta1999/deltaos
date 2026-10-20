@@ -155,6 +155,7 @@ def _salud(ST, mic):
 def snapshot(ST):
     ahora = time.monotonic()
     mic = _mic(ST)
+    _ajustar_tira()  # el visor puede haber aparecido o cerrado sin pasar por tarjeta()
     return {
         **S,
         "mic": mic, "salud": _salud(ST, mic), "lat": ST.get("lat"), "priv": bool(ST.get("privacidad")),
@@ -308,17 +309,21 @@ TARJETA_MAX = 180      # s como mucho con la tira crecida; se encoge sola
 _TARJETA = None        # estado del panel, no de la sesión: ST es de acciones y aquí no pinta nada
 
 
-def tarjeta(titulo, texto, segundos=40):
+def tarjeta(titulo, texto, segundos=40, imagen=""):
     """Fase 8: la tira crece y enseña algo concreto, en vez de abrir otra ventana.
 
     Se eligió hacerla crecer y no una ventana aparte porque bajo Wayland cada ventana nueva es
     otra regla de KWin y otro baile de kdotool; aquí solo cambia el alto de la que ya está.
     Quien la encoge es la propia caducidad, no una orden: si Delta se cae con la tarjeta puesta,
-    el siguiente snapshot la quita igual."""
+    el siguiente snapshot la quita igual.
+
+    `imagen` es una URL ya servible (`/archivo?...` o https://): quien la convierte desde una
+    ruta del disco es deltaos, que es quien sabe qué carpetas se dejan mirar."""
     global _TARJETA
     seg = max(5, min(TARJETA_MAX, float(segundos or 40)))
     _TARJETA = {"titulo": str(titulo or "").strip()[:60],
                 "lineas": [l.strip() for l in str(texto or "").splitlines() if l.strip()][:14],
+                "img": str(imagen or "").strip(),
                 "hasta": time.monotonic() + seg}
     _ajustar_tira()
     return seg
@@ -332,11 +337,15 @@ def quitar_tarjeta():
 
 def _ajustar_tira():
     """La tira crecida es otra vista para ventana.sh («invisible-grande»), no un modo nuevo: así
-    reutiliza el bucle que ya recoloca la ventana cuando cambia el fichero, sin más carreras."""
+    reutiliza el bucle que ya recoloca la ventana cuando cambia el fichero, sin más carreras.
+
+    Crece por dos motivos: una tarjeta que ha puesto Delta, o el visor. El visor estaba muerto en
+    modo invisible —se escribía en S y no había dónde pintarlo—, y es justo donde caen la búsqueda,
+    el mapa, la web y el informe; en la tira es su versión reducida."""
     v = _vista_actual()
     if not v.startswith("invisible"):
         return
-    quiere = "invisible-grande" if _TARJETA else "invisible"
+    quiere = "invisible-grande" if (_TARJETA or S.get("visor")) else "invisible"
     if v != quiere:
         VISTA.write_text(quiere)
 
@@ -350,7 +359,7 @@ def _tarjeta_viva(ahora):
     if tj["hasta"] <= ahora:
         quitar_tarjeta()
         return None
-    return {"titulo": tj["titulo"], "lineas": tj["lineas"]}
+    return {"titulo": tj["titulo"], "lineas": tj["lineas"], "img": tj.get("img", "")}
 
 
 def _vista_actual():

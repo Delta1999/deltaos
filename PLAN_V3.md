@@ -137,7 +137,7 @@ el panel guarda 40 frases en vez de 2 (`panel.FRASES`).
 Toca: `panel/ventana.sh` (rama nueva en `aplicar()` con su geometría), `panel/index.html`
 (layout que solo pinta el recuadro de estado), y la fusión `vista` gana `invisible`.
 
-## Fase 8 — Tarjeta emergente en la tira  ✅ HECHA (2026-10-20)
+## Fase 8 — La barra de estado que crece  ✅ HECHA (2026-10-20)
 
 Aparece cuando se pide información concreta, cuando hay una búsqueda, o cuando DeltaOS quiere
 mostrar algo. Se cierra sola al acabar.
@@ -159,6 +159,18 @@ otra regla de KWin y otro proceso que colocar a mano en Wayland, donde ya hay ba
       Ojo: la clase no puede llamarse `bar` — esa ya es la barra de puntos del panel y le pintaba
       la fila de círculos encima del título.
 - [x] `test_tarjeta.py`.
+
+**Ampliación del 20/10 (pedida por el usuario): la barra de estado como visor reducido.**
+
+- [x] Se bautiza **barra de estado** (antes «la tira»), y se puede **quitar y devolver a voluntad**:
+      vista `oculto`, que minimiza panel y mascota. Delta sigue escuchando; `invisible` la devuelve.
+- [x] La tarjeta admite **una imagen** del disco: ruta → `/archivo?p=…`, con lista blanca
+      (Imágenes, Descargas, Escritorio, Documentos/Delta, capturas), solo extensiones de imagen,
+      nada oculto, 20 MB como techo. Se valida al ponerla **y** otra vez al servirla.
+- [x] El **visor** (búsqueda, mapa, web, informe) se pinta dentro de la barra en modo invisible.
+      Hasta ahora se escribía en `S["visor"]` y no había dónde verlo: en modo invisible estaba muerto.
+      Cede ante la tarjeta, y al cerrarlo se le quita el `src` para que la web no siga viva detrás.
+      Ojo: el iframe **no** lleva `sandbox` —probado: con él no llega a cargar—, igual que `#vif`.
 
 ## Fase 9 — Dock de iconos con scroll  ✅ HECHA (2026-10-20)
 

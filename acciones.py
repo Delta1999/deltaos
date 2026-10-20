@@ -922,8 +922,15 @@ FUSIONES = {
                {"busqueda": "poner: qué poner, p.ej. «Los Planetas», «jazz para trabajar», «lofi»"},
                {"poner": _r("poner_musica"), **{a: _r("controlar_musica", fijo={"accion": a}) for a in _MUSICA}}),
     "vista": ("Tu interfaz. panel / mascota / invisible: panel completo, solo el animal flotando («modo mascota»), o "
-              "ni animal ni panel y solo una tira de estado en una esquina («modo invisible», «quítate de en medio», «esconde la mascota», «quita el bicho del escritorio», «no quiero verte»). "
-              "elegir_mascota: cual = mapache | gato, qué animal es la mascota («pon el gato», «quiero el mapache»). ""tarjeta: enseña «texto» escrito en la tira del modo invisible (crece y se encoge sola); para cifras, listas o resultados que se leen mejor que se oyen («apúntamelo ahí», «ponlo en pantalla»). "
+              "ni animal ni panel y solo la barra de estado en una esquina («modo invisible», «quítate de en medio», «esconde la mascota», «quita el bicho del escritorio», «no quiero verte»). "
+              "oculto: quita también la barra de estado y no deja nada en pantalla («quita la barra», «fuera todo», «no dejes nada»); sigues escuchando igual, y con invisible vuelve. "
+              "elegir_mascota: cual = mapache | gato, qué animal es la mascota («pon el gato», «quiero el mapache»). "
+              "tarjeta: enseña algo escrito en la barra de estado, que crece y se encoge sola. Para cifras, listas, "
+              "resultados, lo que haya salido en la terminal o los datos de algo que te han pedido buscar: lo que se lee "
+              "mejor que se oye («apúntamelo ahí», «ponlo en pantalla», «enséñamelo»). Con imagen = ruta del disco (de "
+              "Imágenes, Descargas, Escritorio o Documentos/Delta) o URL, enseña además una foto, captura o plano. "
+              "Para una web, un mapa, una búsqueda o un producto usa mostrar: en modo invisible el visor sale dentro de "
+              "la propia barra. "
               "fondo: el del modo espera, cual = auto (rota; la impresión manda mientras imprime) | reloj | mascota | "
               "impresion | tiempo («pon el reloj de fondo», «salvapantallas»). pantalla_completa: cual = impresora (la "
               "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
@@ -931,11 +938,13 @@ FUSIONES = {
               "«¿qué está comiendo RAM?»).",
               {"cual": "fondo: auto | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
                        "elegir_mascota: mapache | gato",
-               "texto": "tarjeta: lo que enseñar en la tira, una cosa por línea",
-               "titulo": "tarjeta: rótulo (opcional)"},
-              {"tarjeta": _r("mostrar_en_tira", {"texto": "texto", "titulo": "titulo"}),
+               "texto": "tarjeta: lo que enseñar en la barra, una cosa por línea",
+               "titulo": "tarjeta: rótulo (opcional)",
+               "imagen": "tarjeta: ruta de una imagen del disco o URL, para enseñarla en la barra (opcional)"},
+              {"tarjeta": _r("mostrar_en_tira", {"texto": "texto", "titulo": "titulo", "imagen": "imagen"}),
                "panel": _r("cambiar_vista", fijo={"modo": "panel"}), "mascota": _r("cambiar_vista", fijo={"modo": "mascota"}),
                "invisible": _r("cambiar_vista", fijo={"modo": "invisible"}),
+               "oculto": _r("cambiar_vista", fijo={"modo": "oculto"}),
                "elegir_mascota": _r("elegir_mascota", {"cual": "cual"}),
                "fondo": _r("fondo", {"escena": "cual"}), "pantalla_completa": _r("pantalla_completa", {"que": "cual"})}),
     "documentos": ("Secretario, en ~/Documentos/Delta/documentos. crear: redacta carta, instancia, reclamación, resumen, "

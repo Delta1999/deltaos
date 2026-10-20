@@ -8,6 +8,7 @@ import html
 import json
 import re
 import time
+from pathlib import Path
 from urllib.parse import quote, unquote
 
 import httpx
@@ -71,6 +72,53 @@ async def _informe(request):
     return web.FileResponse(f, headers={"Content-Security-Policy": "script-src 'none'"})
 
 panel.RUTAS.append(("/informes/{n}", _informe))
+
+
+# ---------- imágenes del disco en la tira ----------
+# La tira es una página http: no puede abrir file://, así que lo que se le enseñe hay que
+# servírselo. Con lista blanca y solo imágenes: el panel escucha en 127.0.0.1, pero «solo local»
+# no es excusa para dejar leer el disco entero por una query.
+VISIBLES = [HOME / "Imágenes", HOME / "Descargas", HOME / "Escritorio", DELTA, AQUI / "capturas"]
+IMG = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
+       ".gif": "image/gif", ".bmp": "image/bmp"}
+IMG_MAX = 20 * 1024 * 1024
+
+
+def _servible(ruta):
+    """Ruta del disco → URL que la tira puede pedir, o None con el motivo. Devuelve (url, motivo)."""
+    try:
+        f = Path(ruta).expanduser().resolve()
+    except (OSError, RuntimeError):
+        return None, "esa ruta no existe"
+    if f.suffix.lower() not in IMG:
+        return None, f"solo imágenes ({', '.join(sorted(IMG))})"
+    if not f.is_file():
+        return None, "ahí no hay ningún fichero"
+    for base in VISIBLES:
+        try:
+            rel = f.relative_to(base.resolve())
+        except (ValueError, OSError):
+            continue
+        if not any(x.startswith(".") for x in rel.parts):
+            break
+    else:
+        return None, "está fuera de las carpetas que puedo enseñar (Imágenes, Descargas, Escritorio, Documentos/Delta)"
+    if f.stat().st_size > IMG_MAX:
+        return None, "pesa más de 20 MB"
+    return f"/archivo?p={quote(str(f))}", ""
+
+
+async def _archivo(request):
+    """Se vuelve a validar aquí: la URL la pide el navegador, y lo que valió al ponerla puede
+    haber dejado de valer (o venir de otro sitio)."""
+    url, _ = _servible(request.query.get("p", ""))
+    if not url:
+        raise web.HTTPNotFound()
+    f = Path(request.query["p"]).expanduser().resolve()
+    return web.FileResponse(f, headers={"Content-Type": IMG[f.suffix.lower()],
+                                        "Content-Security-Policy": "default-src 'none'"})
+
+panel.RUTAS.append(("/archivo", _archivo))
 
 
 # ---------- investigación profunda ----------
@@ -353,27 +401,39 @@ async def sincronizar_skills():
 
 
 async def cambiar_vista(modo):
-    if modo not in ("panel", "mascota", "invisible"):
-        return "Error: el modo es panel, mascota o invisible."
+    if modo not in ("panel", "mascota", "invisible", "oculto"):
+        return "Error: el modo es panel, mascota, invisible u oculto."
     panel.vista(modo)
+    if modo == "oculto":
+        return ("Hecho: quitada la barra de estado. Sigo escuchando igual; dile que para recuperarla "
+                "basta con pedirla («enséñame la barra»).")
     return f"Hecho: vista {modo}."
 
 
-async def mostrar_en_tira(texto, titulo="", segundos=""):
-    """Fase 8: enseña algo concreto en la tira del modo invisible, que crece en una tarjeta
-    y se vuelve a encoger sola. En panel completo no hace falta —ahí ya se ve todo—,
-    así que solo tiene sentido con la tira puesta."""
-    if not str(texto or "").strip():
+async def mostrar_en_tira(texto="", titulo="", segundos="", imagen=""):
+    """Fase 8: enseña algo concreto en la barra de estado, que crece en una tarjeta y se vuelve a
+    encoger sola. En panel completo no hace falta —ahí ya se ve todo—, así que solo tiene sentido
+    con la barra puesta. Con `imagen` enseña además una foto, una captura o un plano del disco."""
+    if not str(texto or "").strip() and not str(imagen or "").strip():
         return "Error: no hay nada que enseñar."
     if not panel._vista_actual().startswith("invisible"):
-        return ("Error: la tarjeta es de la tira del modo invisible, y ahora está el panel entero. "
-                "Dilo en voz alta, o cambia a modo invisible antes.")
+        return ("Error: la tarjeta es de la barra de estado, y ahora está el panel entero. "
+                "Dilo en voz alta, o pon el modo invisible antes.")
+    url = ""
+    if str(imagen or "").strip():
+        im = str(imagen).strip()
+        if re.match(r"https?://", im):
+            url = im
+        else:
+            url, porque = _servible(im)
+            if not url:
+                return f"Error con la imagen: {porque}."
     try:
         seg = float(str(segundos).replace(",", ".")) if str(segundos).strip() else 40
     except ValueError:
         return 'Error: segundos tiene que ser un número, p.ej. "30".'
-    puesto = panel.tarjeta(titulo or "DELTA", texto, seg)
-    return f"Hecho: lo tiene en la tira {puesto:g} segundos. Dile en una frase qué le has puesto."
+    puesto = panel.tarjeta(titulo or "DELTA", texto, seg, imagen=url)
+    return f"Hecho: lo tiene en la barra {puesto:g} segundos. Dile en una frase qué le has puesto."
 
 
 async def elegir_mascota(cual):

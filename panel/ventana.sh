@@ -2,8 +2,9 @@
 # Abre el panel en una ventana sin marcos y reparte la interfaz entre el panel y la mascota (mascota.py).
 # Vista (fichero $VISTA, lo escriben Delta, el panel y la mascota): «panel» = panel a pantalla completa en la
 # pantalla secundaria, mascota oculta; «mascota» = panel minimizado, solo el mapache flotando;
-# «invisible» = mascota oculta y el panel encogido a una tira de estado en la esquina superior derecha,
-# siempre encima y sin robar el foco; «invisible-grande» = esa misma tira con una tarjeta desplegada.
+# «invisible» = mascota oculta y el panel encogido a una barra de estado en la esquina superior derecha,
+# siempre encima y sin robar el foco; «invisible-grande» = esa misma barra con una tarjeta desplegada;
+# «oculto» = ni barra ni mascota, todo minimizado (Delta sigue escuchando).
 # Al cambiar las pantallas se elige sola: con HDMI, panel; solo el portátil, mascota.
 # Uso: ventana.sh [NOMBRE_SALIDA]   p.ej. eDP-1 o HDMI-A-1
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -27,7 +28,10 @@ destino() {
 aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
   read -r X Y AN AL _ <<<"$2"
   M=$(kdotool search --class delta-mascota 2>/dev/null | head -1)
-  if [ "$3" = mascota ]; then
+  if [ "$3" = oculto ]; then
+    # «quita la barra»: ni panel ni mascota. Delta sigue escuchando; esto es solo la ventana.
+    kdotool windowminimize "$1"; [ -n "$M" ] && kdotool windowminimize "$M"
+  elif [ "$3" = mascota ]; then
     # mostrarla sin activarla: la mascota es una capa del tamaño de la pantalla y se quedaría con el teclado
     kdotool windowminimize "$1"; [ -n "$M" ] && kdotool windowstate --remove MINIMIZED "$M"
   elif [ "${3%%-*}" = invisible ]; then

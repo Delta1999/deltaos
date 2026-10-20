@@ -1,8 +1,8 @@
 [
  {
   "fecha": "2026-10-20",
-  "titulo": "La tira que crece",
-  "texto": "En modo invisible, Delta puede escribirte algo en la propia tira: dile «apúntamelo ahí» y la tira se despliega en una tarjeta con el texto, con la misma pinta que el resto de DeltaOS. Se encoge sola."
+  "titulo": "La barra de estado que crece",
+  "texto": "En modo invisible, la barra de la esquina ya no solo informa: se despliega y enseña cosas. Texto y cifras («apúntamelo ahí»), una imagen del disco («enséñame esa captura») y también el visor —búsquedas, mapas, webs, informes—, que hasta ahora en modo invisible no se veía en ninguna parte. Y si no quieres ni eso, «quita la barra»: no deja nada en pantalla y sigue escuchando igual."
  },
  {
   "f": "2026-10-20",
