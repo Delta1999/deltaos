@@ -1,13 +1,18 @@
 [
  {
-  "fecha": "2026-10-20",
-  "titulo": "La tele en directo",
-  "texto": "«Pon Cuatro» y sale el directo en una ventana, sin pasar por la web ni tragarte la página. También Telecinco, FDF, Energy, Divinity y Be Mad. Es el mismo reproductor que la música, así que «para», «sube», «baja» y «¿qué suena?» valen igual, y poner una cosa quita la otra."
+  "f": "2026-10-21",
+  "t": "Fondo de pantalla nuevo con el logotipo del sistema: la cabeza dibujada en matriz de puntos se monta desde cero en tres segundos, escribe DELTAOS y se queda respirando. Late con mi voz cuando hablo y con el micro cuando escucho, así se ve de un vistazo que el micro está vivo. Solo negro, blanco y el rojo del ojo.",
+  "como": "«Pon el logo» · «Pon el escudo»"
  },
  {
-  "fecha": "2026-10-20",
-  "titulo": "La barra de estado que crece",
-  "texto": "En modo invisible, la barra de la esquina ya no solo informa: se despliega y enseña cosas. Texto y cifras («apúntamelo ahí»), una imagen del disco («enséñame esa captura») y también el visor —búsquedas, mapas, webs, informes—, que hasta ahora en modo invisible no se veía en ninguna parte. Y si no quieres ni eso, «quita la barra»: no deja nada en pantalla y sigue escuchando igual."
+  "f": "2026-10-20",
+  "t": "La tele en directo: «Pon Cuatro» y sale el directo en una ventana, sin pasar por la web ni tragarte la página. También Telecinco, FDF, Energy, Divinity y Be Mad. Es el mismo reproductor que la música, así que «para», «sube», «baja» y «¿qué suena?» valen igual, y poner una cosa quita la otra.",
+  "como": "«Pon Cuatro» · «Pon Telecinco»"
+ },
+ {
+  "f": "2026-10-20",
+  "t": "La barra de estado que crece: En modo invisible, la barra de la esquina ya no solo informa: se despliega y enseña cosas. Texto y cifras («apúntamelo ahí»), una imagen del disco («enséñame esa captura») y también el visor —búsquedas, mapas, webs, informes—, que hasta ahora en modo invisible no se veía en ninguna parte. Y si no quieres ni eso, «quita la barra»: no deja nada en pantalla y sigue escuchando igual.",
+  "como": "«Apúntamelo ahí» · «Quita la barra»"
  },
  {
   "f": "2026-10-20",
@@ -196,12 +201,12 @@
  },
  {
   "f": "2026-10-20",
-  "t": "Directo de pantalla",
-  "d": "«Mira lo que estoy haciendo» y Delta te sigue la pantalla cada segundo y medio en vez de cada ocho, notando hasta un gesto. Mientras dura hay un punto rojo con REC en la cabecera. Se apaga sola, y el modo privacidad la bloquea."
+  "t": "Directo de pantalla: «Mira lo que estoy haciendo» y Delta te sigue la pantalla cada segundo y medio en vez de cada ocho, notando hasta un gesto. Mientras dura hay un punto rojo con REC en la cabecera. Se apaga sola, y el modo privacidad la bloquea.",
+  "como": "«Mira lo que estoy haciendo»"
  },
  {
   "f": "2026-10-20",
-  "t": "La hora es ahora un dock",
-  "d": "Gira la rueda sobre la hora y suben desde abajo, como una tragaperras, el próximo aviso, la impresora, el sistema, el tiempo y el móvil. A los doce segundos vuelve sola a ser un reloj."
+  "t": "La hora es ahora un dock: Gira la rueda sobre la hora y suben desde abajo, como una tragaperras, el próximo aviso, la impresora, el sistema, el tiempo y el móvil. A los doce segundos vuelve sola a ser un reloj.",
+  "como": "Rueda del ratón sobre la hora"
  }
 ]
