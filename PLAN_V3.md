@@ -217,6 +217,28 @@ Una copia presentable de Delta, sin nada personal dentro.
 
 ---
 
+## Extras fuera de las fases
+
+### Televisión en directo  ✅ HECHA (2026-10-20, a petición del usuario)
+
+«Pon Cuatro» → el directo en abierto de Mediaset en una ventana de mpv. Punto de partida: un
+script suelto en Descargas; lo que se integró fue reescrito en `tele.py`.
+
+- [x] `tele.py`: pide el token como hace el reproductor de la web (caronte → mab → cerbero) y
+      devuelve URL **y cabeceras**. Se descartan los streams con DRM.
+- [x] Dos cosas que el script de partida no tenía bien y costaron encontrar:
+      el token dura **180 s**, no horas (`st`→`exp` en la propia URL), y el CDN **exige Origin y
+      Referer**: con el User-Agent de mpv a secas responde 403. Hay que pasárselas a mpv con
+      `--user-agent` y `--http-header-fields`.
+- [x] Mismo mpv que la música, a propósito: «para», «pausa», «sube», «baja» y «¿qué suena?»
+      valen igual, y poner una cosa quita la otra. Nada de dos reproductores por los altavoces.
+- [x] Acción `tele` dentro de la fusión `musica`: sigue habiendo **35** herramientas.
+- [x] Canales: cuatro, telecinco, fdf, energy, divinity, be mad. Los tres primeros, probados.
+- [x] `test_tele.py`.
+
+No es un canal de pago: es TDT en abierto, el mismo flujo que la web pública. La regla del
+proyecto («no integrar listas de canales de pago») sigue intacta.
+
 ## Fuera de v3
 
 - **Etsy**: descartado por el usuario.

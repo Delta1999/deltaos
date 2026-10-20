@@ -638,6 +638,51 @@ async def controlar_musica(accion):
         return "No hay música sonando."
 
 
+# --- televisión en directo ---
+# El mismo mpv que la música, a propósito: así «para», «pausa», «sube», «baja» y «¿qué suena?»
+# valen igual y no hay dos reproductores peleándose por los altavoces. Poner la tele quita la
+# música, que es lo que uno espera.
+import tele as _tele
+
+
+async def poner_tele(canal="cuatro"):
+    """El directo en abierto de Mediaset (Cuatro, Telecinco, FDF…).
+
+    La URL no se guarda en ninguna parte: el token dura tres minutos, así que se pide entera cada
+    vez. Y hay que repetirle a mpv las cabeceras del reproductor —Origin y Referer—, porque sin
+    ellas el CDN contesta 403 (probado: con el User-Agent de mpv a secas no entra)."""
+    try:
+        url, cab = await asyncio.to_thread(_tele.directo, canal or "cuatro")
+    except ValueError as e:
+        return f"Error: {e}."
+    except Exception as e:
+        return (f"Error: no he podido pedir el directo ({type(e).__name__}). Suele ser la red, "
+                "o que el canal esté geobloqueado fuera de España.")
+    if _MPV["p"] and _MPV["p"].returncode is None:
+        _MPV["p"].terminate()
+    nombre = str(canal or "cuatro").strip().title()
+    _MPV["p"] = await asyncio.create_subprocess_exec(
+        "mpv", "--really-quiet", f"--input-ipc-server={MPV_SOCK}",
+        f"--volume={ST['vol_musica'] * (ATENUAR if ST['activo'] else 1)}",
+        f"--force-media-title={nombre} en directo", f"--title={nombre} en directo",
+        f"--user-agent={cab['User-Agent']}",
+        f"--http-header-fields=Origin: {cab['Origin']},Referer: {cab['Referer']}",
+        url, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(30):  # no decir «ya se ve» sin comprobarlo
+        await asyncio.sleep(1)
+        if _MPV["p"].returncode is not None:
+            return (f"Error: mpv se ha cerrado al abrir {nombre}. Si fuera el geobloqueo o un 403 "
+                    "del CDN, se vería aquí: díselo y ofrécele probar otro canal.")
+        try:
+            if (await asyncio.to_thread(_mpv, ["get_property", "time-pos"])).get("error") == "success":
+                return (f"{nombre} en directo, ya se ve (comprobado). Suena bajito mientras hablamos. "
+                        "Para quitarlo vale «para».")
+        except OSError:
+            pass
+    # Un directo puede tardar en dar imagen sin que nada vaya mal: mpv sigue vivo, que es lo que importa.
+    return f"{nombre} puesto; está tardando en dar imagen. Dilo así, sin prometer que ya se ve."
+
+
 # --- memoria ---
 # Vive en memoria.py (SQLite + FTS5). Antes era un .md que se leía entero en cada despertar:
 # con dos notas daba igual, con trescientas se come el contexto y además no había cómo buscar.
@@ -841,6 +886,8 @@ DECLARATIONS = [
         {"busqueda": _s("qué poner, p.ej. «Los Planetas», «jazz para trabajar», «lofi»")}),
     _fn("controlar_musica", "Controla la música que pusiste con poner_musica.",
         {"accion": _s("pausa | seguir | siguiente | anterior | subir | bajar | parar | que_suena")}),
+    _fn("poner_tele", "Pone un canal de televisión en directo en una ventana. Sustituye a lo que sonara.",
+        {"canal": _s("cuatro | telecinco | fdf | energy | divinity | be mad")}),
     _fn("dormir", "Vuelve al modo espera cuando el usuario se despide o dice que ya está."),
 ]
 
@@ -857,11 +904,11 @@ def registrar(declaraciones, handlers):
 HANDLERS = {f.__name__: f for f in (
     abrir, ejecutar_herramienta_wormhole, verificar_diseno, ejecutar_shell, preguntar_a_claude,
     ver_trabajos, estado_impresora, historial_impresora, programar_aviso_impresora, estado_proyectos, recordar, olvidar, buscar_memoria, anotar_mejora,
-    volumen, brillo, notificar, poner_musica, controlar_musica, portapapeles, ventanas, dormir)}
+    volumen, brillo, notificar, poner_musica, controlar_musica, poner_tele, portapapeles, ventanas, dormir)}
 
 
 ETIQUETAS = {"estado_impresora": "Miro la impresora", "historial_impresora": "Leo el historial de la impresora",
-             "poner_musica": "Pongo música", "controlar_musica": "Música", "mostrar": "Abro en pantalla",
+             "poner_musica": "Pongo música", "controlar_musica": "Música", "poner_tele": "Pongo la tele", "mostrar": "Abro en pantalla",
              "buscar": "Busco en internet", "cambiar_vista": "Cambio de vista", "energia": "Energía del ordenador", "investigar": "Investigación profunda", "buscar_skills": "Busco skills", "instalar_skill": "Instalo skill",
              "usar_skill": "Leo la skill", "mirar_detalle": "Miro la pantalla en alta resolución",
              "hablar_con_claude": "Encargo a Claude Code", "ejecutar_shell": "Comando", "recordar": "Guardo en memoria",
@@ -917,10 +964,15 @@ FUSIONES = {
                {"que": "buscar: tema; instalar: id owner/repo/skill tal como lo dio buscar; usar: nombre de la skill"},
                {"buscar": _r("buscar_skills", {"consulta": "que"}), "instalar": _r("instalar_skill", {"id_skill": "que"}),
                 "usar": _r("usar_skill", {"nombre": "que"}), "actualizar": _r("sincronizar_skills")}),
-    "musica": ("Música de YouTube. poner: busca y pone (canción, artista, estilo o lista; sustituye a la que sonara). "
-               "El resto controla la que pusiste.",
-               {"busqueda": "poner: qué poner, p.ej. «Los Planetas», «jazz para trabajar», «lofi»"},
-               {"poner": _r("poner_musica"), **{a: _r("controlar_musica", fijo={"accion": a}) for a in _MUSICA}}),
+    "musica": ("Música de YouTube y televisión en directo. poner: busca y pone música (canción, artista, estilo o "
+               "lista; sustituye a la que sonara). tele: un canal en directo en una ventana, en abierto, «pon Cuatro», "
+               "«ponme la tele», «quiero ver Telecinco»; canal = cuatro | telecinco | fdf | energy | divinity | be mad, "
+               "y sin decir cuál, Cuatro. El resto (pausa, parar, subir, bajar, que_suena) vale para las dos cosas: es "
+               "el mismo reproductor, así que poner una quita la otra.",
+               {"busqueda": "poner: qué poner, p.ej. «Los Planetas», «jazz para trabajar», «lofi»",
+                "canal": "tele: qué canal, p.ej. «cuatro»"},
+               {"poner": _r("poner_musica"), "tele": _r("poner_tele", {"canal": "canal"}),
+                **{a: _r("controlar_musica", fijo={"accion": a}) for a in _MUSICA}}),
     "vista": ("Tu interfaz. panel / mascota / invisible: panel completo, solo el animal flotando («modo mascota»), o "
               "ni animal ni panel y solo la barra de estado en una esquina («modo invisible», «quítate de en medio», «esconde la mascota», «quita el bicho del escritorio», «no quiero verte»). "
               "oculto: quita también la barra de estado y no deja nada en pantalla («quita la barra», «fuera todo», «no dejes nada»); sigues escuchando igual, y con invisible vuelve. "

@@ -1,6 +1,11 @@
 [
  {
   "fecha": "2026-10-20",
+  "titulo": "La tele en directo",
+  "texto": "«Pon Cuatro» y sale el directo en una ventana, sin pasar por la web ni tragarte la página. También Telecinco, FDF, Energy, Divinity y Be Mad. Es el mismo reproductor que la música, así que «para», «sube», «baja» y «¿qué suena?» valen igual, y poner una cosa quita la otra."
+ },
+ {
+  "fecha": "2026-10-20",
   "titulo": "La barra de estado que crece",
   "texto": "En modo invisible, la barra de la esquina ya no solo informa: se despliega y enseña cosas. Texto y cifras («apúntamelo ahí»), una imagen del disco («enséñame esa captura») y también el visor —búsquedas, mapas, webs, informes—, que hasta ahora en modo invisible no se veía en ninguna parte. Y si no quieres ni eso, «quita la barra»: no deja nada en pantalla y sigue escuchando igual."
  },

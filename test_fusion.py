@@ -26,5 +26,7 @@ assert a._real("vista", {"accion": "elegir_mascota", "cual": "gato"}) == ("elegi
 assert a._real("claude", {"accion": "tarea_suelta", "mensaje": "m"}) == ("preguntar_a_claude", {"tarea": "m"})
 assert a._real("volumen", {"accion": "subir"}) == ("volumen", {"accion": "subir"})  # las no fusionadas, igual
 assert a._real("musica", {"accion": "bailar"})[0] == "musica"
-assert asyncio.run(a.HANDLERS["musica"](accion="bailar")).startswith("Error: musica necesita accion = poner | pausa")
+e = asyncio.run(a.HANDLERS["musica"](accion="bailar"))
+# sin fijar el orden entero: añadir una acción no debe romper el test, solo el error debe listarlas
+assert e.startswith("Error: musica necesita accion =") and "poner" in e and "tele" in e, e
 print(f"ok: {len(nombres)} herramientas")
