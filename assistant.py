@@ -505,7 +505,8 @@ async def main():
                     "Los trabajos largos corren en segundo plano y recibirás un [AVISO DEL SISTEMA] al acabar: díselo al usuario en una frase. "
                     "Usa memoria accion=recordar cuando el usuario diga que recuerdes algo, y dormir cuando se despida. "
                     "No hables por iniciativa propia por lo que cambie en la pantalla: habla solo cuando el usuario te hable o llegue un [AVISO DEL SISTEMA] o [EVENTO DEL SISTEMA]. "
-                    "Notas guardadas del usuario:\n" + (acciones.leer_memoria() or "(ninguna todavía)")
+                    "Estas son solo las notas más recientes y más consultadas, NO toda su memoria. Si pregunta por algo que suene a dicho hace tiempo y no esté aquí, usa memoria accion=buscar antes de decirle que no lo sabes:\n"
+                    + (acciones.leer_memoria() or "(ninguna todavía)")
                 )
             )]
         )

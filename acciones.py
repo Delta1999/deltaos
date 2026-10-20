@@ -639,21 +639,30 @@ async def controlar_musica(accion):
 
 
 # --- memoria ---
+# Vive en memoria.py (SQLite + FTS5). Antes era un .md que se leía entero en cada despertar:
+# con dos notas daba igual, con trescientas se come el contexto y además no había cómo buscar.
+import memoria as _mem
+
+
 def leer_memoria():
-    return MEMORIA.read_text().strip() if MEMORIA.exists() else ""
+    """Lo que se inyecta al despertar: las últimas y las más consultadas, NO todas."""
+    return _mem.contexto()
 
 
 async def recordar(nota):
-    with open(MEMORIA, "a") as f:
-        f.write(f"- {nota.strip()}\n")
-    return "Anotado."
+    return _mem.guardar(nota)
 
 
 async def olvidar(fragmento):
-    lineas = leer_memoria().splitlines()
-    resto = [l for l in lineas if fragmento.lower() not in l.lower()]
-    MEMORIA.write_text("\n".join(resto) + ("\n" if resto else ""))
-    return f"Borradas {len(lineas) - len(resto)} notas."
+    return _mem.olvidar(fragmento)
+
+
+async def buscar_memoria(consulta):
+    """Para lo que no cabe en el contexto del despertar, que ahora es casi todo."""
+    r = _mem.buscar(consulta)
+    if not r:
+        return f"No tengo nada apuntado sobre «{consulta}» ({_mem.cuantas()} notas en total)."
+    return "Encontrado:\n" + "\n".join(f"- {x['texto']}" for x in r)
 
 
 MEJORAS_LOG = AQUI / "mejoras_pendientes.log"
@@ -811,6 +820,8 @@ DECLARATIONS = [
         {"nombre": _s("parte del nombre del proyecto, opcional")}, req=[]),
     _fn("recordar", "Guarda una nota en la memoria persistente (sobrevive a reinicios).", {"nota": _s("hecho a recordar")}),
     _fn("olvidar", "Borra de la memoria las notas que contengan este texto.", {"fragmento": _s("texto a buscar")}),
+    _fn("buscar_memoria", "Busca en TODO lo que el usuario te ha contado alguna vez. Úsalo cuando pregunte por algo que suene a dicho antes («¿qué te conté de…?», «¿cómo se llamaba…?») y no esté en las notas que ya tienes delante.",
+        {"consulta": _s("qué buscar")}),
     _fn("volumen", "Controla el volumen del sistema.",
         {"accion": _s("fijar | subir | bajar | silenciar | activar_sonido | consultar"),
          "valor": _s("porcentaje, si aplica")}, req=["accion"]),
@@ -845,7 +856,7 @@ def registrar(declaraciones, handlers):
 
 HANDLERS = {f.__name__: f for f in (
     abrir, ejecutar_herramienta_wormhole, verificar_diseno, ejecutar_shell, preguntar_a_claude,
-    ver_trabajos, estado_impresora, historial_impresora, programar_aviso_impresora, estado_proyectos, recordar, olvidar, anotar_mejora,
+    ver_trabajos, estado_impresora, historial_impresora, programar_aviso_impresora, estado_proyectos, recordar, olvidar, buscar_memoria, anotar_mejora,
     volumen, brillo, notificar, poner_musica, controlar_musica, portapapeles, ventanas, dormir)}
 
 
@@ -854,6 +865,7 @@ ETIQUETAS = {"estado_impresora": "Miro la impresora", "historial_impresora": "Le
              "buscar": "Busco en internet", "cambiar_vista": "Cambio de vista", "energia": "Energía del ordenador", "investigar": "Investigación profunda", "buscar_skills": "Busco skills", "instalar_skill": "Instalo skill",
              "usar_skill": "Leo la skill", "mirar_detalle": "Miro la pantalla en alta resolución",
              "hablar_con_claude": "Encargo a Claude Code", "ejecutar_shell": "Comando", "recordar": "Guardo en memoria",
+             "buscar_memoria": "Rebusco en la memoria",
              "consultar_clima": "Consulto el tiempo", "abrir": "Abro", "dormir": "A dormir"}
 MAX_PASOS = 7
 
@@ -890,11 +902,14 @@ FUSIONES = {
                {"mensaje": "hablar/tarea_suelta: lo que quieres que haga, completo y claro"},
                {"hablar": _r("hablar_con_claude"), "tarea_suelta": _r("preguntar_a_claude", {"tarea": "mensaje"}),
                 "estado": _r("estado_claude"), "cancelar": _r("cancelar_claude")}),
-    "memoria": ("Memoria persistente (sobrevive a reinicios). recordar: guarda una nota. olvidar: borra las notas que "
-                "contengan texto. anotar_mejora: cuando el USUARIO pida una función NUEVA que aún no tienes, para el "
-                "programador; una avería que persiste (micro, audio, impresora…) anótala UNA sola vez, no repitas.",
-                {"texto": "la nota, el fragmento a borrar o la mejora descrita con claridad"},
+    "memoria": ("Memoria persistente (sobrevive a reinicios). recordar: guarda una nota. buscar: rebusca en TODO lo "
+                "que te ha contado alguna vez; las notas que ves al despertar son solo las últimas, así que si "
+                "pregunta por algo dicho hace tiempo, BUSCA antes de decir que no lo sabes. olvidar: borra las notas "
+                "que contengan texto. anotar_mejora: cuando el USUARIO pida una función NUEVA que aún no tienes, para "
+                "el programador; una avería que persiste (micro, audio, impresora…) anótala UNA sola vez, no repitas.",
+                {"texto": "la nota, lo que buscar, el fragmento a borrar o la mejora descrita con claridad"},
                 {"recordar": _r("recordar", {"nota": "texto"}), "olvidar": _r("olvidar", {"fragmento": "texto"}),
+                 "buscar": _r("buscar_memoria", {"consulta": "texto"}),
                  "anotar_mejora": _r("anotar_mejora", {"descripcion": "texto"})}),
     "skills": ("Skills (capacidades con instrucciones). buscar: en las instaladas y en el catálogo skills.sh (en inglés "
                "da más resultados). instalar: descarga una del catálogo, pide permiso al usuario y devuelve sus "
