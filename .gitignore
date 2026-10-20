@@ -1,29 +1,49 @@
-.venv/
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+node_modules/
 __pycache__/
-modelos/
-trabajos/
-memoria.md
-assistant.log
-mejoras_pendientes.log
-panel/geo.json
+.venv/
+venv/
+.DS_Store
+
+# Perfiles de navegador del panel: Chromium los reescribe cada arranque y dentro
+# hay Cookies y Login Data. Nunca deben salir de esta máquina.
 panel/.chrome/
 panel/.chromium/
-skills/
-averias.log
-avisos.json
-ubicacion_fija.json
-movil_clave.txt
-delta_movil.log
-movil_vapid.pem
-movil_suscripciones.json
-mascota_elegida.txt
 
-# El gato: en git van el código y los .npz que carga en vivo (igual que mascota3d/mapache.npz).
-# Fuera queda el material de origen: gato/gata/ son 80 MB del modelo de Blend Swap y los .blend
-# se regeneran con gato/blender/. Los créditos CC-BY y la licencia sí van (obligación de la licencia).
+# Datos de entrenamiento y modelos: 17 GB en un .npy, muy por encima del límite
+# de 100 MB por fichero de GitHub. Se descargan, no se versionan.
+modelos/
+*.npy
+*.pt
+*.tflite
+*.onnx
+
+# Binarios de trabajo de Blender
 *.blend
 *.blend1
-gato/gata/*
-!gato/gata/*.py
-!gato/gata/CREDITOS.md
-!gato/gata/LICENCIA_CC-BY-3.0.html
+*.blend2
+
+# Cachés y logs
+*.log
+*.wav
+capturas/
+out/
+
+# Secretos y datos personales: claves, dónde vives, a qué estás suscrito.
+movil_clave.txt
+ubicacion_fija.json
+movil_suscripciones.json
+panel/geo.json
+
+# Estado en tiempo de ejecución: lo reescribe Delta solo, versionarlo es ruido
+# y además deja rastro de lo que has hecho cada día.
+avisos.json
+memoria.md
+memoria.db
+mascota_elegida.txt
+*.kate-swp
+.*.kate-swp
