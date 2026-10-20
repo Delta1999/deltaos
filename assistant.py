@@ -33,6 +33,7 @@ import movil  # noqa: F401
 import deltaos  # noqa: F401  (visor del panel, investigación y skills)
 import secretario  # noqa: F401  (documentos PDF/Word/texto)
 import estudio  # noqa: F401  (modo estudiante: clase → tema anotado)
+import mcp_puente  # noqa: F401  (conectores MCP: mcp.json → herramienta «conectores»)
 import panel
 import google.genai.live as genai_live
 _original_ws_connect = genai_live.ws_connect
@@ -485,6 +486,7 @@ async def main():
     acciones.tarea(acciones.vigilar_impresora())
     acciones.adoptar_trabajos()  # los trabajos que siguen vivos de antes de reiniciar vuelven a la barra
     acciones.tarea(avisos.vigilar())
+    acciones.tarea(mcp_puente.vigilar())  # sostiene las sesiones MCP; sin conectores activos, sale sola
 
     acciones.tarea(audio_input_loop())  # el micro vive siempre; la sesión va y viene
     fallos = 0

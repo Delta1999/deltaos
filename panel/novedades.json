@@ -1,5 +1,10 @@
 [
  {
+  "f": "2026-10-20",
+  "t": "Puente MCP: ya puedo enchufarme a servicios de fuera (calendario, correo, lo que se añada) sin que me reprogramen. Por ahora no hay ninguno configurado: el primero será el calendario",
+  "como": "«¿Qué conectores tienes?»"
+ },
+ {
   "f": "2026-10-19",
   "t": "Ya no te pregunto nada por Claude Code: todo lo que pida (escribir, ejecutar, mirar) se acepta solo y sin avisarte",
   "como": "sale solo"

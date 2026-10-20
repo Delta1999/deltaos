@@ -1,0 +1,7 @@
+{
+  "_lee_esto": "Cada entrada es un conector MCP. Las claves que empiezan por _ se ignoran: son notas y ejemplos.",
+  "_formato": "nombre: {comando: servidor local por stdio | url: remoto por HTTP, env: [VARIABLES que necesita], cwd: carpeta, activo: true|false}",
+  "_claves": "Las credenciales NO van en este fichero: 'env' solo lista los NOMBRES de las variables, que se toman del entorno de Delta.",
+  "_ejemplo_local": {"comando": "npx -y @modelcontextprotocol/server-everything", "activo": false},
+  "_ejemplo_remoto": {"url": "https://ejemplo.invalid/mcp", "activo": false}
+}

@@ -26,17 +26,27 @@ suelta por capacidad: o entra en una fusión existente, o entra por el puente MC
       para Claude Code envejecen sin fecha de caducidad. No es urgente: no afecta a lo que dice Delta.
 - [ ] Tag de v1.
 
-## Fase 1 — Puente MCP  ← la que desbloquea el resto
+## Fase 1 — Puente MCP  ✅ HECHA (2026-10-20)
 
-`mcp_puente.py`: cliente MCP que traduce servidores MCP a herramientas de Gemini usando
-`acciones.registrar()`, igual que hacen los 8 módulos actuales.
+`mcp_puente.py`, sobre el SDK oficial (`mcp` 2.3.0 en el venv; ya estaban sus dependencias
+`anyio`, `pydantic` y `httpx`). Usa `ClientSessionGroup`, que sostiene varios servidores a la vez
+y agrega su catálogo; soporta servidor local por stdio (`comando`) y remoto por HTTP (`url`).
 
-Expone **dos** herramientas, no una por servidor:
-- `conectores(accion="listar")` → catálogo de servidores y sus herramientas
-- `conectores(accion="usar", servidor, herramienta, args)` → la ejecuta
+**UNA** herramienta nueva para el modelo, no una por servidor:
+- `conectores(accion="listar")` → qué conectores hay y qué sabe hacer cada uno
+- `conectores(accion="usar", servidor, herramienta, argumentos)` → la ejecuta (`argumentos` en JSON)
 
-Así un conector nuevo = una línea de configuración, no código ni slots nuevos.
-Config en `mcp.json` del repo. Se prueba contra un servidor MCP local antes de nada remoto.
+Un conector nuevo es ahora una entrada en `mcp.json`, sin código ni herramientas nuevas.
+
+Detalles que importan:
+- `vigilar()` es la ÚNICA tarea que abre y cierra las sesiones: los flujos de anyio del SDK no
+  admiten cerrarse en otra tarea distinta de la que los abrió. Las llamadas sí vienen de cualquiera.
+- Las credenciales no van en `mcp.json`: el campo `env` solo lista los NOMBRES de las variables,
+  que se leen del entorno de Delta. Si falta una, el conector no arranca y lo dice.
+- Un servidor que no arranca no tumba Delta: se anota en `_fallos` y `listar` lo cuenta.
+- El paso del panel se renombra en vez de añadir otro (`atender()` ya crea uno).
+- `test_mcp.py` lo prueba de punta a punta contra un `MCPServer` real: catálogo, llamada buena,
+  nombre sin servidor, nombre entero, y los cuatro errores típicos del modelo.
 
 ## Fase 2 — Calendario  ← petición explícita: clases y citas médicas
 
