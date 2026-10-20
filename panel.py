@@ -124,6 +124,9 @@ def _db01(x):
     return max(0.0, min(1.0, (20 * math.log10(max(x, 1) / 32768) + 60) / 60))
 
 
+RUIDO_VALE = 60  # s que vale una racha de <noise>; mic_clip decae solo, «ruido» no, y dejaba el micro en «mal» para siempre
+
+
 def _mic(ST):
     if ST.get("privacidad"):
         return {"nivel": 0, "db": None, "estado": "off"}
@@ -131,7 +134,7 @@ def _mic(ST):
     rms = ST.get("mic_rms", 0)
     if not viva:
         est = "mal"
-    elif ST.get("mic_clip", 0) > 0.15 or ST.get("ruido", 0) >= 3:
+    elif ST.get("mic_clip", 0) > 0.15 or (ST.get("ruido", 0) >= 3 and time.monotonic() - ST.get("ruido_t", 0) < RUIDO_VALE):
         est = "mal"
     else:
         est = "ok"

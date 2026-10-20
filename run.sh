@@ -2,6 +2,10 @@
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 export PYTHONUNBUFFERED=1
 
+# claude vive en ~/.local/bin, que NO está en el PATH de un arranque no interactivo
+# (2026-10-20: «🩺 servicios: ⚠️ falta el programa claude»; sin él mueren hablar_con_claude y mejorar_delta).
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac
+
 # Un solo Delta: el arranque automático y uno lanzado a mano se pisaban (dos voces a la vez).
 exec 9>"${XDG_RUNTIME_DIR:-/tmp}/delta.lock"
 flock -n 9 || { echo "Delta ya está en marcha."; exit 0; }

@@ -324,6 +324,7 @@ async def receive_and_play_loop(session):
                         if t:
                             if t.strip() == "<noise>":  # Gemini oye ruido, no voz: micro saturado o roto
                                 acciones.ST["ruido"] = acciones.ST.get("ruido", 0) + 1
+                                acciones.ST["ruido_t"] = time.monotonic()  # la racha caduca: si no, «micro mal» se queda clavado
                             else:
                                 acciones.ST["ruido"] = 0
                                 acciones.ST["t_tu"] = acciones.ST["ultima"] = time.monotonic()  # el usuario ha hablado (permisos por voz; y no dormir mientras habla)
