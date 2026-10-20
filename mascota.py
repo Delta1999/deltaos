@@ -898,20 +898,47 @@ class Mascota(QWidget):
         self.pulsado = None
 
 
+PANTALLA = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "delta-pantalla-mascota"  # la escribe deltaos.mover_a_pantalla
+
+
 def colocar():
-    """Wayland no deja a la app elegir su sitio: KWin la lleva a la pantalla principal (Qt en Wayland no ve bien las
-    pantallas, por eso kscreen-doctor), encima de todo, y la maximiza para que la capa ocupe el área útil."""
+    """Wayland no deja a la app elegir su sitio: KWin la lleva a su pantalla (la elegida por voz si está encendida;
+    si no, la principal; Qt en Wayland no ve bien las pantallas, por eso kscreen-doctor), encima de todo, y la
+    maximiza para que la capa ocupe el área útil. Desmaximizar antes: una maximizada no cambia de pantalla."""
     subprocess.Popen(["bash", "-c", r"""
 W=$(kdotool search --class delta-mascota | head -1); [ -n "$W" ] || exit
 kdotool windowstate --add ABOVE --add SKIP_TASKBAR --add SKIP_PAGER "$W"
-read -r X Y AN AL < <(kscreen-doctor -o 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk '
-  /^Output:/{en=0} /^[ \t]*enabled/{en=1} /priority/{p=$2}
-  /Geometry:/ && en {split($2,xy,","); split($3,wh,"x"); g=xy[1]" "xy[2]" "wh[1]" "wh[2]; if(p==1){print g; f=1; exit}}
-  END{if(!f) print g}')
+read -r X Y AN AL < <(kscreen-doctor -o 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk -v want="$(cat "$1" 2>/dev/null)" '
+  /^Output:/{n=$3; en=0} /^[ \t]*enabled/{en=1} /priority/{p=$2}
+  /Geometry:/ && en {split($2,xy,","); split($3,wh,"x"); g=xy[1]" "xy[2]" "wh[1]" "wh[2]; if(n==want) e=g; if(p==1) pr=g; u=g}
+  END{print (e!="" ? e : (pr!="" ? pr : u))}')
+kdotool windowstate --remove MAXIMIZED "$W"
+sleep 0.2
 kdotool windowmove "$W" $((X + 50)) $((Y + 50))
 sleep 0.3
 kdotool windowstate --add MAXIMIZED "$W"
-"""])
+""", "colocar", str(PANTALLA)])
+
+
+def vigilar_pantalla(app):
+    """Recolocarla si eligen otra pantalla por voz (el fichero cambia) o se enchufa o quita una. Sin kscreen-doctor
+    aquí: tarda 0,1 s y en el hilo de Qt daría tirones a la animación; el fichero es tmpfs y no cuesta nada."""
+    def marca():
+        try:
+            return PANTALLA.read_text().strip()
+        except OSError:
+            return ""
+    antes = [marca()]
+    def mirar():
+        if marca() != antes[0]:
+            antes[0] = marca()
+            colocar()
+    app.screenAdded.connect(lambda *_: QTimer.singleShot(2500, colocar))  # deja que KWin asiente la pantalla nueva
+    app.screenRemoved.connect(lambda *_: QTimer.singleShot(2500, colocar))
+    t = QTimer(interval=2000)
+    t.timeout.connect(mirar)
+    t.start()
+    return t
 
 
 if __name__ == "__main__":
@@ -947,4 +974,5 @@ if __name__ == "__main__":
     m = Mascota()
     m.show()
     QTimer.singleShot(1200, colocar)
+    vigia = vigilar_pantalla(app)
     sys.exit(app.exec())

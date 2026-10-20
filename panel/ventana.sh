@@ -11,19 +11,24 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 URL="http://127.0.0.1:7876"
 SALIDA="${1:-$PANEL_PANTALLA}"
 VISTA="${XDG_RUNTIME_DIR:-/tmp}/delta-vista"
+PANT="${XDG_RUNTIME_DIR:-/tmp}/delta-pantalla-panel"  # la pantalla elegida por voz (deltaos.mover_a_pantalla)
 TIRA_AN=700 TIRA_AL=152 TIRA_M=24  # la tira del modo invisible: ancho, alto y margen con la esquina
 TIRA_ALTA=470  # «invisible-grande»: la misma tira con una tarjeta desplegada (Fase 8)
 
-# Imprime «x y ancho alto vista_por_defecto» de la pantalla del panel según las pantallas encendidas
+# Imprime «x y ancho alto vista_por_defecto firma» de la pantalla del panel según las pantallas encendidas:
+# la elegida por voz si está encendida, si no $SALIDA, si no la que no es la principal. La firma es el juego
+# de pantallas: solo si cambia (enchufar o quitar el HDMI) se vuelve a la vista por defecto.
 destino() {
-  kscreen-doctor -o 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk -v want="$SALIDA" '
+  local want; want=$(cat "$PANT" 2>/dev/null); want=${want:-$SALIDA}
+  kscreen-doctor -o 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk -v want="$want" '
     /^Output:/{n=$3; en=0} /^[ \t]*enabled/{en=1} /priority/{p=$2}
-    /Geometry:/ && en {g[n]=$2" "$3; pr[n]=p; uno=n; k++}
-    END{if(k>1) for(n in g) if((want!="" && n==want) || (want=="" && pr[n]!=1)){s=n; break}
+    /Geometry:/ && en {g[n]=$2" "$3; pr[n]=p; uno=n; k++; f=f n "@" $2 "+" $3 ";"}
+    END{if(k>1 && (want in g)) s=want
+      if(k>1 && s=="") for(n in g) if(pr[n]!=1){s=n; break}
       if(s=="") s=uno
       if(s=="") exit
       split(g[s],a," "); split(a[1],xy,","); split(a[2],wh,"x")
-      print xy[1], xy[2], wh[1], wh[2], (k>1 ? "panel" : "mascota")}'
+      print xy[1], xy[2], wh[1], wh[2], (k>1 ? "panel" : "mascota"), f}'
 }
 aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
   read -r X Y AN AL _ <<<"$2"
@@ -77,12 +82,15 @@ CH=$!
 for i in $(seq 40); do W=$(kdotool search --class "chrome.*127.0.0.1|127.0.0.1" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep .5; done
 [ -z "$W" ] && { wait $CH; exit; }
 sleep 2  # KWin recoloca la ventana al mostrarla; mover antes no se respeta
-ANT= VANT= MANT=
+ANT= FANT= VANT= MANT=
 while kill -0 $CH 2>/dev/null; do
   D=$(destino)
-  if [ -n "$D" ] && [ "$D" != "$ANT" ]; then  # pantallas cambiadas (o arranque): vista por defecto
-    [ -n "$ANT" ] && { sleep 2; D=$(destino); }
-    echo "${D##* }" > "$VISTA"; ANT=$D; VANT=
+  if [ -n "$D" ] && [ "${D##* }" != "$FANT" ]; then  # pantallas cambiadas (o arranque): vista por defecto
+    [ -n "$FANT" ] && { sleep 2; D=$(destino); }
+    read -r _ _ _ _ VDEF FANT <<<"$D"; echo "$VDEF" > "$VISTA"; VANT=
+  fi
+  if [ -n "$D" ] && [ "$D" != "$ANT" ]; then  # otra pantalla para el panel (por voz): misma vista, en la nueva
+    [ -n "$ANT" ] && regla "$D"; ANT=$D; VANT=
   fi
   MM=$(kdotool search --class delta-mascota 2>/dev/null | head -1)
   [ "$MM" != "$MANT" ] && { MANT=$MM; VANT=; }  # la mascota (re)aparece: aplicarle la vista

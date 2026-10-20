@@ -410,6 +410,80 @@ async def cambiar_vista(modo):
     return f"Hecho: vista {modo}."
 
 
+def _pantallas(txt):
+    """Pantallas encendidas según `kscreen-doctor -o`: [{n, x, y, an, al, p}] (p = prioridad, 1 = la principal)."""
+    out, cur = [], None
+    for l in re.sub(r"\x1b\[[0-9;]*m", "", txt).splitlines():
+        if l.startswith("Output:"):
+            cur = {"n": l.split()[2], "en": False, "p": 0}
+            out.append(cur)
+        elif cur is not None:
+            l = l.strip()
+            if l == "enabled":
+                cur["en"] = True
+            elif l.startswith("priority"):
+                cur["p"] = int(l.split()[1])
+            elif m := re.match(r"Geometry: (-?\d+),(-?\d+) (\d+)x(\d+)", l):
+                cur["x"], cur["y"], cur["an"], cur["al"] = map(int, m.groups())
+    return [o for o in out if o["en"] and "x" in o]
+
+
+def _donde(ps, actual, donde):
+    """La pantalla que corresponde a «otra / arriba / abajo / izquierda / derecha / principal» (o su nombre)."""
+    d = donde.strip().lower()
+    if d in ("arriba", "superior"):
+        return min(ps, key=lambda o: o["y"])
+    if d in ("abajo", "inferior"):
+        return max(ps, key=lambda o: o["y"])
+    if d == "izquierda":
+        return min(ps, key=lambda o: o["x"])
+    if d == "derecha":
+        return max(ps, key=lambda o: o["x"])
+    if d in ("principal", "portatil", "portátil", "esta"):
+        return min(ps, key=lambda o: o["p"] or 99)
+    if d in ("ultrawide", "grande", "ancha"):
+        return max(ps, key=lambda o: o["an"])
+    if d in ("otra", ""):
+        return next((o for o in ps if o["n"] != actual), None)
+    return next((o for o in ps if o["n"].lower() == d), None)
+
+
+def _pantalla_de(cual, ps):
+    """Dónde está ahora: la elegida si sigue encendida; si no, la de siempre (panel en la secundaria, mascota en la principal)."""
+    try:
+        n = panel.PANTALLA[cual].read_text().strip()
+    except OSError:
+        n = ""
+    if any(o["n"] == n for o in ps):
+        return n
+    princ = min(ps, key=lambda o: o["p"] or 99)["n"]
+    return next((o["n"] for o in ps if o["n"] != princ), princ) if cual == "panel" else princ
+
+
+async def mover_a_pantalla(cual, donde="otra"):
+    """Fija en qué pantalla va la interfaz (panel y barra de estado son la misma ventana) y/o la mascota.
+    No mueve la ventana por su cuenta: ventana.sh y mascota.py vigilan su fichero y la recolocan ellos,
+    así un cambio de vista posterior no la devuelve a la pantalla de antes."""
+    c = str(cual or "").strip().lower()
+    cuales = {"interfaz": ["panel"], "panel": ["panel"], "barra": ["panel"], "mascota": ["mascota"],
+              "todo": ["panel", "mascota"]}.get(c)
+    if not cuales:
+        return "Error: cual es interfaz (también la barra de estado), mascota o todo."
+    ps = _pantallas((await _run(["kscreen-doctor", "-o"], timeout=10))[1])
+    if len(ps) < 2:
+        return "Solo hay una pantalla encendida: no hay otra a la que llevarlo. Díselo al usuario."
+    hechos = []
+    for k in cuales:
+        actual = _pantalla_de(k, ps)
+        o = _donde(ps, actual, donde)
+        if not o:
+            return f"Error: no sé qué pantalla es «{donde}». Hay: {', '.join(p['n'] for p in ps)}."
+        panel.PANTALLA[k].write_text(o["n"] + "\n")
+        hechos.append(f"{'la interfaz' if k == 'panel' else 'la mascota'} → {o['n']} ({o['an']}x{o['al']})"
+                      + (" (ya estaba ahí)" if o["n"] == actual else ""))
+    return "Hecho: " + "; ".join(hechos) + ". Tarda un par de segundos en colocarse."
+
+
 async def mostrar_en_tira(texto="", titulo="", segundos="", imagen=""):
     """Fase 8: enseña algo concreto en la barra de estado, que crece en una tarjeta y se vuelve a
     encoger sola. En panel completo no hace falta —ahí ya se ve todo—, así que solo tiene sentido
@@ -449,8 +523,14 @@ ESCENAS = ("auto", "delta", "reloj", "mascota", "impresion", "tiempo")
 async def fondo(escena):
     if escena not in ESCENAS:
         return "Error: escena es " + " | ".join(ESCENAS) + "."
-    panel.S["fondo"] = {"escena": escena, "id": time.time()}  # el panel lo pone ya, sin esperar los 30 s
-    return f"Hecho: fondo de espera {escena}."
+    panel.S["fondo"] = {"escena": escena, "id": time.time()}  # el panel lo pone ya, sin esperar a que duermas
+    if escena == "auto":
+        return "Hecho: el fondo de espera vuelve a ir rotando."
+    antes = panel._vista_actual()
+    if antes != "panel":
+        panel.vista("panel")  # en barra, mascota u oculto el panel no se ve, y el fondo va dentro del panel
+    return (f"Hecho: {escena} a pantalla completa en el panel" + (f" (estaba en modo {antes}: he puesto el panel)" if antes != "panel" else "")
+            + ". Se quita con doble clic, Escape o la rueda del ratón; también sale solo cuando duermes.")
 
 
 async def pantalla_completa(que):
@@ -579,7 +659,7 @@ acciones.registrar([
                  "«quiero el mapache», «cambia la mascota»…",
                  {"cual": acciones._s("mapache | gato")}),
     acciones._fn("fondo",
-                 "Elige el fondo del modo espera del panel (sale cuando duermes): delta (el logo del sistema en matriz de puntos, «pon el logo», «pon el escudo»), reloj grande, la mascota en el centro, "
+                 "Pone ya a pantalla completa en el panel una escena (y es también la que sale cuando duermes): delta (el logo del sistema en matriz de puntos, «pon el logo», «pon el escudo»), reloj grande, la mascota en el centro, "
                  "la estación meteo, o la impresión en vivo (recorrido 3D de la boquilla). auto = va rotando y la impresión manda mientras imprime. "
                  "Úsalo cuando diga «pon el reloj de fondo», «fondo de la impresora», «salvapantallas»…",
                  {"escena": acciones._s("auto | delta | reloj | mascota | impresion | tiempo")}),
@@ -600,4 +680,8 @@ acciones.registrar([
                  "Apagar y reiniciar piden confirmación: pregúntale «¿Seguro, señor?» y si dice que sí usa responder_permiso.",
                  {"accion": acciones._s("suspender | apagar | reiniciar | cancelar"),
                   "minutos": acciones._s("minutos de espera; 0 = ahora")}, req=["accion"]),
-], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia))
+    acciones._fn("mover_a_pantalla",
+                 "Lleva la interfaz (panel o barra de estado, que son la misma ventana) y/o la mascota a otra pantalla, y se queda ahí.",
+                 {"cual": acciones._s("interfaz | mascota | todo"),
+                  "donde": acciones._s("otra | arriba | abajo | izquierda | derecha | principal | ultrawide")}, req=["cual"]),
+], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia, mover_a_pantalla))

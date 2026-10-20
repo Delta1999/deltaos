@@ -299,6 +299,9 @@ def _vigila(sn):
 
 
 VISTA = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "delta-vista"  # ventana.sh la lee y coloca panel y mascota
+# en qué pantalla va cada uno (nombre de salida, p.ej. HDMI-A-1): lo escribe deltaos.mover_a_pantalla y lo leen
+# ventana.sh (panel y barra) y mascota.py; si falta o esa pantalla no está, cada uno va a la de siempre
+PANTALLA = {k: VISTA.with_name(f"delta-pantalla-{k}") for k in ("panel", "mascota")}
 
 
 def vista(modo):
@@ -810,12 +813,15 @@ async def start(ST, voz):
     try:
         app = web.Application()
         app["ST"] = ST
-        app.router.add_get("/", lambda r: web.FileResponse(AQUI / "panel" / "index.html"))
+        # no-cache: sin él Chromium daba por bueno el fondo.js viejo un buen rato (caché heurística por Last-Modified)
+        # y un cambio del panel no se veía ni recargando (2026-10-21, el escudo). Con no-cache revalida por ETag.
+        nc = {"Cache-Control": "no-cache"}
+        app.router.add_get("/", lambda r: web.FileResponse(AQUI / "panel" / "index.html", headers=nc))
         app.router.add_get("/ws", _ws)
         app.router.add_get("/mapache.txt", lambda r: web.FileResponse(AQUI / "panel" / "mapache.txt"))
         app.router.add_static("/fonts", AQUI / "panel" / "fonts")
         for js in ("fondo.js", "delta.js", "mapache3d.js", "three.module.js", "novedades.json", "logo.json"):
-            app.router.add_get("/" + js, lambda r, js=js: web.FileResponse(AQUI / "panel" / js))
+            app.router.add_get("/" + js, lambda r, js=js: web.FileResponse(AQUI / "panel" / js, headers=nc))
         app.router.add_get("/impresora/vivo", _vivo)
         app.router.add_get("/impresora/gcode/{n}", _gcode)
         app.router.add_get("/impresora/todo", _todo)

@@ -1,6 +1,16 @@
 [
  {
   "f": "2026-10-21",
+  "t": "La interfaz (con su barra de estado) y la mascota se pueden llevar por voz a otra pantalla: la de arriba, la de abajo, la ultrawide o «la otra». Se quedan ahí aunque cambies de modo.",
+  "como": "«Mueve la interfaz a la otra pantalla» · «La mascota a la pantalla de abajo»"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "El escudo ya se ve al pedirlo: antes solo cambiaba el fondo de cuando duermo y no salía nada. Ahora sale a pantalla completa, y si estabas en modo barra o mascota pongo el panel.",
+  "como": "«Pon el escudo»"
+ },
+ {
+  "f": "2026-10-21",
   "t": "Fondo de pantalla nuevo con el logotipo del sistema: la cabeza dibujada en matriz de puntos se monta desde cero en tres segundos, escribe DELTAOS y se queda respirando. Late con mi voz cuando hablo y con el micro cuando escucho, así se ve de un vistazo que el micro está vivo. Solo negro, blanco y el rojo del ojo.",
   "como": "«Pon el logo» · «Pon el escudo»"
  },

@@ -776,6 +776,11 @@ async def portapapeles(accion, texto=""):
 
 
 async def ventanas(accion, nombre=""):
+    propia = {"panel": "interfaz", "interfaz": "interfaz", "deltaos": "interfaz", "panel de delta": "interfaz", "delta": "interfaz",
+              "barra": "interfaz", "barra de estado": "interfaz", "mascota": "mascota", "mapache": "mascota", "gato": "mascota"}
+    if accion in ("mover_pantalla", "otra_pantalla", "ultrawide") and nombre.lower() in propia:
+        # ventana.sh y mascota.py recolocan las suyas a cada cambio de vista: moverlas a mano no dura
+        return await HANDLERS["mover_a_pantalla"](propia[nombre.lower()], "ultrawide" if accion == "ultrawide" else "otra")
     if nombre.lower() in ("panel", "interfaz", "deltaos", "panel de delta"):
         nombre = "Delta"  # la ventana del panel se titula así
     if accion == "listar":
@@ -977,19 +982,24 @@ FUSIONES = {
               "ni animal ni panel y solo la barra de estado en una esquina («modo invisible», «quítate de en medio», «esconde la mascota», «quita el bicho del escritorio», «no quiero verte»). "
               "oculto: quita también la barra de estado y no deja nada en pantalla («quita la barra», «fuera todo», «no dejes nada»); sigues escuchando igual, y con invisible vuelve. "
               "elegir_mascota: cual = mapache | gato, qué animal es la mascota («pon el gato», «quiero el mapache»). "
+              "pantalla: cual = interfaz (el panel y la barra de estado, que son la misma ventana) | mascota | todo, y donde = "
+              "otra | arriba | abajo | izquierda | derecha | principal | ultrawide: la lleva a esa pantalla y se queda ahí aunque "
+              "cambies de modo («mueve la interfaz a la otra pantalla», «la barra a la pantalla de arriba», «la mascota a la de "
+              "abajo», «todo a la ultrawide»). Para el panel y la mascota usa siempre esta y no ventanas. "
               "tarjeta: enseña algo escrito en la barra de estado, que crece y se encoge sola. Para cifras, listas, "
               "resultados, lo que haya salido en la terminal o los datos de algo que te han pedido buscar: lo que se lee "
               "mejor que se oye («apúntamelo ahí», «ponlo en pantalla», «enséñamelo»). Con imagen = ruta del disco (de "
               "Imágenes, Descargas, Escritorio o Documentos/Delta) o URL, enseña además una foto, captura o plano. "
               "Para una web, un mapa, una búsqueda o un producto usa mostrar: en modo invisible el visor sale dentro de "
               "la propia barra. "
-              "fondo: el del modo espera, cual = auto (rota; la impresión manda mientras imprime) | delta (el logo del "
+              "fondo: la pone YA a pantalla completa en el panel (y es la que sale al dormir), cual = auto (rota; la impresión manda mientras imprime) | delta (el logo del "
               "sistema en puntos) | reloj | mascota | impresion | tiempo («pon el reloj de fondo», «pon el logo», «salvapantallas»). pantalla_completa: cual = impresora (la "
               "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
               "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
               "«¿qué está comiendo RAM?»).",
               {"cual": "fondo: auto | delta | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
-                       "elegir_mascota: mapache | gato",
+                       "elegir_mascota: mapache | gato; pantalla: interfaz | mascota | todo",
+               "donde": "pantalla: otra | arriba | abajo | izquierda | derecha | principal | ultrawide",
                "texto": "tarjeta: lo que enseñar en la barra, una cosa por línea",
                "titulo": "tarjeta: rótulo (opcional)",
                "imagen": "tarjeta: ruta de una imagen del disco o URL, para enseñarla en la barra (opcional)"},
@@ -998,6 +1008,7 @@ FUSIONES = {
                "invisible": _r("cambiar_vista", fijo={"modo": "invisible"}),
                "oculto": _r("cambiar_vista", fijo={"modo": "oculto"}),
                "elegir_mascota": _r("elegir_mascota", {"cual": "cual"}),
+               "pantalla": _r("mover_a_pantalla", {"cual": "cual", "donde": "donde"}),
                "fondo": _r("fondo", {"escena": "cual"}), "pantalla_completa": _r("pantalla_completa", {"que": "cual"})}),
     "documentos": ("Secretario, en ~/Documentos/Delta/documentos. crear: redacta carta, instancia, reclamación, resumen, "
                    "acta, lista, apuntes, dossier, notas dictadas… («hazme un PDF», «redáctame», «toma nota de esto en un "

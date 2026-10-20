@@ -45,7 +45,9 @@ function mostrar(v) {
 window.fondoEspera = d => {
   D = d;
   const nuevo = d.fondo && d.fondo.id !== ultId;
-  if (nuevo && ultId !== null) { fuera = 0; desde = performance.now() - ESPERA; escena = null; }
+  // pedido por voz («pon el escudo»): se ve YA, también despierto. Antes solo cambiaba el fondo de cuando duerme,
+  // y Delta decía «ya lo tiene» sin que saliera nada (2026-10-21). Se quita igual: doble clic, Esc o la rueda.
+  if (nuevo && ultId !== null) { fuera = 0; desde = performance.now() - ESPERA; escena = null; forzado = d.fondo.escena !== 'auto'; }
   if (d.fondo) ultId = d.fondo.id; else if (ultId === null) ultId = 0;
   const c = d.completa;  // pantalla completa pedida por voz (la del arranque no cuenta)
   if (c && c.id !== ultCompleta && ultCompleta !== null) { ultCompleta = c.id; c.que === 'salir' ? salir() : window.pantallaCompleta(c.que); return; }
