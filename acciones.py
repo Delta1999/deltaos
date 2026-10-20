@@ -892,7 +892,7 @@ FUSIONES = {
                {"busqueda": "poner: qué poner, p.ej. «Los Planetas», «jazz para trabajar», «lofi»"},
                {"poner": _r("poner_musica"), **{a: _r("controlar_musica", fijo={"accion": a}) for a in _MUSICA}}),
     "vista": ("Tu interfaz. panel / mascota / invisible: panel completo, solo el animal flotando («modo mascota»), o "
-              "ni animal ni panel y solo una tira de estado en una esquina («modo invisible», «quítate de en medio»). "
+              "ni animal ni panel y solo una tira de estado en una esquina («modo invisible», «quítate de en medio», «esconde la mascota», «quita el bicho del escritorio», «no quiero verte»). "
               "elegir_mascota: cual = mapache | gato, qué animal es la mascota («pon el gato», «quiero el mapache»). "
               "fondo: el del modo espera, cual = auto (rota; la impresión manda mientras imprime) | reloj | mascota | "
               "impresion | tiempo («pon el reloj de fondo», «salvapantallas»). pantalla_completa: cual = impresora (la "

@@ -61,6 +61,9 @@ $('fondo').addEventListener('contextmenu', siguiente);
 $('mapa').addEventListener('contextmenu', e => { e.preventDefault(); forzado = true; fuera = 0; window.fondoEspera(D); });
 const salir = () => { const era = full; full = null; if (on) { forzado = false; fuera = era ? 0 : performance.now() + PAUSA; mostrar(false); } };
 $('fondo').addEventListener('dblclick', salir);
+// La rueda también lo quita: el reloj tapa el panel en cuanto Delta se duerme, que es justo cuando
+// quieres subir a releer la conversación, y antes solo salía con doble clic o Escape (2026-10-20).
+$('fondo').addEventListener('wheel', salir, { passive: true });
 $('fondo').addEventListener('mousemove', e => {  // el mapache sigue al ratón
   if (escena !== 'mascota') return;
   const r = $('fm-cv').getBoundingClientRect();

@@ -490,7 +490,7 @@ acciones.registrar([
     acciones._fn("cambiar_vista",
                  "Cambia la interfaz: panel completo, modo mascota (solo el animal flotando) o invisible (ni animal "
                  "ni panel, solo una tira de estado flotando en una esquina). Úsalo cuando el usuario diga «modo "
-                 "mascota», «panel completo», «abre el panel», «modo invisible», «quítate de en medio»…",
+                 "mascota», «panel completo», «abre el panel», «modo invisible», «quítate de en medio», «esconde la mascota», «quita el bicho»…",
                  {"modo": acciones._s("panel | mascota | invisible")}),
     acciones._fn("elegir_mascota",
                  "Elige qué animal es la mascota flotante: el mapache o el gato carey. Úsalo cuando diga «pon el gato», "
