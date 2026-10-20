@@ -359,6 +359,13 @@ async def cambiar_vista(modo):
     return f"Hecho: vista {modo}."
 
 
+async def elegir_mascota(cual):
+    if cual not in ("mapache", "gato"):
+        return "Error: cual es mapache o gato."
+    (AQUI / "mascota_elegida.txt").write_text(cual + "\n")  # mascota.py lo vigila y se vuelve a arrancar con ella
+    return f"Hecho: ahora la mascota es el {cual}."
+
+
 ESCENAS = ("auto", "reloj", "mascota", "impresion", "tiempo")
 
 
@@ -484,6 +491,10 @@ acciones.registrar([
                  "Cambia la interfaz entre el panel completo y el modo mascota (solo el mapache flotando). Úsalo cuando "
                  "el usuario diga «modo mascota», «pasa a mascota», «panel completo», «abre el panel»…",
                  {"modo": acciones._s("panel | mascota")}),
+    acciones._fn("elegir_mascota",
+                 "Elige qué animal es la mascota flotante: el mapache o el gato carey. Úsalo cuando diga «pon el gato», "
+                 "«quiero el mapache», «cambia la mascota»…",
+                 {"cual": acciones._s("mapache | gato")}),
     acciones._fn("fondo",
                  "Elige el fondo del modo espera del panel (sale cuando duermes): reloj grande, la mascota en el centro, "
                  "la estación meteo, o la impresión en vivo (recorrido 3D de la boquilla). auto = va rotando y la impresión manda mientras imprime. "
@@ -506,4 +517,4 @@ acciones.registrar([
                  "Apagar y reiniciar piden confirmación: pregúntale «¿Seguro, señor?» y si dice que sí usa responder_permiso.",
                  {"accion": acciones._s("suspender | apagar | reiniciar | cancelar"),
                   "minutos": acciones._s("minutos de espera; 0 = ahora")}, req=["accion"]),
-], (pasar_cos, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, fondo, pantalla_completa, leer_pegado, energia))
+], (pasar_cos, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia))

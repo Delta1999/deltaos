@@ -16,3 +16,14 @@ movil_clave.txt
 delta_movil.log
 movil_vapid.pem
 movil_suscripciones.json
+mascota_elegida.txt
+
+# El gato: en git van el código y los .npz que carga en vivo (igual que mascota3d/mapache.npz).
+# Fuera queda el material de origen: gato/gata/ son 80 MB del modelo de Blend Swap y los .blend
+# se regeneran con gato/blender/. Los créditos CC-BY y la licencia sí van (obligación de la licencia).
+*.blend
+*.blend1
+gato/gata/*
+!gato/gata/*.py
+!gato/gata/CREDITOS.md
+!gato/gata/LICENCIA_CC-BY-3.0.html

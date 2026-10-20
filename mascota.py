@@ -15,6 +15,9 @@ Cuerpo: el mapache 3D con esqueleto de mascota3d/ (malla + 13 huesos, rig.py) en
 pintado como rejilla de puntos y girado hacia donde mira; al cambiar de animación se funden. Encima, en sus anclas:
 ojos (parpadean, rojos al escuchar), boca (habla con la voz, grita, sonríe al andar, se preocupa, ronca).
 Patrulla: con Delta en espera y tú delante, ronda con tricornio, placa y porra; a veces se para y da el alto.
+Gato (2026-10-19): con «gato» en mascota_elegida.txt, en vez del mapache sale el gato carey 3D de gato/ (su malla en
+color y su esqueleto en gato.npz, sus poses de gato en gato/poses.py con los mismos nombres) con los mismos estados,
+iconos y paseos; al cambiar el archivo se reinicia.
 """
 import glob
 import html
@@ -30,18 +33,33 @@ import threading
 import time
 from pathlib import Path
 
-import numpy as np
-from PyQt6.QtCore import QPoint, QPointF, QRect, Qt, QTimer, QUrl
-from PyQt6.QtGui import QColor, QFontDatabase, QPainter, QPixmap, QRegion
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")  # el skinning es un producto pequeño: con un hilo por núcleo, OpenBLAS
+import numpy as np  # noqa: E402                      # se queda girando en espera y se come 6 núcleos
+from PyQt6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, QTimer, QUrl
+from PyQt6.QtGui import QColor, QFontDatabase, QImage, QPainter, QPixmap, QRegion
 from PyQt6.QtWebSockets import QWebSocket
 from PyQt6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QToolTip, QVBoxLayout, QWidget
 
-from mascota3d.poses import ANIM
 from mascota3d.rig import TAM, Mapache
 
 PANEL = "127.0.0.1:7876"
+ELEGIDA = Path(__file__).with_name("mascota_elegida.txt")  # «mapache» o «gato» (lo escribe deltaos.elegir_mascota)
+
+
+def especie():
+    try:
+        return "gato" if ELEGIDA.read_text().strip() == "gato" else "mapache"
+    except OSError:
+        return "mapache"
+
+
+ESPECIE = especie()
+if ESPECIE == "gato":
+    from gato.poses import ANIM
+else:
+    from mascota3d.poses import ANIM
 CELDA, R = 5, 2.1                     # px entre puntos (1 celda de la rejilla del rig) y radio del punto
-C0 = 8                                # primera columna de la rejilla que cabe en la caja (a los lados no llega nada)
+C0 = 0 if ESPECIE == "gato" else 8    # primera columna de la rejilla que cabe en la caja (el gato tumbado es más ancho)
 GRIS = {"#": 26, "+": 138, "o": 242}
 ROJO = QColor(255, 45, 31)
 NARANJA = QColor(255, 140, 0)
@@ -61,12 +79,13 @@ OCIO = 30                       # s de media entre ratos ociosos (estirarse, bos
 BOCADILLO = 300                 # px de ancho del bocadillo de permiso
 OCIOS = {"estira": 2.5, "bosteza": 2.0, "rasca": 2.5, "saluda": 2.0, "curioso": 3.0}  # animación: s que dura
 MEZCLA = 0.25                   # s que tarda en fundirse una animación con la siguiente
-FPS_CUERPO = 10                 # poses por segundo (cada una cuesta ~10 ms de numpy); la posición va a 20
+FPS_CUERPO = 10                 # poses por segundo (cada una cuesta ~10 ms de numpy, el gato fino ~20); la posición va a 20
+FINO = 2                        # el gato se pinta en una rejilla 2× más fina y suavizado, no a puntos
 ALTO = 2.6                      # s que dura el «¡alto!» de la patrulla
 DAR_ALTO = 0.35                 # probabilidad de dar el alto al acabar una ronda
 PORRA = 7                       # celdas de largo
 LENGUA, ORO = QColor(214, 96, 104), QColor(232, 182, 48)
-MAPACHE = Mapache()
+MAPACHE = Mapache(Path(__file__).with_name("gato") / "gato.npz") if ESPECIE == "gato" else Mapache()
 SELLOS = {}                     # color → QPixmap del punto (ver Mascota.sello)
 # Iconos de puntos a su derecha (# = punto)
 BATERIA = ["#######.", "#.....##", "#.....##", "#######."]
@@ -402,6 +421,8 @@ class Mascota(QWidget):
         reloj.start()
 
     def sensores(self):
+        if especie() != ESPECIE:  # han elegido la otra mascota: se vuelve a arrancar con ella (la caja cambia de ancho)
+            os.execv(sys.executable, [sys.executable, *sys.argv])
         s, ahora = self.s, time.monotonic()
         bat = (glob.glob("/sys/class/power_supply/BAT*") or [None])[0]
         s["bat"] = (int(leer(f"{bat}/capacity", "100")), leer(f"{bat}/status")) if bat else None
@@ -427,7 +448,7 @@ class Mascota(QWidget):
         self.parado = parado
         if self.evento and (ahora > self.evento[1] or (parado and self.evento[0] in OCIOS)):
             self.evento = None
-        self.patrulla = est == "dormido" and self.s["inactivo"] <= INACTIVO
+        self.patrulla = ESPECIE == "mapache" and est == "dormido" and self.s["inactivo"] <= INACTIVO  # el gato no es guardia
         self.mover(dt, ahora, parado)
         caja = QRect(round(self.px), round(self.py), SW, SH)
         mascara = QRegion(caja)
@@ -651,14 +672,25 @@ class Mascota(QWidget):
     def fotograma(self, pose, ojos, boca, apagado, agobio, alto, t):
         """(QPixmap de la caja con el mapache en `pose`, anclas): la rejilla del rig, con ojos y boca encima y, de
         patrulla, tricornio, placa y porra."""
+        if ESPECIE == "gato":
+            return self.fotograma_fino(pose, ojos, boca, apagado, agobio)
         G, _, A = MAPACHE.pintar(pose, -self.yaw, todas=True)  # el rig gira al revés: + es hacia su izquierda
-        color = {}  # (fila, col) → QColor en vez del gris del rig
+        if G.ndim == 3:  # el gato viene en color: cada celda pasa a un entero 0xRRGGBB (+ 1 << 24 para no ser «vacía»)
+            C = G * apagado
+            if agobio:  # se pone rojo
+                C = C * (0.55, 0.35, 0.3) + (110, 0, 0)
+            C = (np.clip(C, 0, 255).astype(int) // 8 * 8)  # de 8 en 8: pocos sellos distintos
+            G = np.where(G.any(-1), (1 << 24) | C[..., 0] << 16 | C[..., 1] << 8 | C[..., 2], 0)
+            pinta, claro, radio = lambda g: QColor((g >> 16) & 255, (g >> 8) & 255, g & 255), 1, 2.25
+        else:
+            pinta, claro, radio = lambda g: tono(g, apagado, agobio), 150, 4
+        color = {}  # (fila, col) → QColor en vez del del rig
         for k in ("ojo_i", "ojo_d"):
             x, y, vis = A[k]
-            if ojos and vis:  # cerrados o rojos: los puntos claros del ojo
+            if ojos and vis:  # cerrados o rojos: los puntos claros del ojo (en el gato, todo el ojo)
                 for f in range(int(y) - 2, int(y) + 3):
                     for c in range(int(x) - 2, int(x) + 3):
-                        if 0 <= f < TAM and 0 <= c < TAM and G[f, c] >= 150 and (c + 0.5 - x) ** 2 + (f + 0.5 - y) ** 2 <= 4:
+                        if 0 <= f < TAM and 0 <= c < TAM and G[f, c] >= claro and (c + 0.5 - x) ** 2 + (f + 0.5 - y) ** 2 <= radio:
                             color[f, c] = ojos
         x, y, vis = A["boca"]
         if vis:
@@ -671,13 +703,55 @@ class Mascota(QWidget):
         img.setDevicePixelRatio(self.devicePixelRatio())
         img.fill(Qt.GlobalColor.transparent)
         p = QPainter(img)
-        sellos = {g: self.sello(tono(g, apagado, agobio)) for g in np.unique(G).tolist()}  # ~200 grises, no ~1100 celdas
+        sellos = {g: self.sello(pinta(g)) for g in np.unique(G).tolist()}  # ~200 grises o colores, no ~1100 celdas
         d = round(CELDA / 2 - R - 1)  # de la esquina de la celda a la del sello
         for f, c in np.argwhere(G[:, C0:TAM - C0]).tolist():
             q = color.get((f, c + C0))
             p.drawPixmap(c * CELDA + d, f * CELDA + d, self.sello(q) if q else sellos[int(G[f, c + C0])])
         if self.patrulla:
             self.uniforme(p, A, apagado, alto, t)
+        p.end()
+        return img, A
+
+    def fotograma_fino(self, pose, ojos, boca, apagado, agobio):
+        """El gato: la rejilla fina del rig como imagen, escalada con suavizado a la caja (sin puntos); ojos cerrados
+        o rojos y boca, encima como manchas suaves."""
+        G, _, A = MAPACHE.pintar(pose, -self.yaw, todas=True, fino=FINO)
+        lleno = G.any(-1)
+        C = G * apagado
+        if agobio:  # se pone rojo
+            C = C * (0.55, 0.35, 0.3) + (110, 0, 0)
+        rgba = np.ascontiguousarray(np.dstack([np.clip(C, 0, 255) * lleno[..., None], lleno * 255]).astype(np.uint8))
+        T = len(G)
+        imagen = QImage(rgba.data, T, T, 4 * T, QImage.Format.Format_RGBA8888_Premultiplied)  # alfa 0 o 255: ya va
+        img = QPixmap(round(SW * self.devicePixelRatio()), round(SH * self.devicePixelRatio()))  # premultiplicado
+        img.setDevicePixelRatio(self.devicePixelRatio())
+        img.fill(Qt.GlobalColor.transparent)
+        p = QPainter(img)
+        p.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.SmoothPixmapTransform)
+        p.drawImage(QRectF(-C0 * CELDA, 0, TAM * CELDA, TAM * CELDA), imagen)
+        p.setPen(Qt.PenStyle.NoPen)
+        ancho = max(0.35, abs(math.cos(math.radians(self.yaw))))  # de lado, los ojos se ven más estrechos
+        for k in ("ojo_i", "ojo_d"):
+            x, y, vis = A[k]
+            if not (ojos and vis):
+                continue
+            c = QPointF((x - C0) * CELDA, y * CELDA)
+            if ojos.red() > 50:  # rojos: escucha o pide permiso
+                p.setBrush(ojos)
+                p.drawEllipse(c, 1.9 * CELDA * ancho, 1.8 * CELDA)  # tapa el ojo verde entero
+            else:  # cerrados: párpado del color del pelo de encima y una raya oscura
+                f, cc = min(max(int((y - 2.2) * FINO), 0), T - 1), min(max(int(x * FINO), 0), T - 1)
+                p.setBrush(QColor(*rgba[f, cc, :3].tolist()) if lleno[f, cc] else ojos)
+                p.drawEllipse(c, 1.7 * CELDA * ancho, 1.6 * CELDA)
+                p.setBrush(ojos)
+                p.drawRoundedRect(QRectF(c.x() - 1.4 * CELDA * ancho, c.y() - 0.2 * CELDA, 2.8 * CELDA * ancho,
+                                         0.45 * CELDA), 1, 1)
+        x, y, vis = A["boca"]
+        if vis:
+            for dc, df, q in boca:
+                p.setBrush(q if isinstance(q, QColor) else tono(GRIS[q], apagado, False))
+                p.drawEllipse(QPointF((x + dc * ancho - C0) * CELDA, (y + df) * CELDA), 0.55 * CELDA, 0.5 * CELDA)
         p.end()
         return img, A
 
