@@ -353,8 +353,8 @@ async def sincronizar_skills():
 
 
 async def cambiar_vista(modo):
-    if modo not in ("panel", "mascota"):
-        return "Error: el modo es panel o mascota."
+    if modo not in ("panel", "mascota", "invisible"):
+        return "Error: el modo es panel, mascota o invisible."
     panel.vista(modo)
     return f"Hecho: vista {modo}."
 
@@ -488,9 +488,10 @@ acciones.registrar([
                  {"nombre": acciones._s("nombre de la skill")}),
     acciones._fn("sincronizar_skills", "Actualiza todas las skills instaladas desde su origen."),
     acciones._fn("cambiar_vista",
-                 "Cambia la interfaz entre el panel completo y el modo mascota (solo el mapache flotando). Úsalo cuando "
-                 "el usuario diga «modo mascota», «pasa a mascota», «panel completo», «abre el panel»…",
-                 {"modo": acciones._s("panel | mascota")}),
+                 "Cambia la interfaz: panel completo, modo mascota (solo el animal flotando) o invisible (ni animal "
+                 "ni panel, solo una tira de estado flotando en una esquina). Úsalo cuando el usuario diga «modo "
+                 "mascota», «panel completo», «abre el panel», «modo invisible», «quítate de en medio»…",
+                 {"modo": acciones._s("panel | mascota | invisible")}),
     acciones._fn("elegir_mascota",
                  "Elige qué animal es la mascota flotante: el mapache o el gato carey. Úsalo cuando diga «pon el gato», "
                  "«quiero el mapache», «cambia la mascota»…",

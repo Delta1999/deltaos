@@ -30,8 +30,12 @@ main{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(
 canvas{width:100%;flex:1;min-height:0;display:block}
 #estado{font-size:58px;line-height:1;margin-top:10px}
 #sub{color:var(--dim);font-size:14px;margin-top:8px;height:18px}
-#frases{display:flex;flex-direction:column;justify-content:flex-end;gap:22px}
-.fr{font-size:22px;line-height:1.35;color:var(--dim)}
+#frases{display:flex;flex-direction:column;gap:22px;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:var(--dim) transparent}
+/* Pega la conversación al fondo con margin-top:auto y NO con justify-content:flex-end: en un
+   contenedor con scroll, flex-end deja las primeras frases por encima del origen, inalcanzables. */
+#frases>:first-child{margin-top:auto}
+.fr{font-size:22px;line-height:1.35;color:var(--dim);flex:none}
 .fr:last-child{color:var(--fg)}
 .fr small{display:block;font-size:11px;letter-spacing:.2em;margin-bottom:4px;color:var(--red)}
 footer{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.15fr) minmax(0,.75fr) minmax(0,1.3fr);gap:28px}
@@ -133,6 +137,7 @@ body.chuleta #chuleta{display:block}
 #pegar .pie{display:flex;justify-content:space-between;align-items:center;gap:12px}#pinfo{color:var(--dim);font-size:12px}
 /* alertas: lista con scroll y llave inglesa para encolar el arreglo */
 #frases.alertas{justify-content:flex-start;overflow-y:auto;gap:12px;scrollbar-width:thin;scrollbar-color:var(--dim) transparent}
+#frases.alertas>:first-child{margin-top:0}  /* las alertas se leen de arriba abajo */
 #frases.alertas .fr{font-size:16px;flex:none}#frases.alertas .fr:last-child{color:var(--dim)}#frases.alertas .fr:first-of-type{color:var(--fg)}
 .llave{float:right;margin:0 0 4px 12px;width:30px;height:30px;border-radius:50%;border:1px solid var(--dim);background:none;color:var(--dim);cursor:pointer;display:grid;place-items:center}
 .llave:hover{border-color:var(--fg);color:var(--fg)}.llave.pendiente{background:var(--red);border-color:var(--red);color:#000}
@@ -158,6 +163,27 @@ body.sinagenda footer{grid-template-columns:minmax(0,1.9fr) minmax(0,.75fr) minm
 #fs-tabla .h{font-size:11px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}#fs-tabla .n{text-align:right}
 #fs-tabla .no{color:var(--dim)}#fs-tabla .si{color:var(--red)}#fs-tabla .bar{margin:0}
 #fi-info{margin-top:12px;font-size:13px;line-height:1.7;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+/* Modo invisible: ni mascota ni panel, solo esta tira. La ventana la encoge ventana.sh, así que la
+   tira ocupa todo el hueco (inset:0): nada de transparencias, que bajo Wayland no son fiables. */
+body.invisible{padding:0;gap:0;overflow:hidden}
+body.invisible>header,body.invisible>main,body.invisible>footer{display:none}
+body.invisible #espera,body.invisible #fondo,body.invisible #chuleta{display:none!important}
+#tira{display:none}
+body.invisible #tira{position:fixed;inset:0;display:flex;flex-direction:column;gap:6px;
+  padding:10px 14px;background:var(--bg);border:1px solid var(--line);font-size:12px;overflow:hidden}
+#tira .t1{display:flex;align-items:baseline;gap:12px}
+#tira #t-hora{font-size:25px;line-height:1}
+#tira #t-est{font-size:14px;letter-spacing:.06em;flex:none}
+#tira #t-sub{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#tira .lamps{gap:9px;flex:none}#tira .lamp{font-size:9px;letter-spacing:.1em}#tira .lamp i{width:7px;height:7px}
+#tira #t-vivo{display:flex;align-items:center;gap:10px;min-height:22px;padding:5px 0;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+#tira #t-vivo b{font-family:var(--dot);font-weight:900;color:var(--red);flex:none;font-size:13px}
+#tira #t-vivo span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#tira #t-vivo .bar{margin:0;flex:1;max-width:90px;height:8px}
+#tira #t-pie{display:flex;flex-wrap:wrap;gap:3px 14px;font-size:10px;letter-spacing:.12em;
+  color:var(--dim);text-transform:uppercase;overflow:hidden}
+#tira #t-pie b{color:var(--fg);font-weight:400}#tira #t-pie b.r{color:var(--red)}
 /* Pantallas bajas (la ventana del portátil, 1280×720): el pie se comía la fila central (2026-10-19) */
 @media (max-height:820px){
   body{gap:14px;padding:16px 24px}main,footer,#der{gap:14px}
@@ -217,7 +243,15 @@ body.sinagenda footer{grid-template-columns:minmax(0,1.9fr) minmax(0,.75fr) minm
   <section class="card" id="sis"></section>
   <section class="card" id="clima"></section>
 </footer>
-<div id="chuleta"><h2 class="dot">QUÉ PUEDO PEDIR</h2><div class="lbl">Toca en cualquier sitio para cerrar</div><button id="reset" title="Devuelve DeltaOS a la versión estable v2.1 y lo reinicia (lo de después queda guardado en git)">↺ Volver a v2.1</button><section id="nov"></section><div class="cols"><section><span class="lbl">Impresora 3D</span><ul><li>«¿Cómo va la impresión?»</li><li>«¿Qué he impreso esta semana?» <i>historial</i></li><li>«Avísame 10 minutos antes de que acabe»</li><li>«Ponme la impresora a pantalla completa» <i>o clic en su tarjeta · también «el sistema» y «el tiempo»</i></li></ul></section><section><span class="lbl">Internet</span><ul><li>«Busca cuánto cuesta el PETG en Amazon» <i>búsqueda rápida</i></li><li>«Investiga a fondo ASA vs PETG para exterior» <i>informe con citas</i></li><li>«Subraya en rojo las cifras / resalta / añade una nota / quita…» <i>edita el informe del visor · «deshaz» vuelve atrás</i></li><li>«Ponme en pantalla el mapa de Sevilla / Wikipedia de… / la web de…»</li><li>«Ponme el vídeo de … en YouTube»</li></ul></section><section><span class="lbl">Música</span><ul><li>«Pon música lo-fi»</li><li>«Pausa / sigue / siguiente / anterior»</li><li>«Sube / baja la música» · «¿Qué suena?» · «Para la música»</li></ul></section><section><span class="lbl">Pantalla y escritorio</span><ul><li>«¿Qué ves en mi pantalla?» · «Mira el detalle»</li><li>«Abre Firefox / esta carpeta / esta URL»</li><li>«Lista las ventanas» · «Minimiza / cierra / activa …» · «Pásala al otro monitor»</li><li>«Sube el volumen al 40 %» · «Silencia» · «Brillo al 70 %»</li><li>«Lee el portapapeles» · «Copia esto»</li><li>«Mándame una notificación con …»</li></ul></section><section><span class="lbl">Estudio · Guardia Civil</span><ul><li>«Descárgate el audio de esta clase y pásalo a apuntes» <i>tema anotado en Temario_Guardia_Civil/DeltaOs, tarda 15-40 min</i></li><li>«Pasa a apuntes la última clase que bajé» <i>lo último de la extensión de Vimeo</i></li><li>«Esta clase es de Paco Arriola» <i>si el tema ya tiene clases, la añade al mismo PDF</i></li></ul></section><section><span class="lbl">Taller WORMHOLE</span><ul><li>«¿Dónde lo dejamos con la fuente …?» <i>lee ESTADO.md</i></li><li>«¿Qué proyectos hay recientes?»</li><li>«Verifica el diseño de este STL» <i>cadcheck + slice + render</i></li><li>«Lanza render_views / slice_check sobre …»</li><li>«¿Cómo van los trabajos en segundo plano?»</li></ul></section><section><span class="lbl">Claude Code</span><ul><li>«Pídele a Claude que …» <i>conversación con memoria</i></li><li>«Encarga a Claude una tarea suelta: …»</li></ul></section><section><span class="lbl">Terminal</span><ul><li>«¿Qué procesos gastan más memoria?» <i>lectura: sin preguntar</i></li><li>«¿Cuánto disco queda?» · «¿Hay errores en el log?»</li><li>Lo que modifique algo pide permiso</li><li>Alertas: llave inglesa = arreglarla cuando el PC esté tranquilo</li></ul></section><section><span class="lbl">Skills</span><ul><li>«Busca una skill para …»</li><li>«Instala la skill …» <i>siempre avisa</i></li><li>«Usa la skill …» · «Actualiza las skills»</li></ul></section><section><span class="lbl">Memoria</span><ul><li>«Recuerda que …»</li><li>«Olvida lo de …»</li><li>«Apunta como mejora: …» <i>lo que aún no sé hacer</i></li></ul></section><section><span class="lbl">Sesión</span><ul><li>«Ey Delta» / «Delta» para despertar</li><li>«Pasar C.O.S.» <i>comprueba todos los sistemas</i></li><li>«Gracias, ya está» → a dormir</li><li>Escape o «cierra» cierra el visor</li><li>«Modo mascota» · «Panel completo» <i>o clic en el mapache</i></li><li>«Pon el gato» · «Quiero el mapache» <i>elige la mascota flotante</i></li><li>«Suspende el ordenador» · «Apágalo / reinícialo» <i>pide un «sí»</i></li><li>«Apágalo en 30 minutos» · «Cancela el apagado»</li></ul></section><section><span class="lbl">El mapache</span><ul><li>Respira y pestañea <i>siempre</i></li><li>Ojos abiertos y tranquilo <i>Delta dormido, tú delante</i></li><li>Ojos cerrados, gris y zetas que suben <i>Delta dormido y 5 min sin tocar teclado ni ratón</i></li><li>Orejas arriba y ojos rojos <i>te está escuchando</i></li><li>Hocico y barriga laten con la voz, cola más rápida <i>está hablando</i></li><li>Cometa de puntos rojos alrededor de la cabeza, cola agitada <i>está trabajando (herramienta, Claude, trabajo en segundo plano)</i></li><li>Ojos rojos parpadeando y «!» encima <i>pide permiso</i></li><li>Como dormido pero más apagado <i>Delta no está en marcha</i></li><li>Tiembla y se pone rojo <i>CPU ≥ 85 % o RAM ≥ 92 %</i></li><li>Gotas naranjas cayendo de la cabeza <i>temperatura ≥ 85 °C</i></li><li>Pila roja parpadeando y más apagado <i>batería ≤ 20 %</i> · pila llenándose <i>cargando</i></li><li>Wifi con una X roja <i>sin red</i></li><li>Taza de café humeante <i>50 min seguidos delante: toca descanso (se quita tras 5 min sin tocar nada)</i></li><li>Papelera a su lado <i>la papelera tiene cosas</i></li><li>Ratón encima → ficha con impresora, sistema, tiempo, Claude, batería y papelera · arrastrar → moverlo · clic → panel completo</li></ul></section></div></div>
+<div id="chuleta"><h2 class="dot">QUÉ PUEDO PEDIR</h2><div class="lbl">Toca en cualquier sitio para cerrar</div><button id="reset" title="Devuelve DeltaOS a la versión estable v2.1 y lo reinicia (lo de después queda guardado en git)">↺ Volver a v2.1</button><section id="nov"></section><div class="cols"><section><span class="lbl">Impresora 3D</span><ul><li>«¿Cómo va la impresión?»</li><li>«¿Qué he impreso esta semana?» <i>historial</i></li><li>«Avísame 10 minutos antes de que acabe»</li><li>«Ponme la impresora a pantalla completa» <i>o clic en su tarjeta · también «el sistema» y «el tiempo»</i></li></ul></section><section><span class="lbl">Internet</span><ul><li>«Busca cuánto cuesta el PETG en Amazon» <i>búsqueda rápida</i></li><li>«Investiga a fondo ASA vs PETG para exterior» <i>informe con citas</i></li><li>«Subraya en rojo las cifras / resalta / añade una nota / quita…» <i>edita el informe del visor · «deshaz» vuelve atrás</i></li><li>«Ponme en pantalla el mapa de Sevilla / Wikipedia de… / la web de…»</li><li>«Ponme el vídeo de … en YouTube»</li></ul></section><section><span class="lbl">Música</span><ul><li>«Pon música lo-fi»</li><li>«Pausa / sigue / siguiente / anterior»</li><li>«Sube / baja la música» · «¿Qué suena?» · «Para la música»</li></ul></section><section><span class="lbl">Pantalla y escritorio</span><ul><li>«¿Qué ves en mi pantalla?» · «Mira el detalle»</li><li>«Abre Firefox / esta carpeta / esta URL»</li><li>«Lista las ventanas» · «Minimiza / cierra / activa …» · «Pásala al otro monitor»</li><li>«Sube el volumen al 40 %» · «Silencia» · «Brillo al 70 %»</li><li>«Lee el portapapeles» · «Copia esto»</li><li>«Mándame una notificación con …»</li></ul></section><section><span class="lbl">Estudio · Guardia Civil</span><ul><li>«Descárgate el audio de esta clase y pásalo a apuntes» <i>tema anotado en Temario_Guardia_Civil/DeltaOs, tarda 15-40 min</i></li><li>«Pasa a apuntes la última clase que bajé» <i>lo último de la extensión de Vimeo</i></li><li>«Esta clase es de Paco Arriola» <i>si el tema ya tiene clases, la añade al mismo PDF</i></li></ul></section><section><span class="lbl">Taller WORMHOLE</span><ul><li>«¿Dónde lo dejamos con la fuente …?» <i>lee ESTADO.md</i></li><li>«¿Qué proyectos hay recientes?»</li><li>«Verifica el diseño de este STL» <i>cadcheck + slice + render</i></li><li>«Lanza render_views / slice_check sobre …»</li><li>«¿Cómo van los trabajos en segundo plano?»</li></ul></section><section><span class="lbl">Claude Code</span><ul><li>«Pídele a Claude que …» <i>conversación con memoria</i></li><li>«Encarga a Claude una tarea suelta: …»</li></ul></section><section><span class="lbl">Terminal</span><ul><li>«¿Qué procesos gastan más memoria?» <i>lectura: sin preguntar</i></li><li>«¿Cuánto disco queda?» · «¿Hay errores en el log?»</li><li>Lo que modifique algo pide permiso</li><li>Alertas: llave inglesa = arreglarla cuando el PC esté tranquilo</li></ul></section><section><span class="lbl">Skills</span><ul><li>«Busca una skill para …»</li><li>«Instala la skill …» <i>siempre avisa</i></li><li>«Usa la skill …» · «Actualiza las skills»</li></ul></section><section><span class="lbl">Memoria</span><ul><li>«Recuerda que …»</li><li>«Olvida lo de …»</li><li>«Apunta como mejora: …» <i>lo que aún no sé hacer</i></li></ul></section><section><span class="lbl">Sesión</span><ul><li>«Ey Delta» / «Delta» para despertar</li><li>«Pasar C.O.S.» <i>comprueba todos los sistemas</i></li><li>«Gracias, ya está» → a dormir</li><li>Escape o «cierra» cierra el visor</li><li>«Modo mascota» · «Panel completo» <i>o clic en el mapache</i></li><li>«Modo invisible» · «Quítate de en medio» <i>ni mascota ni panel: solo una tira de estado en una esquina</i></li><li>«Pon el gato» · «Quiero el mapache» <i>elige la mascota flotante</i></li><li>«Suspende el ordenador» · «Apágalo / reinícialo» <i>pide un «sí»</i></li><li>«Apágalo en 30 minutos» · «Cancela el apagado»</li></ul></section><section><span class="lbl">El mapache</span><ul><li>Respira y pestañea <i>siempre</i></li><li>Ojos abiertos y tranquilo <i>Delta dormido, tú delante</i></li><li>Ojos cerrados, gris y zetas que suben <i>Delta dormido y 5 min sin tocar teclado ni ratón</i></li><li>Orejas arriba y ojos rojos <i>te está escuchando</i></li><li>Hocico y barriga laten con la voz, cola más rápida <i>está hablando</i></li><li>Cometa de puntos rojos alrededor de la cabeza, cola agitada <i>está trabajando (herramienta, Claude, trabajo en segundo plano)</i></li><li>Ojos rojos parpadeando y «!» encima <i>pide permiso</i></li><li>Como dormido pero más apagado <i>Delta no está en marcha</i></li><li>Tiembla y se pone rojo <i>CPU ≥ 85 % o RAM ≥ 92 %</i></li><li>Gotas naranjas cayendo de la cabeza <i>temperatura ≥ 85 °C</i></li><li>Pila roja parpadeando y más apagado <i>batería ≤ 20 %</i> · pila llenándose <i>cargando</i></li><li>Wifi con una X roja <i>sin red</i></li><li>Taza de café humeante <i>50 min seguidos delante: toca descanso (se quita tras 5 min sin tocar nada)</i></li><li>Papelera a su lado <i>la papelera tiene cosas</i></li><li>Ratón encima → ficha con impresora, sistema, tiempo, Claude, batería y papelera · arrastrar → moverlo · clic → panel completo</li></ul></section></div></div>
+<div id="tira">
+  <div class="t1"><span id="t-hora" class="dot">--:--</span><span id="t-est" class="dot">—</span><span id="t-sub" class="lbl"></span>
+    <div class="lamps"><span class="lamp" id="t-l-enlace"><i></i>Enlace</span><span class="lamp" id="t-l-mic"><i></i>Mic</span>
+      <span class="lamp" id="t-l-claude"><i></i>Claude</span><span class="lamp" id="t-l-impresora"><i></i>3D</span></div>
+  </div>
+  <div id="t-vivo"></div>
+  <div id="t-pie"></div>
+</div>
 <div id="espera"><canvas id="arena"></canvas><div id="ehora" class="dot">--:--</div><div class="lbl" id="etxt"></div></div>
 <div id="fondo">
   <div id="f-reloj"><div id="fr-hora" class="dot">--:--</div><div id="fr-fecha" class="lbl"></div><div id="fr-pie"></div></div>
@@ -263,8 +297,11 @@ function pintar(d){
   $('sub').textContent=d.confirma?`¿PERMITIR? ${d.confirma}`:d.priv?'PRIVACIDAD · el micro se ignora, ni «Delta»':d.herramienta?`usando: ${d.herramienta}`:d.sueno!=null?`duerme en ${d.sueno} s`:'di «Delta» o pulsa Enter';
   $('frases').classList.toggle('alertas',d.modo==='alertas');
   const fh=d.modo==='alertas'?alertas(d)
-   :d.frases.length?d.frases.map(f=>`<div class="fr"><small>${esc(f.rol).toUpperCase()}</small>${esc(f.t)}</div>`).join(''):'<div class="vacio">Sin conversación todavía.</div>';
-  if(fh!==FH){FH=fh;$('frases').innerHTML=fh}  // solo si cambia: si no, el scroll y los clics se pierden cada 0,4 s
+   :d.frases.length?d.frases.map(f=>`<div class="fr"><small>${esc(f.rol).toUpperCase()}${f.h?' · '+f.h:''}</small>${esc(f.t)}</div>`).join(''):'<div class="vacio">Sin conversación todavía.</div>';
+  // Solo si cambia: si no, el scroll y los clics se pierden cada 0,4 s. Y tras repintar se baja al
+  // final, salvo que el usuario esté leyendo más arriba (entonces no se le mueve el sitio).
+  if(fh!==FH){const fe=$('frases'),abajo=fe.scrollHeight-fe.scrollTop-fe.clientHeight<48;
+    FH=fh;fe.innerHTML=fh;if(abajo)fe.scrollTop=fe.scrollHeight}
   for(const k in d.salud)$('l-'+k).className='lamp '+d.salud[k];
   $('b-priv').className='btn'+(d.priv?' on':'');$('b-priv').textContent=d.priv?'Privacidad · ON':'Privacidad';
   $('b-modo').className='btn'+(d.modo==='alertas'?' on':'');$('b-modo').textContent=d.modo==='alertas'?'Alertas · ON':'Alertas'+(d.nuevas?` · ${d.nuevas}`:'');
@@ -315,6 +352,33 @@ function pintar(d){
     tr.map(([n])=>{const g=(d.progreso||{})[n]||{};return `<div class="p cur"><span>${g.pct==null?'···':g.pct+'%'}</span><span>${esc(n.replace(/-\d+$/,''))} · ${esc(g.etapa||'arrancando…')}</span><b>${g.ini?mmss(ahora/1e3-g.ini):'●'}</b></div>`+(g.pct!=null?bar(g.pct,true):'')}).join('');
   const u=d.uso;
   $('uso').innerHTML=u?`Contexto <b>${u.ctx}%</b> · <b>${u.tok>=1e6?(u.tok/1e6).toFixed(2)+'M':(u.tok/1000).toFixed(1)+'K'}</b> tokens<br>Gasto <b>0 €</b> · gratis (de pago ≈ ${u.usd.toFixed(3)} $)`:'';
+
+  // Modo invisible: la tira es lo único que se ve, así que lleva estado, qué está haciendo ahora mismo
+  // y un pie con lo que miraría de reojo (impresora, próximo aviso, móvil, sistema).
+  const inv=d.vista==='invisible';
+  document.body.classList.toggle('invisible',inv);
+  if(inv){
+    $('t-hora').textContent=d.hora; $('t-est').textContent=est;
+    $('t-est').style.color=d.estado==='dormido'?'var(--dim)':'var(--fg)';
+    $('t-sub').textContent=$('sub').textContent;
+    for(const k in d.salud)($('t-l-'+k)||{}).className='lamp '+d.salud[k];
+    const act=ps.find(x=>x.e==='en curso')||ps[ps.length-1],
+     tj=tr.length?[tr[0][0],(d.progreso||{})[tr[0][0]]||{}]:null;
+    $('t-vivo').innerHTML=tj?`<b>${tj[1].pct==null?'···':tj[1].pct+'%'}</b><span>${esc(tj[0].replace(/-\d+$/,''))} · ${esc(tj[1].etapa||'arrancando…')}</span>`+(tj[1].pct!=null?bar(tj[1].pct,true):'')
+     :cl?`<b>CLAUDE</b><span>${esc(cl.t)}</span>`
+     :act?`<b>${act.e==='hecho'?'✓':act.e==='falló'?'✗':'●'}</b><span>${esc(act.t)}</span><span class="lbl">${act.h.slice(0,5)}</span>`
+     :`<span class="lbl">Sin faena. Di «Delta» para hablarme.</span>`;
+    const pr=d.impresora,av=(d.avisos||[])[0],nv=mv&&!d.priv?mv.length:null;
+    $('t-pie').innerHTML=[
+      pr&&pr.online?`3D <b class="${pr.estado==='printing'?'r':''}">${pr.estado==='printing'||pr.estado==='paused'?pr.prog+'%'+(pr.quedan!=null?' · '+mmss(pr.quedan):''):pr.estado}</b>`:'',
+      av?`Próximo <b>${av.t.slice(11,16)}</b> ${esc(av.texto).slice(0,34)} <b>(${falta(av.t)})</b>`:'',
+      nv?`Móvil <b>${nv}</b>`:'',
+      `RAM <b>${s.ram==null?'—':s.ram+'%'}</b>`,`CPU <b>${s.cpu==null?'—':s.cpu+'%'}</b>`,
+      `Temp <b class="${s.temp>85?'r':''}">${s.temp==null?'—':s.temp+'°'}</b>`,
+      d.conexion!=='conectado'?`Sesión <b>${d.conexion}</b>`:'',
+      d.nuevas?`Avisos <b class="r">${d.nuevas}</b>`:'',
+    ].filter(Boolean).join('');
+  }
 
   const v=d.visor||null;
   if((v&&v.id)!==VID){VID=v&&v.id;v?abrirVisor(v):cerrarVisor()}

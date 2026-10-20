@@ -47,8 +47,8 @@ def texto(rol: str, t: str):
     if f and f[-1]["rol"] == rol and not f[-1].get("fin"):
         f[-1]["t"] += t
     else:
-        f.append({"rol": rol, "t": t})
-        del f[:-2]  # solo las 2 últimas
+        f.append({"rol": rol, "t": t, "h": time.strftime("%H:%M")})
+        del f[:-FRASES]  # el panel las muestra con scroll: guardamos la conversación, no solo lo último
 
 
 def notificar(tipo: str, txt: str):
@@ -124,6 +124,7 @@ def _db01(x):
     return max(0.0, min(1.0, (20 * math.log10(max(x, 1) / 32768) + 60) / 60))
 
 
+FRASES = 40  # frases de transcripción que conserva el panel (antes 2: no había dónde leer el resto)
 RUIDO_VALE = 60  # s que vale una racha de <noise>; mic_clip decae solo, «ruido» no, y dejaba el micro en «mal» para siempre
 
 
@@ -157,6 +158,7 @@ def snapshot(ST):
     return {
         **S,
         "mic": mic, "salud": _salud(ST, mic), "lat": ST.get("lat"), "priv": bool(ST.get("privacidad")),
+        "vista": _vista_actual(),
         "estado": _estado(ST),
         "conexion": "conectado" if ST["session"] else "en reposo" if ST.get("reposo") else "reconectando",
         "herramienta": ST.get("herramienta"),
@@ -298,6 +300,15 @@ VISTA = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "delta-vista"  # venta
 
 def vista(modo):
     VISTA.write_text(modo)
+
+
+def _vista_actual():
+    """La escriben Delta, ventana.sh (al cambiar las pantallas) y la mascota, así que la fuente es
+    el fichero y no una variable nuestra. Está en tmpfs: leerla en cada snapshot no cuesta nada."""
+    try:
+        return VISTA.read_text().strip() or "panel"
+    except OSError:
+        return "panel"
 
 
 def _cmd(ST, cmd):

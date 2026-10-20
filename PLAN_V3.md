@@ -88,13 +88,22 @@ la vuelta de la esquina, impresión que falla, correo que importa.
 «Mira lo que estoy haciendo» mientras se monta una pieza o se pelea con OrcaSlicer.
 No gasta ni un slot: es una modalidad de entrada, no una herramienta.
 
-## Fase 7 — Modo invisible
+## Fase 7 — Modo invisible ✅ (2026-10-20)
 
 Tercera vista, junto a `panel` y `mascota` (fichero `$XDG_RUNTIME_DIR/delta-vista`,
 lo aplica `panel/ventana.sh`).
 
 Ni mascota ni interfaz: **solo la tira de estado** flotando — los pasos de `acciones.paso()`,
 en qué anda Claude Code y qué hace DeltaOS. Sin bordes, sin barra de tareas, por encima del resto.
+
+Hecho: `panel.snapshot()` lleva `vista` (lo lee del fichero, que también escribe `ventana.sh`);
+`body.invisible` + `#tira` en `panel/index.html`; tercera rama en `ventana.sh` (700×152 arriba a la
+derecha, `KEEP_ABOVE`, **sin** `windowactivate` para no robar el teclado); `fondo.js` para sus bucles
+detrás de la tira. La tira lleva hora, estado, qué está haciendo, los pilotos, y un pie con
+impresora, próximo aviso, móvil, RAM/CPU/temperatura y avisos nuevos. Test: `test_vista.py`.
+
+De propina (lo pidió sobre la marcha): los subtítulos de la conversación tienen scroll y hora, y
+el panel guarda 40 frases en vez de 2 (`panel.FRASES`).
 
 Toca: `panel/ventana.sh` (rama nueva en `aplicar()` con su geometría), `panel/index.html`
 (layout que solo pinta el recuadro de estado), y la fusión `vista` gana `invisible`.

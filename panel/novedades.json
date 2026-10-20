@@ -1,6 +1,16 @@
 [
  {
   "f": "2026-10-20",
+  "t": "Modo invisible: me quito de en medio y dejo solo una tira de estado en la esquina, con lo que estoy haciendo, la impresora, el próximo aviso y el sistema.",
+  "como": "«Modo invisible» · «Quítate de en medio»"
+ },
+ {
+  "f": "2026-10-20",
+  "t": "Los subtítulos de la conversación ya tienen scroll y hora: puedes subir a releer lo que hablamos antes (guardo las 40 últimas frases, no 2).",
+  "como": "Rueda del ratón sobre el recuadro de la conversación"
+ },
+ {
+  "f": "2026-10-20",
   "t": "Puente MCP: ya puedo enchufarme a servicios de fuera (calendario, correo, lo que se añada) sin que me reprogramen. Por ahora no hay ninguno configurado: el primero será el calendario",
   "como": "«¿Qué conectores tienes?»"
  },

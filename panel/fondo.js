@@ -48,7 +48,7 @@ window.fondoEspera = d => {
   const c = d.completa;  // pantalla completa pedida por voz (la del arranque no cuenta)
   if (c && c.id !== ultCompleta && ultCompleta !== null) { ultCompleta = c.id; c.que === 'salir' ? salir() : window.pantallaCompleta(c.que); return; }
   if (ultCompleta === null) ultCompleta = c ? c.id : 0;
-  const quiere = (forzado || d.estado === 'dormido') && !d.visor && !d.confirma && !document.body.classList.contains('chuleta')
+  const quiere = (forzado || d.estado === 'dormido') && !d.visor && !d.confirma && !document.body.classList.contains('chuleta') && !document.body.classList.contains('invisible')
     && !$('cel').classList.contains('on') && performance.now() > fuera;
   if (!quiere) desde = null; else if (desde === null) desde = performance.now();
   mostrar(quiere && (forzado || performance.now() - desde >= ESPERA));
@@ -106,7 +106,7 @@ function bucle(ms) {
 // la impresión también en su tarjeta del panel, a pocos fps (no gasta si no se imprime o el panel está tapado)
 (function mini(ms) {
   $('imp3d').style.display = imprime(D) ? '' : 'none';
-  if (!on && imprime(D) && !document.hidden && !document.body.classList.contains('visor')) Imp.pintar(ms / 1000, $('imp3d'), true);
+  if (!on && imprime(D) && !document.hidden && !document.body.classList.contains('visor') && !document.body.classList.contains('invisible')) Imp.pintar(ms / 1000, $('imp3d'), true);
   requestAnimationFrame(mini);
 })(0);
 
