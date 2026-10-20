@@ -30,8 +30,13 @@ main{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(
 canvas{width:100%;flex:1;min-height:0;display:block}
 #estado{font-size:58px;line-height:1;margin-top:10px}
 #sub{color:var(--dim);font-size:14px;margin-top:8px;height:18px}
-#frases{display:flex;flex-direction:column;gap:22px;overflow-y:auto;overscroll-behavior:contain;
-  scrollbar-width:thin;scrollbar-color:var(--dim) transparent}
+#frases{display:flex;flex-direction:column;gap:14px;overflow-y:auto;overscroll-behavior:contain}
+/* Barra visible: con scrollbar-width:thin sobre negro no se veía y no había forma de saber que
+   había más conversación arriba (2026-10-20). */
+#frases::-webkit-scrollbar{width:9px}
+#frases::-webkit-scrollbar-track{background:transparent}
+#frases::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;border:2px solid var(--bg)}
+#frases:hover::-webkit-scrollbar-thumb{background:var(--dim)}
 /* Pega la conversación al fondo con margin-top:auto y NO con justify-content:flex-end: en un
    contenedor con scroll, flex-end deja las primeras frases por encima del origen, inalcanzables. */
 #frases>:first-child{margin-top:auto}
@@ -280,6 +285,10 @@ function alertas(d){const ar=d.arreglos||[],por=new Map(ar.map(a=>[a.id,a]));
     ar.slice().reverse().map(a=>`<div class="ag" title="${esc(a.res||'')}"><b class="${a.estado==='pendiente'||a.estado==='en curso'?'r':''}">${a.t}</b><span>${esc(a.txt)}</span><span class="lbl">${a.estado}</span></div>`).join('')+'</div>':'';
   return cola+(d.notifs.length?d.notifs.slice().reverse().map(n=>{const a=por.get(n.id);
     return `<div class="fr">${n.fix?`<button class="llave ${a?a.estado.replace(' ',''):''}" data-id="${n.id}" title="${a?ESTADO_ARR[a.estado]+(a.res?' · '+esc(a.res):''):'Arreglar cuando el PC esté libre'}">${LLAVE}</button>`:''}<small class="${n.tipo==='alerta'?'':'i'}">${n.t} · ${n.tipo.toUpperCase()}</small>${esc(n.txt)}</div>`}).join(''):'<div class="vacio">Sin avisos.</div>')}
+// La rueda, aplicada a mano: el recuadro es pequeño y el scroll nativo no llegaba a él.
+$('frases').addEventListener('wheel',e=>{const f=e.currentTarget;
+  if(f.scrollHeight<=f.clientHeight)return;  // nada que mover: que la rueda siga su camino
+  e.preventDefault();f.scrollTop+=e.deltaY},{passive:false});
 $('frases').addEventListener('click',e=>{const b=e.target.closest('.llave');if(b&&WS&&WS.readyState===1)WS.send(JSON.stringify({llave:+b.dataset.id}))});
 
 function pintar(d){
@@ -300,8 +309,8 @@ function pintar(d){
    :d.frases.length?d.frases.map(f=>`<div class="fr"><small>${esc(f.rol).toUpperCase()}${f.h?' · '+f.h:''}</small>${esc(f.t)}</div>`).join(''):'<div class="vacio">Sin conversación todavía.</div>';
   // Solo si cambia: si no, el scroll y los clics se pierden cada 0,4 s. Y tras repintar se baja al
   // final, salvo que el usuario esté leyendo más arriba (entonces no se le mueve el sitio).
-  if(fh!==FH){const fe=$('frases'),abajo=fe.scrollHeight-fe.scrollTop-fe.clientHeight<48;
-    FH=fh;fe.innerHTML=fh;if(abajo)fe.scrollTop=fe.scrollHeight}
+  if(fh!==FH){const fe=$('frases'),y=fe.scrollTop,abajo=fe.scrollHeight-y-fe.clientHeight<48;
+    FH=fh;fe.innerHTML=fh;fe.scrollTop=abajo?fe.scrollHeight:y}  // innerHTML tira los hijos y el scroll con ellos
   for(const k in d.salud)$('l-'+k).className='lamp '+d.salud[k];
   $('b-priv').className='btn'+(d.priv?' on':'');$('b-priv').textContent=d.priv?'Privacidad · ON':'Privacidad';
   $('b-modo').className='btn'+(d.modo==='alertas'?' on':'');$('b-modo').textContent=d.modo==='alertas'?'Alertas · ON':'Alertas'+(d.nuevas?` · ${d.nuevas}`:'');
