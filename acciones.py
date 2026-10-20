@@ -936,6 +936,12 @@ FUSIONES = {
                "lee su ESTADO.md para decir dónde se dejó.",
                {"nombre": "proyectos: parte del nombre del proyecto, opcional"},
                {"trabajos": _r("ver_trabajos"), "proyectos": _r("estado_proyectos")}),
+    "pantalla": ("Lo que ves de la pantalla del usuario. detalle: una captura nítida AHORA, para leer texto "
+                 "pequeño, código o algo que no distingues. en_vivo: modo directo, la ves casi continua en vez de "
+                 "cada 8 segundos, para «mira lo que estoy haciendo» o «sígueme mientras monto esto»; sin minutos "
+                 "la paras. En reposo ya la ves cada 8 segundos: no hace falta pedir nada para mirar.",
+                 {"minutos": "en_vivo: cuántos minutos en directo (1-30); vacío o 0 para parar"},
+                 {"detalle": _r("mirar_detalle"), "en_vivo": _r("ver_en_vivo")}),
     "clima": ("consultar: el tiempo ahora y la previsión de hasta 3 días; sin lugar, donde está el usuario. Úsala siempre "
               "que pregunte por el tiempo, la temperatura, el viento o la lluvia. fijar_ubicacion: dónde está el usuario "
               "(«estoy en Chiclana»); no hay GPS, así que esto manda; lugar=auto la borra.",

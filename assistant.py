@@ -171,8 +171,39 @@ async def mirar_detalle():
     await acciones.ST["session"].send_realtime_input(video=types.Blob(data=jpeg, mime_type="image/jpeg"))
     return "Te acabo de enviar una captura nítida de la pantalla completa: léela con detalle y responde."
 
+VIVO_RITMO = 1.5     # s entre capturas en directo (en reposo son 8)
+VIVO_UMBRAL = 0.4    # en directo se manda con cambios mucho más pequeños: un gesto, una pieza que gira
+VIVO_MAX = 30        # minutos como mucho: es la entrada más cara que tiene Delta
+
+
+async def ver_en_vivo(minutos=""):
+    """Modo directo: la pantalla se manda cada segundo y medio en vez de cada ocho, y con cambios mucho
+    más pequeños. Se apaga sola, que es la entrada más cara que tiene Delta."""
+    m = str(minutos).strip().replace(",", ".")
+    if m in ("", "0", "fin", "para", "basta", "ya"):
+        acciones.ST["vivo"] = 0
+        return "Hecho: dejo de mirar en directo."
+    try:
+        n = float(m)
+    except ValueError:
+        return 'Error: minutos tiene que ser un número (o vacío para parar), p.ej. "5".'
+    if not 0 < n <= VIVO_MAX:
+        return f"Error: entre 1 y {VIVO_MAX} minutos."
+    if acciones.ST.get("privacidad"):
+        return "Error: está el modo privacidad, no puedo mirar la pantalla."
+    acciones.ST["vivo"] = time.monotonic() + n * 60
+    return (f"Hecho: te miro la pantalla en directo {n:g} minutos. Dile que ya le ves y que vaya enseñándole "
+            f"lo que quiera; pídele que pare con «deja de mirar» cuando acabe.")
+
+
+acciones.ETIQUETAS["ver_en_vivo"] = "Miro la pantalla en directo"
 acciones.registrar([acciones._fn("mirar_detalle",
-    "Captura la pantalla en alta resolución cuando necesites leer texto pequeño, código o detalles que no distingues.")], (mirar_detalle,))
+    "Captura la pantalla en alta resolución cuando necesites leer texto pequeño, código o detalles que no distingues."),
+    acciones._fn("ver_en_vivo",
+    "Modo directo: ves la pantalla casi continua en vez de cada 8 segundos. Para «mira lo que estoy haciendo», "
+    "«sígueme mientras monto esto», «vete mirando la pantalla». Sin minutos o con 0, lo paras.",
+    {"minutos": acciones._s(f"cuántos minutos en directo (1-{VIVO_MAX}); vacío o 0 para parar")}),
+], (mirar_detalle, ver_en_vivo))
 acciones.fusionar()  # tras el último registrar: agrupa por tema (ver acciones.FUSIONES)
 
 UMBRAL_CAMBIO = 1.5  # diferencia media (0..255) en la miniatura 64x36: por debajo, la pantalla «no ha cambiado»
@@ -272,15 +303,17 @@ async def screen_capture_loop(session, interval=8.0):
     firma = None
     try:
         while True:
-            if not acciones.ST["activo"] or acciones.ST.get("privacidad"):
+            # En directo se mira aunque esté dormido: le has pedido que te siga, no que te conteste.
+            vivo = acciones.ST.get("vivo", 0) > time.monotonic()
+            if acciones.ST.get("privacidad") or not (vivo or acciones.ST["activo"]):
                 firma = None
                 await asyncio.sleep(0.3)
                 continue
             jpeg_bytes, nueva = await asyncio.to_thread(capture_screen_wayland)
-            if jpeg_bytes and (firma is None or cambio(firma, nueva) > UMBRAL_CAMBIO):
+            if jpeg_bytes and (firma is None or cambio(firma, nueva) > (VIVO_UMBRAL if vivo else UMBRAL_CAMBIO)):
                 firma = nueva
                 await session.send_realtime_input(video=types.Blob(data=jpeg_bytes, mime_type="image/jpeg"))
-            await asyncio.sleep(interval)
+            await asyncio.sleep(VIVO_RITMO if vivo else interval)
     except asyncio.CancelledError:
         pass
     except Exception as e:
