@@ -64,15 +64,18 @@ Sobre el puente MCP.
 Sobre el puente MCP. Leer y resumir sin fricción.
 **Enviar exige confirmación explícita del usuario cada vez**, misma regla que ya rige los SMS.
 
-## Fase 4 — Memoria real
+## Fase 4 — Memoria real  ✅ HECHA (2026-10-20)
 
-`memoria.md` es hoy un fichero plano de una línea, y `recordar`/`olvidar` buscan por substring.
-Delta no recuerda ninguna conversación anterior.
-
-- SQLite + FTS5 (sin embeddings: 8 GB de RAM, y ya se descartó ChromaDB en el Delta viejo)
-- Hechos con fecha y origen
-- Resumen al cerrar sesión, inyectado en las instrucciones de sistema al arrancar
-- La fusión `memoria` no cambia de forma: mismas tres acciones por fuera
+- [x] `memoria.py`: SQLite + FTS5. Cada nota es una fila con fecha, veces consultada y cuándo.
+- [x] El despertar ya **no** inyecta toda la libreta: las 12 últimas + las más consultadas.
+      Lo demás, a una búsqueda (`memoria accion=buscar`), y el prompt se lo dice a Delta.
+- [x] Tokenizador sin acentos (`remove_diacritics 2`): esto come voz dictada y «nino» tiene
+      que encontrar «niño».
+- [x] Lista de palabras vacías: con OR a secas, «¿qué dije DE LA boquilla?» casaba con media
+      libreta y le subía el contador a notas que nadie buscó.
+- [x] `memoria.md` se importa una vez y queda como copia legible. No se reimporta si ya hay
+      notas: resucitaría lo que mandaste olvidar.
+- [x] Sin herramienta plana nueva (fusión `memoria`). `test_memoria.py`.
 
 ## Fase 5 — Proactividad ✅ (2026-10-20)
 
