@@ -159,6 +159,7 @@ def snapshot(ST):
         **S,
         "mic": mic, "salud": _salud(ST, mic), "lat": ST.get("lat"), "priv": bool(ST.get("privacidad")),
         "vista": _vista_actual(), "nomol": ST.get("no_molestar", 0) > ahora,
+        "vivo": ST.get("vivo", 0) > ahora,  # directo de pantalla: el panel enciende el REC
         "estado": _estado(ST),
         "conexion": "conectado" if ST["session"] else "en reposo" if ST.get("reposo") else "reconectando",
         "herramienta": ST.get("herramienta"),

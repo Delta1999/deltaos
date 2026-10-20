@@ -187,7 +187,7 @@ async def ver_en_vivo(minutos=""):
         n = float(m)
     except ValueError:
         return 'Error: minutos tiene que ser un número (o vacío para parar), p.ej. "5".'
-    if not 0 < n <= VIVO_MAX:
+    if not 1 <= n <= VIVO_MAX:  # medio minuto de directo no es directo, y el error promete 1
         return f"Error: entre 1 y {VIVO_MAX} minutos."
     if acciones.ST.get("privacidad"):
         return "Error: está el modo privacidad, no puedo mirar la pantalla."

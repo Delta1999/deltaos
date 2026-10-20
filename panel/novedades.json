@@ -183,5 +183,15 @@
   "f": "2026-10-15",
   "t": "Arregladas las dos voces de Delta",
   "como": ""
+ },
+ {
+  "f": "2026-10-20",
+  "t": "Directo de pantalla",
+  "d": "«Mira lo que estoy haciendo» y Delta te sigue la pantalla cada segundo y medio en vez de cada ocho, notando hasta un gesto. Mientras dura hay un punto rojo con REC en la cabecera. Se apaga sola, y el modo privacidad la bloquea."
+ },
+ {
+  "f": "2026-10-20",
+  "t": "La hora es ahora un dock",
+  "d": "Gira la rueda sobre la hora y suben desde abajo, como una tragaperras, el próximo aviso, la impresora, el sistema, el tiempo y el móvil. A los doce segundos vuelve sola a ser un reloj."
  }
 ]

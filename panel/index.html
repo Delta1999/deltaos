@@ -10,7 +10,7 @@
 @font-face{font-family:"IBM Plex Mono";font-weight:400;src:url(/fonts/plexmono-400.ttf)}
 @font-face{font-family:"IBM Plex Mono";font-weight:500;src:url(/fonts/plexmono-500.ttf)}
 
-:root{--bg:#000;--fg:#f2f2f2;--dim:#5a5a5a;--faint:#1c1c1c;--red:#ff2d1f;--line:#262626;
+:root{--dockh:120px;--bg:#000;--fg:#f2f2f2;--dim:#5a5a5a;--faint:#1c1c1c;--red:#ff2d1f;--line:#262626;
   --dot:"Doto","IBM Plex Mono",monospace;--mono:"IBM Plex Mono",ui-monospace,monospace}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--mono);overflow:hidden}
@@ -20,6 +20,24 @@ body{display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:minmax(
 header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
 #hora{font-size:92px;line-height:.9}
 #fecha{margin-top:8px}
+/* El dock ocupa el sitio del reloj: la hora es la posición 0 y la rueda trae las demás desde
+   abajo, como los rodillos de una tragaperras. Sin iconos: el panel habla en matriz de puntos,
+   así que cada hueco es su cifra grande y su rótulo, igual que el resto. */
+#dock{position:relative;height:var(--dockh);overflow:hidden;flex:1;min-width:0}
+#dock-pista{transition:transform .42s cubic-bezier(.22,1,.36,1)}
+.slot{height:var(--dockh);display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.slot .v{font-size:72px;line-height:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot .c{margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dock-pips{position:absolute;right:1px;bottom:3px;display:flex;gap:5px}
+#dock-pips i{width:5px;height:5px;border-radius:50%;background:var(--line)}
+#dock-pips i.a{background:var(--dim)}
+/* REC fuera de los huecos y a propósito: un testigo de grabación que hay que buscar con la
+   rueda no sirve de nada. Si Delta está mirando en directo, se ve siempre. */
+#rec{position:absolute;top:1px;right:0;display:none;align-items:center;gap:7px;
+  font-size:15px;letter-spacing:.16em;color:var(--red)}
+#rec.on{display:flex}
+#rec i{width:11px;height:11px;border-radius:50%;background:var(--red);animation:lat 1.3s infinite}
+@keyframes lat{0%,100%{opacity:1}50%{opacity:.15}}
 .meta{display:flex;gap:clamp(14px,2vw,36px);text-align:right;min-width:0}
 .meta div{max-width:300px;min-width:0}.meta div:is(:nth-child(1),:nth-child(2),:last-child){flex:none}  /* encogen dispositivos y memoria, que son los largos */
 .meta b{display:block;font-weight:500;font-size:15px;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -193,7 +211,7 @@ body.invisible #tira{position:fixed;inset:0;display:flex;flex-direction:column;g
 @media (max-height:820px){
   body{gap:14px;padding:16px 24px}main,footer,#der{gap:14px}
   .card{padding:14px 18px;border-radius:16px}
-  #hora{font-size:60px}#estado{font-size:40px}.fr{font-size:17px}
+  :root{--dockh:86px}#hora{font-size:60px}.slot .v{font-size:48px}#estado{font-size:40px}.fr{font-size:17px}
   #clima #ic0{width:66px!important;height:66px!important}.hs canvas{width:44px!important;height:44px!important}
   .hs{margin:8px 0 2px}.row{margin-top:5px}.big{font-size:40px}
   .mando{padding-top:8px}.g canvas{height:52px}
@@ -202,7 +220,7 @@ body.invisible #tira{position:fixed;inset:0;display:flex;flex-direction:column;g
 </head>
 <body>
 <header>
-  <div class="cab"><div><div id="hora" class="dot">--:--</div><div id="fecha" class="lbl"></div></div><canvas id="mapa" title="Clic: modo mascota · clic derecho: salvapantallas"></canvas><button id="lapiz" title="Pegar texto como contexto para Delta"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/><path d="M14.5 5.5l3 3"/></svg></button></div>
+  <div class="cab"><div id="dock" title="Rueda del ratón: gira el dock. Vuelve sola a la hora."><div id="dock-pista"><div class="slot"><div id="hora" class="dot">--:--</div><div id="fecha" class="lbl"></div></div><div class="slot" id="k1"></div><div class="slot" id="k2"></div><div class="slot" id="k3"></div><div class="slot" id="k4"></div><div class="slot" id="k5"></div></div><div id="rec"><i></i>REC</div><div id="dock-pips"></div></div><canvas id="mapa" title="Clic: modo mascota · clic derecho: salvapantallas"></canvas><button id="lapiz" title="Pegar texto como contexto para Delta"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/><path d="M14.5 5.5l3 3"/></svg></button></div>
   <div class="meta">
     <div><span class="lbl">Sesión</span><b id="conexion">—</b></div>
     <div><span class="lbl">Voz</span><b id="voz">—</b></div>
@@ -248,7 +266,7 @@ body.invisible #tira{position:fixed;inset:0;display:flex;flex-direction:column;g
   <section class="card" id="sis"></section>
   <section class="card" id="clima"></section>
 </footer>
-<div id="chuleta"><h2 class="dot">QUÉ PUEDO PEDIR</h2><div class="lbl">Toca en cualquier sitio para cerrar</div><button id="reset" title="Devuelve DeltaOS a la versión estable v2.1 y lo reinicia (lo de después queda guardado en git)">↺ Volver a v2.1</button><section id="nov"></section><div class="cols"><section><span class="lbl">Impresora 3D</span><ul><li>«¿Cómo va la impresión?»</li><li>«¿Qué he impreso esta semana?» <i>historial</i></li><li>«Avísame 10 minutos antes de que acabe»</li><li>«Ponme la impresora a pantalla completa» <i>o clic en su tarjeta · también «el sistema» y «el tiempo»</i></li></ul></section><section><span class="lbl">Internet</span><ul><li>«Busca cuánto cuesta el PETG en Amazon» <i>búsqueda rápida</i></li><li>«Investiga a fondo ASA vs PETG para exterior» <i>informe con citas</i></li><li>«Subraya en rojo las cifras / resalta / añade una nota / quita…» <i>edita el informe del visor · «deshaz» vuelve atrás</i></li><li>«Ponme en pantalla el mapa de Sevilla / Wikipedia de… / la web de…»</li><li>«Ponme el vídeo de … en YouTube»</li></ul></section><section><span class="lbl">Música</span><ul><li>«Pon música lo-fi»</li><li>«Pausa / sigue / siguiente / anterior»</li><li>«Sube / baja la música» · «¿Qué suena?» · «Para la música»</li></ul></section><section><span class="lbl">Pantalla y escritorio</span><ul><li>«¿Qué ves en mi pantalla?» · «Mira el detalle»</li><li>«Abre Firefox / esta carpeta / esta URL»</li><li>«Lista las ventanas» · «Minimiza / cierra / activa …» · «Pásala al otro monitor»</li><li>«Sube el volumen al 40 %» · «Silencia» · «Brillo al 70 %»</li><li>«Lee el portapapeles» · «Copia esto»</li><li>«Mándame una notificación con …»</li></ul></section><section><span class="lbl">Estudio · Guardia Civil</span><ul><li>«Descárgate el audio de esta clase y pásalo a apuntes» <i>tema anotado en Temario_Guardia_Civil/DeltaOs, tarda 15-40 min</i></li><li>«Pasa a apuntes la última clase que bajé» <i>lo último de la extensión de Vimeo</i></li><li>«Esta clase es de Paco Arriola» <i>si el tema ya tiene clases, la añade al mismo PDF</i></li></ul></section><section><span class="lbl">Taller WORMHOLE</span><ul><li>«¿Dónde lo dejamos con la fuente …?» <i>lee ESTADO.md</i></li><li>«¿Qué proyectos hay recientes?»</li><li>«Verifica el diseño de este STL» <i>cadcheck + slice + render</i></li><li>«Lanza render_views / slice_check sobre …»</li><li>«¿Cómo van los trabajos en segundo plano?»</li></ul></section><section><span class="lbl">Claude Code</span><ul><li>«Pídele a Claude que …» <i>conversación con memoria</i></li><li>«Encarga a Claude una tarea suelta: …»</li></ul></section><section><span class="lbl">Terminal</span><ul><li>«¿Qué procesos gastan más memoria?» <i>lectura: sin preguntar</i></li><li>«¿Cuánto disco queda?» · «¿Hay errores en el log?»</li><li>Lo que modifique algo pide permiso</li><li>Alertas: llave inglesa = arreglarla cuando el PC esté tranquilo</li></ul></section><section><span class="lbl">Skills</span><ul><li>«Busca una skill para …»</li><li>«Instala la skill …» <i>siempre avisa</i></li><li>«Usa la skill …» · «Actualiza las skills»</li></ul></section><section><span class="lbl">Memoria</span><ul><li>«Recuerda que …»</li><li>«Olvida lo de …»</li><li>«Apunta como mejora: …» <i>lo que aún no sé hacer</i></li></ul></section><section><span class="lbl">Sesión</span><ul><li>«Ey Delta» / «Delta» para despertar</li><li>«Pasar C.O.S.» <i>comprueba todos los sistemas</i></li><li>«Gracias, ya está» → a dormir</li><li>Escape o «cierra» cierra el visor</li><li>«Modo mascota» · «Panel completo» <i>o clic en el mapache</i></li><li>«No me molestes 45 minutos» · «Déjame en paz» <i>deja de avisar por su cuenta; tus alarmas y recordatorios siguen sonando</i></li><li>«Modo invisible» · «Quítate de en medio» <i>ni mascota ni panel: solo una tira de estado en una esquina</i></li><li>«Pon el gato» · «Quiero el mapache» <i>elige la mascota flotante</i></li><li>«Suspende el ordenador» · «Apágalo / reinícialo» <i>pide un «sí»</i></li><li>«Apágalo en 30 minutos» · «Cancela el apagado»</li></ul></section><section><span class="lbl">El mapache</span><ul><li>Respira y pestañea <i>siempre</i></li><li>Ojos abiertos y tranquilo <i>Delta dormido, tú delante</i></li><li>Ojos cerrados, gris y zetas que suben <i>Delta dormido y 5 min sin tocar teclado ni ratón</i></li><li>Orejas arriba y ojos rojos <i>te está escuchando</i></li><li>Hocico y barriga laten con la voz, cola más rápida <i>está hablando</i></li><li>Cometa de puntos rojos alrededor de la cabeza, cola agitada <i>está trabajando (herramienta, Claude, trabajo en segundo plano)</i></li><li>Ojos rojos parpadeando y «!» encima <i>pide permiso</i></li><li>Como dormido pero más apagado <i>Delta no está en marcha</i></li><li>Tiembla y se pone rojo <i>CPU ≥ 85 % o RAM ≥ 92 %</i></li><li>Gotas naranjas cayendo de la cabeza <i>temperatura ≥ 85 °C</i></li><li>Pila roja parpadeando y más apagado <i>batería ≤ 20 %</i> · pila llenándose <i>cargando</i></li><li>Wifi con una X roja <i>sin red</i></li><li>Taza de café humeante <i>50 min seguidos delante: toca descanso (se quita tras 5 min sin tocar nada)</i></li><li>Papelera a su lado <i>la papelera tiene cosas</i></li><li>Ratón encima → ficha con impresora, sistema, tiempo, Claude, batería y papelera · arrastrar → moverlo · clic → panel completo</li></ul></section></div></div>
+<div id="chuleta"><h2 class="dot">QUÉ PUEDO PEDIR</h2><div class="lbl">Toca en cualquier sitio para cerrar</div><button id="reset" title="Devuelve DeltaOS a la versión estable v2.1 y lo reinicia (lo de después queda guardado en git)">↺ Volver a v2.1</button><section id="nov"></section><div class="cols"><section><span class="lbl">Impresora 3D</span><ul><li>«¿Cómo va la impresión?»</li><li>«¿Qué he impreso esta semana?» <i>historial</i></li><li>«Avísame 10 minutos antes de que acabe»</li><li>«Ponme la impresora a pantalla completa» <i>o clic en su tarjeta · también «el sistema» y «el tiempo»</i></li></ul></section><section><span class="lbl">Internet</span><ul><li>«Busca cuánto cuesta el PETG en Amazon» <i>búsqueda rápida</i></li><li>«Investiga a fondo ASA vs PETG para exterior» <i>informe con citas</i></li><li>«Subraya en rojo las cifras / resalta / añade una nota / quita…» <i>edita el informe del visor · «deshaz» vuelve atrás</i></li><li>«Ponme en pantalla el mapa de Sevilla / Wikipedia de… / la web de…»</li><li>«Ponme el vídeo de … en YouTube»</li></ul></section><section><span class="lbl">Música</span><ul><li>«Pon música lo-fi»</li><li>«Pausa / sigue / siguiente / anterior»</li><li>«Sube / baja la música» · «¿Qué suena?» · «Para la música»</li></ul></section><section><span class="lbl">Pantalla y escritorio</span><ul><li>«¿Qué ves en mi pantalla?» · «Mira el detalle»</li><li>«Mira lo que estoy haciendo» · «Sígueme mientras monto esto» <i>directo: te mira cada segundo y medio en vez de cada 8 · punto rojo REC mientras dura · «deja de mirar» lo para</i></li><li>«Abre Firefox / esta carpeta / esta URL»</li><li>«Lista las ventanas» · «Minimiza / cierra / activa …» · «Pásala al otro monitor»</li><li>«Sube el volumen al 40 %» · «Silencia» · «Brillo al 70 %»</li><li>«Lee el portapapeles» · «Copia esto»</li><li>«Mándame una notificación con …»</li></ul></section><section><span class="lbl">Estudio · Guardia Civil</span><ul><li>«Descárgate el audio de esta clase y pásalo a apuntes» <i>tema anotado en Temario_Guardia_Civil/DeltaOs, tarda 15-40 min</i></li><li>«Pasa a apuntes la última clase que bajé» <i>lo último de la extensión de Vimeo</i></li><li>«Esta clase es de Paco Arriola» <i>si el tema ya tiene clases, la añade al mismo PDF</i></li></ul></section><section><span class="lbl">Taller WORMHOLE</span><ul><li>«¿Dónde lo dejamos con la fuente …?» <i>lee ESTADO.md</i></li><li>«¿Qué proyectos hay recientes?»</li><li>«Verifica el diseño de este STL» <i>cadcheck + slice + render</i></li><li>«Lanza render_views / slice_check sobre …»</li><li>«¿Cómo van los trabajos en segundo plano?»</li></ul></section><section><span class="lbl">Claude Code</span><ul><li>«Pídele a Claude que …» <i>conversación con memoria</i></li><li>«Encarga a Claude una tarea suelta: …»</li></ul></section><section><span class="lbl">Terminal</span><ul><li>«¿Qué procesos gastan más memoria?» <i>lectura: sin preguntar</i></li><li>«¿Cuánto disco queda?» · «¿Hay errores en el log?»</li><li>Lo que modifique algo pide permiso</li><li>Alertas: llave inglesa = arreglarla cuando el PC esté tranquilo</li></ul></section><section><span class="lbl">Skills</span><ul><li>«Busca una skill para …»</li><li>«Instala la skill …» <i>siempre avisa</i></li><li>«Usa la skill …» · «Actualiza las skills»</li></ul></section><section><span class="lbl">Memoria</span><ul><li>«Recuerda que …»</li><li>«Olvida lo de …»</li><li>«Apunta como mejora: …» <i>lo que aún no sé hacer</i></li></ul></section><section><span class="lbl">Sesión</span><ul><li>«Ey Delta» / «Delta» para despertar</li><li>«Pasar C.O.S.» <i>comprueba todos los sistemas</i></li><li>«Gracias, ya está» → a dormir</li><li>Escape o «cierra» cierra el visor</li><li>«Modo mascota» · «Panel completo» <i>o clic en el mapache</i></li><li>«No me molestes 45 minutos» · «Déjame en paz» <i>deja de avisar por su cuenta; tus alarmas y recordatorios siguen sonando</i></li><li>Rueda del ratón sobre la hora <i>gira el dock: próximo aviso, impresora, sistema, tiempo y móvil · vuelve sola a la hora</i></li><li>Rueda sobre la conversación <i>sube a releer lo hablado</i></li><li>«Modo invisible» · «Quítate de en medio» <i>ni mascota ni panel: solo una tira de estado en una esquina</i></li><li>«Pon el gato» · «Quiero el mapache» <i>elige la mascota flotante</i></li><li>«Suspende el ordenador» · «Apágalo / reinícialo» <i>pide un «sí»</i></li><li>«Apágalo en 30 minutos» · «Cancela el apagado»</li></ul></section><section><span class="lbl">El mapache</span><ul><li>Respira y pestañea <i>siempre</i></li><li>Ojos abiertos y tranquilo <i>Delta dormido, tú delante</i></li><li>Ojos cerrados, gris y zetas que suben <i>Delta dormido y 5 min sin tocar teclado ni ratón</i></li><li>Orejas arriba y ojos rojos <i>te está escuchando</i></li><li>Hocico y barriga laten con la voz, cola más rápida <i>está hablando</i></li><li>Cometa de puntos rojos alrededor de la cabeza, cola agitada <i>está trabajando (herramienta, Claude, trabajo en segundo plano)</i></li><li>Ojos rojos parpadeando y «!» encima <i>pide permiso</i></li><li>Como dormido pero más apagado <i>Delta no está en marcha</i></li><li>Tiembla y se pone rojo <i>CPU ≥ 85 % o RAM ≥ 92 %</i></li><li>Gotas naranjas cayendo de la cabeza <i>temperatura ≥ 85 °C</i></li><li>Pila roja parpadeando y más apagado <i>batería ≤ 20 %</i> · pila llenándose <i>cargando</i></li><li>Wifi con una X roja <i>sin red</i></li><li>Taza de café humeante <i>50 min seguidos delante: toca descanso (se quita tras 5 min sin tocar nada)</i></li><li>Papelera a su lado <i>la papelera tiene cosas</i></li><li>Ratón encima → ficha con impresora, sistema, tiempo, Claude, batería y papelera · arrastrar → moverlo · clic → panel completo</li></ul></section></div></div>
 <div id="tira">
   <div class="t1"><span id="t-hora" class="dot">--:--</span><span id="t-est" class="dot">—</span><span id="t-sub" class="lbl"></span>
     <div class="lamps"><span class="lamp" id="t-l-enlace"><i></i>Enlace</span><span class="lamp" id="t-l-mic"><i></i>Mic</span>
@@ -353,6 +371,24 @@ function pintar(d){
 
   if(d.evento&&d.evento.id!==(window._ev||0)){window._ev=d.evento.id;celebrar(d.evento)}
 
+  // Huecos del dock. Van después de la hora porque la hora es lo que estaba aquí: el resto
+  // asoma solo si lo pides con la rueda, y cada uno repite un dato que ya está en el panel
+  // —no se inventa nada— para que en modo invisible siga habiendo de dónde leerlo.
+  const av0=(d.avisos||[])[0],hueco=(v,c)=>`<div class="v dot">${v}</div><div class="c lbl">${c}</div>`;
+  $('k1').innerHTML=av0?hueco(av0.t.slice(11,16),`${esc(av0.texto).slice(0,28)} · ${falta(av0.t)}`)
+                       :hueco('—','Sin avisos ni alarmas');
+  $('k2').innerHTML=!p||!p.online?hueco('—','Impresora sin conexión')
+    :hueco(p.estado==='printing'||p.estado==='paused'?p.prog+'%':p.estado.toUpperCase(),
+           'Impresora'+(p.quedan!=null?' · quedan '+mmss(p.quedan):''));
+  $('k3').innerHTML=hueco(s.temp==null?'—':s.temp+'°',
+    `Sistema · RAM ${s.ram==null?'—':s.ram+'%'} · CPU ${s.cpu==null?'—':s.cpu+'%'}`);
+  $('k4').innerHTML=w?hueco(w.temp+'°',`${esc(w.desc)} · ${w.min}°/${w.max}° · ${esc(w.ciudad)}`)
+                     :hueco('—','Tiempo sin datos');
+  $('k5').innerHTML=mv==null?hueco('—','Móvil no conectado')
+    :d.priv?hueco('·','Móvil oculto (privacidad)')
+    :hueco(String(mv.length),'Notificaciones del móvil');
+  $('rec').className=d.vivo?'on':'';
+
   const ps=d.pasos||[],cl=d.claude&&d.claude.estado==='trabajando'&&d.claude.pasos.length?d.claude.pasos[d.claude.pasos.length-1]:null,
    vivo=d.estado!=='dormido'||ps.some(p=>p.e==='en curso')||cl||tr.length;
   $('pasos').className=vivo&&(ps.length||cl||tr.length)?'on':'';
@@ -388,6 +424,7 @@ function pintar(d){
       d.conexion!=='conectado'?`Sesión <b>${d.conexion}</b>`:'',
       d.nuevas?`Avisos <b class="r">${d.nuevas}</b>`:'',
       d.nomol?`<b class="r">No molestar</b>`:'',
+      d.vivo?`<b class="r">● REC</b>`:'',
     ].filter(Boolean).join('');
   }
 
@@ -538,6 +575,18 @@ $('p-dar').addEventListener('click',dar);
 $('ptxt').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.ctrlKey)dar();if(e.key==='Escape')pegarCerrar()});
 $('p-borrar').addEventListener('click',()=>{WS&&WS.readyState===1&&WS.send(JSON.stringify({pegar:''}));$('ptxt').value='';setTimeout(pinfo,600)});
 $('hora').addEventListener('click',()=>{document.body.classList.add('chuleta');novedades()});
+
+// La rueda sobre el dock. Hacia abajo sube el hueco siguiente desde abajo; hacia arriba se
+// vuelve. Y vuelve sola a la hora a los 12 s: un reloj que se ha movido un momento tiene que
+// volver a ser un reloj, no quedarse en el tiempo de Albacete.
+const DOCK_N=6;let DK=0,DKT=0;
+const dkpinta=()=>{$('dock-pista').style.transform=`translateY(${-DK*$('dock').clientHeight}px)`;
+  $('dock-pips').innerHTML=[...Array(DOCK_N)].map((_,i)=>`<i class="${i===DK?'a':''}"></i>`).join('')};
+$('dock').addEventListener('wheel',e=>{e.preventDefault();
+  const n=Math.min(DOCK_N-1,Math.max(0,DK+(e.deltaY>0?1:-1)));
+  if(n===DK)return;DK=n;dkpinta();
+  clearTimeout(DKT);if(DK)DKT=setTimeout(()=>{DK=0;dkpinta()},12000)},{passive:false});
+dkpinta();
 // lo implementado en las últimas 48 h (panel/novedades.json): para no olvidar qué se ha añadido
 function novedades(){fetch('/novedades.json',{cache:'no-store'}).then(r=>r.json()).then(l=>{const lim=new Date(Date.now()-48*36e5).toISOString().slice(0,10),
   n=l.filter(x=>x.f>=lim);$('nov').innerHTML=n.length?'<span class="lbl">Novedades · últimas 48 h</span><ul>'+n.map(x=>`<li><b>${x.f.slice(8)}/${x.f.slice(5,7)}</b>${esc(x.t)}${x.como?` <i>${esc(x.como)}</i>`:''}</li>`).join('')+'</ul>':''}).catch(()=>{})}
