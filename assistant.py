@@ -34,6 +34,7 @@ import deltaos  # noqa: F401  (visor del panel, investigación y skills)
 import secretario  # noqa: F401  (documentos PDF/Word/texto)
 import estudio  # noqa: F401  (modo estudiante: clase → tema anotado)
 import mcp_puente  # noqa: F401  (conectores MCP: mcp.json → herramienta «conectores»)
+import firetv  # tele del salón (Fire TV por ADB): herramienta tele_salon y estado en el panel
 import proactivo  # noqa: F401  (habla por su cuenta, y sabe cuándo callarse)
 import panel
 import google.genai.live as genai_live
@@ -527,6 +528,7 @@ async def main():
     acciones.tarea(avisos.vigilar())
     acciones.tarea(mcp_puente.vigilar())  # sostiene las sesiones MCP; sin conectores activos, sale sola
     acciones.tarea(proactivo.vigilar())
+    acciones.tarea(firetv.vigilar())  # estado para el panel y Alexa fuera tras cada arranque del stick
 
     acciones.tarea(audio_input_loop())  # el micro vive siempre; la sesión va y viene
     fallos = 0
