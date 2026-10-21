@@ -10,6 +10,7 @@
 import * as THREE from '/three.module.js';
 import * as Mapache from '/mapache3d.js';
 import * as Orbe from '/orbe.js';
+import * as Gota from '/blob.js';
 import * as Tiempo from '/tiempo.js';
 
 const $ = i => document.getElementById(i);
@@ -20,7 +21,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&
 const hhmm = () => new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
 const imprime = d => d.impresora && d.impresora.online && ['printing', 'paused'].includes(d.impresora.estado);
 // El orbe primero: es la de por defecto. El mapache no está: desactivado (solo por voz).
-const escenas = d => ['orbe', 'reloj'].concat(d.clima ? ['tiempo'] : [], imprime(d) ? ['impresion'] : []);
+const escenas = d => ['orbe', 'blob', 'reloj'].concat(d.clima ? ['tiempo'] : [], imprime(d) ? ['impresion'] : []);
 
 function elegir(d, saltar) {
   if (full && !saltar) return full === 'impresora' ? 'impresion' : 'sistema';
@@ -35,8 +36,9 @@ function elegir(d, saltar) {
 function poner(e) {
   if (e === escena) return;
   escena = e;
-  for (const n of ['orbe', 'reloj', 'mascota', 'impresion', 'tiempo', 'sistema']) $('f-' + n).classList.toggle('on', n === e);
-  if (e === 'orbe') Orbe.entrar();  // cada vez que se pone, la esfera vuelve a salir desde el ecuador
+  for (const n of ['orbe', 'blob', 'reloj', 'mascota', 'impresion', 'tiempo', 'sistema']) $('f-' + n).classList.toggle('on', n === e);
+  if (e === 'orbe') Orbe.entrar();
+  if (e === 'blob') Gota.entrar();  // la gota vuelve a crecer desde una bola lisa
   if (e === 'sistema') Sis.ya();
   if (e === 'impresion') Imp.empezar();
   if (e === 'tiempo') Tiempo.entrar();
@@ -60,9 +62,9 @@ window.fondoEspera = d => {
   const c = d.completa;  // pantalla completa pedida por voz (la del arranque no cuenta)
   if (c && c.id !== ultCompleta && ultCompleta !== null) { ultCompleta = c.id; c.que === 'salir' ? salir() : window.pantallaCompleta(c.que); return; }
   if (ultCompleta === null) ultCompleta = c ? c.id : 0;
-  // el orbe es su propio sistema: puesto, se queda aunque le hables (pedido el 2026-10-21). Se quita
+  // el orbe y la gota son su propio sistema: puesto, se queda aunque le hables (pedido el 2026-10-21). Se quita
   // igual que siempre: doble clic, Esc o la rueda.
-  const pegado = on && escena === 'orbe';
+  const pegado = on && (escena === 'orbe' || escena === 'blob');
   const quiere = (forzado || pegado || d.estado === 'dormido') && !d.visor && !d.confirma && !document.body.classList.contains('chuleta') && !document.body.classList.contains('invisible')
     && !$('cel').classList.contains('on') && performance.now() > fuera;
   if (!quiere) desde = null; else if (desde === null) desde = performance.now();
@@ -99,6 +101,7 @@ function bucle(ms) {
   if (!on) return;
   const t = ms / 1000;
   if (escena === 'orbe') Orbe.pintar($('fo-cv'), D);
+  if (escena === 'blob') Gota.pintar($('fb-cv'), $('fb-txt'), D);
   if (escena === 'mascota') Mapache.pintar(t, $('fm-cv'));
   if (escena === 'tiempo') Tiempo.pintar(t, D);
   if (escena === 'impresion') Imp.pintar(t, $('f-impresion'), false);

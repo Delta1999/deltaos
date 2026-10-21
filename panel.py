@@ -555,7 +555,7 @@ async def _poll_clima():
 ORIGENES = {None, f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"}
 
 
-_VERSIONADOS = ("fondo.js", "orbe.js", "tiempo.js", "mapache3d.js", "three.module.js")
+_VERSIONADOS = ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "mapache3d.js", "three.module.js")
 
 
 def _con_version(nombre, tipo):
@@ -854,7 +854,7 @@ async def start(ST, voz):
         app.router.add_get("/ws", _ws)
         app.router.add_get("/mapache.txt", lambda r: web.FileResponse(AQUI / "panel" / "mapache.txt"))
         app.router.add_static("/fonts", AQUI / "panel" / "fonts")
-        for js in ("fondo.js", "orbe.js", "tiempo.js", "mapache3d.js"):
+        for js in ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "mapache3d.js"):
             app.router.add_get("/" + js, lambda r, js=js: _con_version(js, "application/javascript"))
         for js in ("three.module.js", "novedades.json"):
             app.router.add_get("/" + js, lambda r, js=js: web.FileResponse(AQUI / "panel" / js, headers=nc))

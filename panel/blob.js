@@ -1,0 +1,209 @@
+// Escena «blob» del salvapantallas: una gota blanca de barniz que respira y se deforma con la voz.
+//
+// Es la réplica del orbe que trajo el usuario (el «Magical Blob» de 14islands, 2026-10-21): una
+// esfera de muchísimos triángulos a la que el shader de vértices le suma ruido de Perlin a lo largo
+// de la normal; las normales se recalculan a mano con dos vecinos, que si no la luz se ve plana y
+// deja de parecer plastilina. El material es un MeshPhysicalMaterial con barniz (clearcoat) sobre un
+// entorno de degradado que se genera aquí mismo con un canvas: no hace falta ningún PNG.
+//
+// Lo que la hace de Delta, y no una demo:
+//   · Delta habla   → la gota se deforma con SU nivel de voz y gira más deprisa.
+//   · Delta escucha → se deforma con lo que entra por el micro, más suave (se ve que el micro vive).
+//   · en reposo      → solo respira.
+// Debajo va el mismo rótulo «Delta.OS» y la misma línea de datos que el orbe de alambre.
+import * as THREE from '/three.module.js';
+import * as Orbe from '/orbe.js';
+
+const SEG = 192;        // segmentos de la esfera: con menos se ve el polígono en la silueta
+const ENTRA = 1.4;      // segundos que tarda en salir (crece y se deforma desde una bola lisa)
+
+let r3 = null, t0 = 0, NV = 0, MV = 0, giro = 0, ult = 0;
+export const entrar = () => { t0 = performance.now() / 1000; giro = 0; ult = 0; };
+
+const suave = v => v < 0 ? 0 : v > 1 ? 1 : v * v * (3 - 2 * v);
+
+// ---- el ruido de Perlin periódico (Stefan Gustavson, dominio público) y la función de deformación.
+// Va con prefijo d_ para no chocar con nada que traiga three.js en sus propios chunks.
+const CABECERA = /* glsl */`
+uniform float tiempo, frecuencia, distor, periodo, detalle, detalleFrec;
+
+vec3 d_mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec4 d_mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec4 d_permute(vec4 x) { return d_mod289(((x * 34.0) + 1.0) * x); }
+vec4 d_taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+vec3 d_fade(vec3 t) { return t * t * t * (t * (t * 6.0 - 15.0) + 10.0); }
+
+float d_pnoise(vec3 P, vec3 rep) {
+  vec3 Pi0 = mod(floor(P), rep);
+  vec3 Pi1 = mod(Pi0 + vec3(1.0), rep);
+  Pi0 = d_mod289(Pi0);
+  Pi1 = d_mod289(Pi1);
+  vec3 Pf0 = fract(P);
+  vec3 Pf1 = Pf0 - vec3(1.0);
+  vec4 ix = vec4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
+  vec4 iy = vec4(Pi0.yy, Pi1.yy);
+  vec4 iz0 = Pi0.zzzz;
+  vec4 iz1 = Pi1.zzzz;
+  vec4 ixy = d_permute(d_permute(ix) + iy);
+  vec4 ixy0 = d_permute(ixy + iz0);
+  vec4 ixy1 = d_permute(ixy + iz1);
+  vec4 gx0 = ixy0 * (1.0 / 7.0);
+  vec4 gy0 = fract(floor(gx0) * (1.0 / 7.0)) - 0.5;
+  gx0 = fract(gx0);
+  vec4 gz0 = vec4(0.5) - abs(gx0) - abs(gy0);
+  vec4 sz0 = step(gz0, vec4(0.0));
+  gx0 -= sz0 * (step(0.0, gx0) - 0.5);
+  gy0 -= sz0 * (step(0.0, gy0) - 0.5);
+  vec4 gx1 = ixy1 * (1.0 / 7.0);
+  vec4 gy1 = fract(floor(gx1) * (1.0 / 7.0)) - 0.5;
+  gx1 = fract(gx1);
+  vec4 gz1 = vec4(0.5) - abs(gx1) - abs(gy1);
+  vec4 sz1 = step(gz1, vec4(0.0));
+  gx1 -= sz1 * (step(0.0, gx1) - 0.5);
+  gy1 -= sz1 * (step(0.0, gy1) - 0.5);
+  vec3 g000 = vec3(gx0.x, gy0.x, gz0.x);
+  vec3 g100 = vec3(gx0.y, gy0.y, gz0.y);
+  vec3 g010 = vec3(gx0.z, gy0.z, gz0.z);
+  vec3 g110 = vec3(gx0.w, gy0.w, gz0.w);
+  vec3 g001 = vec3(gx1.x, gy1.x, gz1.x);
+  vec3 g101 = vec3(gx1.y, gy1.y, gz1.y);
+  vec3 g011 = vec3(gx1.z, gy1.z, gz1.z);
+  vec3 g111 = vec3(gx1.w, gy1.w, gz1.w);
+  vec4 norm0 = d_taylorInvSqrt(vec4(dot(g000, g000), dot(g010, g010), dot(g100, g100), dot(g110, g110)));
+  g000 *= norm0.x; g010 *= norm0.y; g100 *= norm0.z; g110 *= norm0.w;
+  vec4 norm1 = d_taylorInvSqrt(vec4(dot(g001, g001), dot(g011, g011), dot(g101, g101), dot(g111, g111)));
+  g001 *= norm1.x; g011 *= norm1.y; g101 *= norm1.z; g111 *= norm1.w;
+  float n000 = dot(g000, Pf0);
+  float n100 = dot(g100, vec3(Pf1.x, Pf0.yz));
+  float n010 = dot(g010, vec3(Pf0.x, Pf1.y, Pf0.z));
+  float n110 = dot(g110, vec3(Pf1.xy, Pf0.z));
+  float n001 = dot(g001, vec3(Pf0.xy, Pf1.z));
+  float n101 = dot(g101, vec3(Pf1.x, Pf0.y, Pf1.z));
+  float n011 = dot(g011, vec3(Pf0.x, Pf1.yz));
+  float n111 = dot(g111, Pf1);
+  vec3 fade_xyz = d_fade(Pf0);
+  vec4 n_z = mix(vec4(n000, n100, n010, n110), vec4(n001, n101, n011, n111), fade_xyz.z);
+  vec2 n_yz = mix(n_z.xy, n_z.zw, fade_xyz.y);
+  return 2.2 * mix(n_yz.x, n_yz.y, fade_xyz.x);
+}
+
+vec3 d_orthogonal(vec3 v) {
+  return normalize(abs(v.x) > abs(v.z) ? vec3(-v.y, v.x, 0.0) : vec3(0.0, -v.z, v.y));
+}
+
+// cuánto se mueve cada punto a lo largo de su normal: la masa (ruido lento y grande) más el
+// relieve de la superficie (ruido pequeño y más rápido), que es lo que la hace parecer cera
+float f(vec3 punto) {
+  float masa = d_pnoise(punto / frecuencia + mod(tiempo, periodo), vec3(periodo)) * distor;
+  float piel = d_pnoise(punto * detalleFrec + mod(tiempo * 1.6, periodo), vec3(periodo)) * detalle;
+  return masa + piel;
+}
+`;
+
+// el desplazamiento y la corrección de normales (dos vecinos y producto cruzado), tal cual el original
+const DESPLAZA = /* glsl */`
+  vec3 displacedPosition = position + normalize(normal) * f(position);
+  float offset = .5 / 512.;
+  vec3 tangente = d_orthogonal(normal);
+  vec3 bitangente = normalize(cross(normal, tangente));
+  vec3 vecino1 = position + tangente * offset;
+  vec3 vecino2 = position + bitangente * offset;
+  vec3 dVecino1 = vecino1 + normal * f(vecino1);
+  vec3 dVecino2 = vecino2 + normal * f(vecino2);
+  vec3 displacedNormal = normalize(cross(dVecino1 - displacedPosition, dVecino2 - displacedPosition));
+  // según cómo caigan los dos vecinos el producto cruzado sale hacia dentro y la gota se ve negra:
+  if (dot(displacedNormal, normal) < 0.0) displacedNormal = -displacedNormal;
+`;
+
+// El entorno: un degradado vertical (arriba claro, abajo casi negro) hecho con un canvas y pasado
+// por PMREM. Es lo que le da el reflejo suave del barniz sin cargar ningún HDRI.
+function entorno(ren) {
+  const cv = document.createElement('canvas');
+  cv.width = 16; cv.height = 256;
+  const x = cv.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(.42, '#b4b4b4'); g.addColorStop(.62, '#2a2a2a'); g.addColorStop(1, '#050505');
+  x.fillStyle = g; x.fillRect(0, 0, 16, 256);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const pmrem = new THREE.PMREMGenerator(ren);
+  const env = pmrem.fromEquirectangular(tex).texture;
+  pmrem.dispose(); tex.dispose();
+  return env;
+}
+
+function montar(cv) {
+  const ren = new THREE.WebGLRenderer({canvas: cv, antialias: true, alpha: true, powerPreference: 'high-performance'});
+  ren.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+  ren.setClearColor(0x000000, 0);
+  ren.toneMapping = THREE.ACESFilmicToneMapping;
+  ren.toneMappingExposure = 1.05;
+
+  const escena = new THREE.Scene();
+  escena.environment = entorno(ren);
+
+  const u = {
+    tiempo: {value: 0}, frecuencia: {value: 1.35}, distor: {value: .3},
+    periodo: {value: 4}, detalle: {value: .035}, detalleFrec: {value: 3.4},
+  };
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, roughness: .14, metalness: 0, clearcoat: 1, clearcoatRoughness: .12,
+    envMapIntensity: 1.15, sheen: .2, sheenColor: new THREE.Color(0xffd9d4),
+  });
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = CABECERA + sh.vertexShader;
+    // beginnormal_vertex va ANTES que begin_vertex: ahí se calcula todo y se cambia la normal
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <beginnormal_vertex>', DESPLAZA + '\n  vec3 objectNormal = displacedNormal;')
+      .replace('#include <begin_vertex>', '  vec3 transformed = displacedPosition;');
+  };
+
+  const malla = new THREE.Mesh(new THREE.SphereGeometry(1, SEG, SEG), mat);
+  escena.add(malla);
+
+  // luz: una clave blanca que marca el volumen y un contraluz rojo, el acento del panel
+  escena.add(new THREE.HemisphereLight(0xffffff, 0x0a0a0a, .55));
+  const clave = new THREE.DirectionalLight(0xffffff, 2.2); clave.position.set(-1.6, 2.2, 2.4); escena.add(clave);
+  const contra = new THREE.DirectionalLight(0xff2d1f, 1.1); contra.position.set(1.8, -.6, -1.8); escena.add(contra);
+
+  const cam = new THREE.PerspectiveCamera(30, 1, .1, 50);
+  cam.position.set(0, 0, 6.6);
+  return {ren, escena, cam, malla, u};
+}
+
+export function pintar(cv, txt, d) {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h) return;
+  if (!r3) r3 = montar(cv);
+  const {ren, escena, cam, malla, u} = r3;
+  if (cv.width !== Math.round(w * ren.getPixelRatio()) || cv.height !== Math.round(h * ren.getPixelRatio())) {
+    ren.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
+  }
+
+  const ms = performance.now(), t = ms / 1000 - t0;
+  // los niveles se persiguen en vez de saltar: llegan cada 0,4 s por el WebSocket
+  NV += ((d.nivel || 0) - NV) * .25;
+  MV += (((d.mic || {}).nivel || 0) - MV) * .25;
+  const est = d.estado || 'dormido', hablando = est === 'hablando';
+  const voz = hablando ? NV : est === 'escuchando' ? MV * .7 : 0;
+  const nac = suave(t / ENTRA);
+
+  const dt = ult ? Math.min(.1, (ms - ult) / 1000) : 0; ult = ms;
+  giro += dt * (.12 + (hablando ? .34 : est === 'trabajando' ? .25 : 0) + voz * .6);
+  malla.rotation.set(Math.sin(t * .11) * .22, giro, Math.sin(t * .07) * .12);
+  malla.scale.setScalar(.9 * (.6 + .4 * nac));
+  malla.position.y = .28;   // un poco por encima del centro: debajo va el rótulo
+
+  u.tiempo.value = t * .42 + voz * t * .25;
+  u.distor.value = (.20 + .05 * Math.sin(t * .55) + voz * .30) * nac;   // respira siempre; con voz, se hincha
+  u.detalle.value = (.02 + voz * .05) * nac;
+  ren.render(escena, cam);
+
+  // el rótulo, en su propio lienzo 2D encima (el mismo del orbe de alambre)
+  const k = Math.min(devicePixelRatio || 1, 2);
+  if (txt.width !== Math.round(w * k)) { txt.width = w * k; txt.height = h * k; }
+  const x = txt.getContext('2d');
+  x.clearRect(0, 0, txt.width, txt.height);
+  if (nac >= 1) Orbe.pie(x, txt.width, txt.height, txt.height * .76, d, t, k);
+}

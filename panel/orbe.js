@@ -99,8 +99,14 @@ export function pintar(cv, d) {
   }
 
   if (nac < 1) return;
-  nombre(x, W, cy + R * 1.28, Math.min(H * .052, W * .044), t);
-  estado(x, W, Math.min(cy + R * 1.28 + H * .11, H * .93), d, t, k);
+  pie(x, W, H, cy + R * 1.28, d, t, k);
+}
+
+// El rótulo de abajo (logotipo + línea de datos). Lo usa también la escena «blob», que es otra
+// esfera distinta pero el mismo sistema: conviene que los dos digan lo mismo y en el mismo sitio.
+export function pie(x, W, H, y, d, t, k) {
+  nombre(x, W, y, Math.min(H * .052, W * .044), t);
+  estado(x, W, Math.min(y + H * .11, H * .93), d, t, k);
 }
 
 // Cada tramo va al trazo que le toca por profundidad: lo de delante, entero; lo de detrás, apenas.

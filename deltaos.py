@@ -560,7 +560,7 @@ async def elegir_mascota(cual):
 
 # «mascota» (el mapache paseando) sigue aquí porque se puede pedir por voz, pero está fuera de la
 # rueda del salvapantallas: el usuario la desactivó el 2026-10-21.
-ESCENAS = ("auto", "orbe", "reloj", "mascota", "impresion", "tiempo")
+ESCENAS = ("auto", "orbe", "blob", "reloj", "mascota", "impresion", "tiempo")
 
 
 async def fondo(escena):

@@ -1,6 +1,21 @@
 [
  {
   "f": "2026-10-21",
+  "t": "Salvapantallas «blob»: la misma esfera del orbe pero sólida, una gota blanca de barniz que respira y se deforma con la voz. Clic derecho para pasar de una a otra.",
+  "como": "pon el blob de fondo"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "Mejora la interfaz del panel para que permita mostrar tarjetas de información directamente en él.",
+  "como": "vía Delta → Claude"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "Tarjetas de información en el panel completo: Delta enseña cifras, listas o una foto en una tarjeta que flota sobre el panel (antes solo en la barra de estado). Se quita sola, con la × o diciendo «quita eso»",
+  "como": "Apúntamelo en pantalla"
+ },
+ {
+  "f": "2026-10-21",
   "t": "El salvapantallas ya no va rotando solo: el ORBE es el de siempre y el resto se cambia a mano con el clic derecho. El del mapache paseando queda desactivado",
   "como": "clic derecho sobre el salvapantallas para cambiarlo"
  },

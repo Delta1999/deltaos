@@ -1040,16 +1040,16 @@ FUSIONES = {
               "Para una web, un mapa, una búsqueda o un producto usa mostrar: en modo invisible el visor sale dentro de "
               "la propia barra. "
               "fondo: la pone YA a pantalla completa en el panel (y es la que sale al dormir), cual = auto (la de por defecto, el orbe; ya no rotan solas) | orbe (el ORBE: una esfera de "
-              "alambre que ondula con la voz; es la de por defecto y la única que NO se quita al hablarte) | reloj | mascota (desactivada de la rueda: solo si la piden) | impresion | tiempo (estación meteo a pantalla completa) («pon el reloj de fondo», «pon el orbe», «salvapantallas»). pantalla_completa: cual = impresora (la "
+              "alambre que ondula con la voz; es la de por defecto y no se quita al hablarte) | blob (LA GOTA: la misma esfera pero sólida, blanca y con barniz, se deforma con la voz; tampoco se quita al hablarte) | reloj | mascota (desactivada de la rueda: solo si la piden) | impresion | tiempo (estación meteo a pantalla completa) («pon el reloj de fondo», «pon el orbe», «salvapantallas»). pantalla_completa: cual = impresora (la "
               "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
               "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
               "«¿qué está comiendo RAM?»).",
-              {"cual": "fondo: auto | orbe | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
+              {"cual": "fondo: auto | orbe | blob | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
                        "elegir_mascota: mapache | gato; pantalla: interfaz | mascota | todo",
                "donde": "pantalla: otra | arriba | abajo | izquierda | derecha | principal | ultrawide",
-               "texto": "tarjeta: lo que enseñar en la barra, una cosa por línea",
+               "texto": "tarjeta: lo que enseñar, una cosa por línea",
                "titulo": "tarjeta: rótulo (opcional)",
-               "imagen": "tarjeta: ruta de una imagen del disco o URL, para enseñarla en la barra (opcional)"},
+               "imagen": "tarjeta: ruta de una imagen del disco o URL, para enseñarla en la tarjeta (opcional)"},
               {"tarjeta": _r("mostrar_en_tira", {"texto": "texto", "titulo": "titulo", "imagen": "imagen"}),
                "panel": _r("cambiar_vista", fijo={"modo": "panel"}), "mascota": _r("cambiar_vista", fijo={"modo": "mascota"}),
                "invisible": _r("cambiar_vista", fijo={"modo": "invisible"}),
