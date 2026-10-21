@@ -1,4 +1,4 @@
-"""Mover interfaz y mascota de pantalla por voz, y el escudo que se ve al pedirlo (.venv/bin/python test_pantallas.py)"""
+"""Mover interfaz y mascota de pantalla por voz, y el fondo que se ve al pedirlo (.venv/bin/python test_pantallas.py)"""
 import asyncio
 import subprocess
 import tempfile
@@ -57,15 +57,15 @@ assert sh("")[:4] == ["0", "0", "2520", "1080"] and sh("DP-1")[:4] == ["0", "0",
 assert sh("", UNA)[4] == "invisible", "solo el portátil: la barra, la mascota oculta por defecto (21/10, hasta el gato nuevo)"
 assert sh("eDP-1")[5] == sh("")[5], "la firma es el juego de pantallas, no la elegida: si no, cambiar de pantalla resetea la vista"
 
-# El escudo: pedirlo en modo barra pone el panel, que es donde se pinta, y el panel lo enseña ya (forzado), no al dormir.
+# El orbe: pedirlo en modo barra pone el panel, que es donde se pinta, y el panel lo enseña ya (forzado), no al dormir.
 v, panel.VISTA = panel.VISTA, tmp / "delta-vista"  # sin tocar la vista de verdad
 try:
     panel.vista("invisible")
-    r = asyncio.run(deltaos.fondo("delta"))
+    r = asyncio.run(deltaos.fondo("orbe"))
     assert panel._vista_actual() == "panel" and "pantalla completa" in r and "modo invisible" in r, r
-    assert panel.S["fondo"]["escena"] == "delta"
+    assert panel.S["fondo"]["escena"] == "orbe"
     t = panel.VISTA.stat().st_mtime_ns
-    asyncio.run(deltaos.fondo("delta"))  # ya en panel: se reescribe igual, para que ventana.sh lo suba al frente
+    asyncio.run(deltaos.fondo("orbe"))  # ya en panel: se reescribe igual, para que ventana.sh lo suba al frente
     assert panel.VISTA.stat().st_mtime_ns > t
 finally:
     panel.VISTA = v
@@ -73,6 +73,6 @@ assert "forzado = d.fondo.escena !== 'auto'" in Path("panel/fondo.js").read_text
 # Y el panel real lo recibe: los scripts van con su fecha en la URL, que la caché vieja de Chromium no sirva el fondo.js de ayer.
 import re
 assert re.search(r'src="/fondo\.js\?v=\d+"', panel._con_version("index.html", "text/html").text)
-assert re.search(r"'/delta\.js\?v=\d+'", panel._con_version("fondo.js", "application/javascript").text)
+assert re.search(r"'/orbe\.js\?v=\d+'", panel._con_version("fondo.js", "application/javascript").text)
 
-print("OK: interfaz y mascota cambian de pantalla por voz y se quedan; el escudo se ve al pedirlo")
+print("OK: interfaz y mascota cambian de pantalla por voz y se quedan; el orbe se ve al pedirlo")

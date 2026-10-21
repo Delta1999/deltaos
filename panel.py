@@ -537,14 +537,14 @@ async def _poll_clima():
 ORIGENES = {None, f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"}
 
 
-_VERSIONADOS = ("fondo.js", "delta.js", "mapache3d.js", "three.module.js", "logo.json")
+_VERSIONADOS = ("fondo.js", "orbe.js", "mapache3d.js", "three.module.js")
 
 
 def _con_version(nombre, tipo):
     """El fichero con «?v=<fecha>» en las URLs de los scripts del panel.
 
     Ni con no-cache bastaba: el Chromium del panel guardaba un fondo.js del día anterior que aún daba
-    por fresco, y el escudo no salía en la pantalla de verdad aunque en otro navegador sí (2026-10-21).
+    por fresco, y el fondo nuevo no salía en la pantalla de verdad aunque en otro navegador sí (2026-10-21).
     Con la fecha en la URL, un fichero cambiado es otra URL y no hay caché vieja que valga."""
     txt = (AQUI / "panel" / nombre).read_text()
     for n in _VERSIONADOS:
@@ -830,15 +830,15 @@ async def start(ST, voz):
         app = web.Application()
         app["ST"] = ST
         # no-cache: sin él Chromium daba por bueno el fondo.js viejo un buen rato (caché heurística por Last-Modified)
-        # y un cambio del panel no se veía ni recargando (2026-10-21, el escudo). Con no-cache revalida por ETag.
+        # y un cambio del panel no se veía ni recargando (2026-10-21). Con no-cache revalida por ETag.
         nc = {"Cache-Control": "no-cache"}
         app.router.add_get("/", lambda r: _con_version("index.html", "text/html"))
         app.router.add_get("/ws", _ws)
         app.router.add_get("/mapache.txt", lambda r: web.FileResponse(AQUI / "panel" / "mapache.txt"))
         app.router.add_static("/fonts", AQUI / "panel" / "fonts")
-        for js in ("fondo.js", "delta.js", "mapache3d.js"):
+        for js in ("fondo.js", "orbe.js", "mapache3d.js"):
             app.router.add_get("/" + js, lambda r, js=js: _con_version(js, "application/javascript"))
-        for js in ("three.module.js", "novedades.json", "logo.json"):
+        for js in ("three.module.js", "novedades.json"):
             app.router.add_get("/" + js, lambda r, js=js: web.FileResponse(AQUI / "panel" / js, headers=nc))
         app.router.add_get("/impresora/vivo", _vivo)
         app.router.add_get("/impresora/gcode/{n}", _gcode)

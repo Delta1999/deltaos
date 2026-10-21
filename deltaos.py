@@ -558,7 +558,7 @@ async def elegir_mascota(cual):
     return f"Hecho: ahora la mascota es el {cual}."
 
 
-ESCENAS = ("auto", "delta", "reloj", "mascota", "impresion", "tiempo")
+ESCENAS = ("auto", "orbe", "reloj", "mascota", "impresion", "tiempo")
 
 
 async def fondo(escena):
@@ -569,7 +569,7 @@ async def fondo(escena):
         return "Hecho: el fondo de espera vuelve a ir rotando."
     antes = panel._vista_actual()
     # Siempre, aunque ya esté en panel: escribir la vista hace que ventana.sh lo traiga al frente.
-    # 21/10: el panel estaba en «panel» pero tapado por otras ventanas, y el escudo no se veía.
+    # 21/10: el panel estaba en «panel» pero tapado por otras ventanas, y el fondo pedido no se veía.
     panel.vista("panel")  # en barra, mascota u oculto el panel no se ve, y el fondo va dentro del panel
     return (f"Hecho: {escena} a pantalla completa en el panel" + (f" (estaba en modo {antes}: he puesto el panel)" if antes != "panel" else "")
             + ". Se quita con doble clic, Escape o la rueda del ratón; también sale solo cuando duermes.")
@@ -719,10 +719,10 @@ acciones.registrar([
                  "«quiero el mapache», «cambia la mascota»…",
                  {"cual": acciones._s("mapache | gato")}),
     acciones._fn("fondo",
-                 "Pone ya a pantalla completa en el panel una escena (y es también la que sale cuando duermes): delta (el logo del sistema en matriz de puntos, «pon el logo», «pon el escudo»), reloj grande, la mascota en el centro, "
+                 "Pone ya a pantalla completa en el panel una escena (y es también la que sale cuando duermes): orbe (una esfera de alambre que se deforma con la voz, «pon el orbe», «pon la esfera»), reloj grande, la mascota en el centro, "
                  "la estación meteo, o la impresión en vivo (recorrido 3D de la boquilla). auto = va rotando y la impresión manda mientras imprime. "
                  "Úsalo cuando diga «pon el reloj de fondo», «fondo de la impresora», «salvapantallas»…",
-                 {"escena": acciones._s("auto | delta | reloj | mascota | impresion | tiempo")}),
+                 {"escena": acciones._s("auto | orbe | reloj | mascota | impresion | tiempo")}),
     acciones._fn("pantalla_completa",
                  "Pone a pantalla completa en el panel: impresora (la pieza en 3D en vivo con TODO: capas, tiempos, "
                  "filamento, temperaturas con gráfica, velocidades, flujo, ventiladores, histórico), tiempo (Nothing Weather "

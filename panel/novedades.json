@@ -1,6 +1,16 @@
 [
  {
   "f": "2026-10-21",
+  "t": "Nuevo salvapantallas: el ORBE, una esfera de alambre que gira y ondula con tu voz y con la de Delta (el anillo rojo marca el nivel). Fuera el escudo de puntos",
+  "como": "Pon el orbe · Pon la esfera"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "La conversación se ve en burbujas y la última frase se escribe a máquina, con cursor: lo tuyo a la derecha, lo de Delta a la izquierda",
+  "como": "se ve solo en el panel"
+ },
+ {
+  "f": "2026-10-21",
   "t": "Arreglado: la barra de estado se quedaba DEBAJO de las demás ventanas (y con marco), y cada reinicio te borraba la vista que tenías puesta",
   "como": "arreglo"
  },

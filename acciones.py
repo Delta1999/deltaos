@@ -989,7 +989,7 @@ FUSIONES = {
                {"programar": _r("programar_aviso"), "ver": _r("ver_avisos"),
                 "cancelar": _r("cancelar_aviso", {"cual": "texto"}), "parar_alarma": _r("parar_alarma"),
                 "no_molestar": _r("no_molestar", {"minutos": "en_minutos"})}),
-    "claude": ("Claude Code. mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, mascota, escudo, voz, "
+    "claude": ("Claude Code. mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, mascota, fondos, voz, "
                "herramientas…) ya, avería o mejora; si no corre prisa, memoria accion=anotar_mejora. hablar: el repo "
                "WORMHOLE (CAD, piezas, impresión), UNA conversación persistente que recuerda lo "
                "anterior (vale «ahora hazlo más grueso»), trabaja en segundo plano y avisa; úsala para toda petición de "
@@ -1039,12 +1039,12 @@ FUSIONES = {
               "Imágenes, Descargas, Escritorio o Documentos/Delta) o URL, enseña además una foto, captura o plano. "
               "Para una web, un mapa, una búsqueda o un producto usa mostrar: en modo invisible el visor sale dentro de "
               "la propia barra. "
-              "fondo: la pone YA a pantalla completa en el panel (y es la que sale al dormir), cual = auto (rota; la impresión manda mientras imprime) | delta (el ESCUDO: el logo del "
-              "sistema en puntos; «modo escudo», «pon el escudo», «pon el logo»; existe y funciona) | reloj | mascota | impresion | tiempo («pon el reloj de fondo», «pon el logo», «salvapantallas»). pantalla_completa: cual = impresora (la "
+              "fondo: la pone YA a pantalla completa en el panel (y es la que sale al dormir), cual = auto (rota; la impresión manda mientras imprime) | orbe (el ORBE: una esfera de "
+              "alambre que ondula con la voz; «pon el orbe», «pon la esfera», «modo orbe»; existe y funciona) | reloj | mascota | impresion | tiempo («pon el reloj de fondo», «pon el orbe», «salvapantallas»). pantalla_completa: cual = impresora (la "
               "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
               "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
               "«¿qué está comiendo RAM?»).",
-              {"cual": "fondo: auto | delta | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
+              {"cual": "fondo: auto | orbe | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
                        "elegir_mascota: mapache | gato; pantalla: interfaz | mascota | todo",
                "donde": "pantalla: otra | arriba | abajo | izquierda | derecha | principal | ultrawide",
                "texto": "tarjeta: lo que enseñar en la barra, una cosa por línea",
