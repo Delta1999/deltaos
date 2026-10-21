@@ -1,6 +1,16 @@
 [
  {
   "f": "2026-10-21",
+  "t": "pon el modo oscuro",
+  "como": "vía Delta → Claude"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "Cambia el escritorio entre modo oscuro y claro (KDE y aplicaciones)",
+  "como": "Pon el modo oscuro"
+ },
+ {
+  "f": "2026-10-21",
   "t": "El mapa sale limpio: solo el mapa y sus marcas, sin fotos de sitios ni aviso de cookies",
   "como": "Enséñame en el mapa las gasolineras de Chiclana"
  },
