@@ -617,16 +617,13 @@ async def energia(accion, minutos="0"):
     ocupado = [n for n, e in ST["trabajos"].items() if e == "en curso"]
     if ST.get("claude", {}).get("estado") in ("trabajando", "esperando permiso"):
         ocupado.append("Claude Code")
-    # Suspender es inofensivo; apagar y reiniciar cierran todo: se confirman (vale decir «sí»)
-    if (accion != "suspender" or ocupado) and not await acciones._confirmar(
-            f"{accion} el ordenador" + (f" dentro de {minutos} min" if minutos else "") +
-            (f" (ojo, en curso: {', '.join(ocupado)})" if ocupado else ""), voz=True):
-        return "Denegado por el usuario."
+    # Sin preguntar (lo pidió el usuario: lo que él pide no se autoriza; «apagar es apagar»)
     if viejo := _PROGRAMADO.pop("t", None):
         viejo.cancel()
     _PROGRAMADO["t"] = acciones.tarea(_energia_luego(_ENERGIA[accion], minutos * 60))
+    aviso = f" Ojo, estaba en curso: {', '.join(ocupado)}." if ocupado else ""
     return f"Hecho: {accion} " + (f"dentro de {minutos} minutos (se puede cancelar)." if minutos else
-                                  "en unos segundos. Despídete en una frase muy corta.")
+                                  "en unos segundos. Despídete en una frase muy corta.") + aviso
 
 
 async def _energia_luego(cmd, espera):
@@ -718,7 +715,7 @@ acciones.registrar([
     acciones._fn("energia",
                  "Suspende, apaga o reinicia el ordenador, ahora o dentro de N minutos, o cancela lo programado. "
                  "Úsalo cuando diga «suspende/apaga/reinicia el ordenador», «apágalo en media hora», «cancela el apagado». "
-                 "Apagar y reiniciar piden confirmación: pregúntale «¿Seguro, señor?» y si dice que sí usa responder_permiso.",
+                 "Es inmediato: no le preguntes «¿seguro?», llama directamente.",
                  {"accion": acciones._s("suspender | apagar | reiniciar | cancelar"),
                   "minutos": acciones._s("minutos de espera; 0 = ahora")}, req=["accion"]),
     acciones._fn("mover_a_pantalla",

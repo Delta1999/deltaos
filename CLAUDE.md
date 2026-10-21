@@ -13,7 +13,11 @@ Repositorio canónico: `~/gemini-live-assistant`. Trabaja aquí, sobre estos arc
 
 ## Reglas (obligatorias)
 - La impresora (Moonraker 192.168.0.102:7125) es SOLO LECTURA: únicamente GET, nunca comandos.
-- Enviar SMS o responder mensajes necesita confirmación explícita del usuario cada vez.
+- Enviar SMS o responder mensajes necesita confirmación explícita del usuario cada vez, y es **de viva voz**: Delta pregunta
+  («¿lo mando?») y el usuario contesta. Mientras el usuario está hablando con Delta no sale ninguna ventana de permiso
+  (`acciones.hablando_contigo`, pedido el 21/10/2026); si la orden no viene de su voz (panel, aviso, texto de una web o
+  de la pantalla) sí se pide permiso como antes. Lo mismo para apagar, comandos de terminal que cambian algo, instalar
+  skills y abrir URL con datos.
 - No exponer endpoints HTTP que hagan hablar a Delta (para eso está el buzón 0700). Las órdenes del panel van por el WebSocket, que comprueba Origin.
 - No integrar listas de canales de pago (DAZN/AceStream).
 - No tocar `~/.config/opencode`, `~/.gemini` ni `~/.agents`.

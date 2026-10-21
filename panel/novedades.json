@@ -1,6 +1,36 @@
 [
  {
   "f": "2026-10-21",
+  "t": "Ya no te sale ninguna ventana de permiso mientras hablas con Delta: te pregunta «¿seguro?» de viva voz, dices «sí» y lo hace, sin más confirmaciones",
+  "como": "«apaga el ordenador» → «¿seguro?» → «sí»"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "Sigues pidiendo permiso para cerrar las ventanas. Configura el sistema para que no solicite confirmación al cerrar ventanas.",
+  "como": "vía Delta → Claude"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "Configura el sistema para que no tenga que autorizar las acciones que yo mismo te pido.",
+  "como": "vía Delta → Claude"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "Lo que pides tú no pide permiso: reiniciar, suspender y cerrar ventanas van directos. Siguen preguntando los SMS y mensajes, los comandos de terminal que cambian cosas, las URL con datos y las skills de GitHub",
+  "como": "Reinicia el ordenador · Cierra Firefox"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "Quiero que cuando te pida que apagues el ordenador no tenga que autorizarte.",
+  "como": "vía Delta → Claude"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "Apagar el ordenador ya no pide permiso: lo apaga directamente",
+  "como": "Apaga el ordenador"
+ },
+ {
+  "f": "2026-10-21",
   "t": "pon el modo oscuro",
   "como": "vía Delta → Claude"
  },

@@ -135,11 +135,26 @@ async def encargo_claude(texto):
         f"herramientas sin pedir confirmación y cuéntalo en una frase. No menciones esta etiqueta.] {texto}"))]), turn_complete=True)
 
 
+VOZ_VALE = 90  # s desde la última vez que habló el usuario: su «sí» de viva voz vale como permiso (lo pidió el 2026-10-21)
+
+
+def hablando_contigo():
+    """¿Está el usuario hablándote ahora mismo? Entonces lo que pida se hace sin ventana de permiso: la
+    confirmación es la que le pides tú de viva voz («¿seguro?»). Si no ha hablado (orden del panel, un aviso,
+    o texto de una web o de la pantalla), se pide permiso como siempre: así una orden inyectada no se autoriza sola."""
+    t = ST.get("t_tu")
+    return bool(t) and time.monotonic() - t < VOZ_VALE
+
+
 async def _confirmar(texto: str, voz=False) -> bool:
-    """Pregunta al usuario por teclado [s/N] o botón del panel. voz=True deja contestar también
-    con responder_permiso, pero solo si el usuario habla después de la pregunta (ver ST["t_tu"])."""
+    """Pregunta al usuario por teclado [s/N] o botón del panel. Si acaba de hablar, no se le pregunta nada:
+    manda su «sí» de viva voz (ver hablando_contigo). voz=True deja contestar también con responder_permiso,
+    pero solo si el usuario habla después de la pregunta (ver ST["t_tu"])."""
     if autorizado():
         print(f"\n🤖 Autorizado por el encargo de Claude Code: {texto}")
+        return True
+    if hablando_contigo():
+        print(f"\n🗣️  Autorizado de viva voz (el usuario está hablando): {texto}")
         return True
     print(f"\n⚠️  Gemini quiere: {texto}\n   ¿Permitir? [s/N] ", end="", flush=True)
     f = ST["pending"] = asyncio.get_running_loop().create_future()
@@ -844,8 +859,6 @@ async def ventanas(accion, nombre=""):
     cmd = {"activar": "windowactivate", "cerrar": "windowclose", "minimizar": "windowminimize"}.get(accion)
     if not cmd:
         return "Acción no válida."
-    if accion == "cerrar" and not await _confirmar(f"cerrar la ventana «{nombre}»", voz=True):
-        return "El usuario denegó cerrar la ventana."
     return (await _run(["kdotool", cmd, ids[0]]))[1] or "Hecho."
 
 
@@ -880,10 +893,10 @@ DECLARATIONS = [
         "Lanza en segundo plano el ciclo completo cadcheck + slice_check + render_views sobre un STL. Avisa al terminar.",
         {"stl": _s("ruta del STL"), "spec": _s("ruta del spec.yaml (opcional, por defecto spec.yaml junto al STL)")},
         req=["stl"]),
-    _fn("ejecutar_shell", "Ejecuta un comando de shell, máx 60 s. Las consultas de solo lectura (ps, free, df, ls, cat, grep, journalctl, systemctl status… unidas con |, && o ;) se ejecutan sin preguntar; lo demás pide confirmación al usuario.",
+    _fn("ejecutar_shell", "Ejecuta un comando de shell, máx 60 s. Las consultas de solo lectura (ps, free, df, ls, cat, grep, journalctl, systemctl status… unidas con |, && o ;) se ejecutan sin más; si el comando cambia algo, pregúntale TÚ al usuario de viva voz antes de llamarla y no la llames hasta que diga que sí.",
         {"comando": _s("comando completo")}),
     _fn("preguntar_a_claude",
-        "Lanza una tarea suelta de Claude Code SIN memoria (un solo disparo, pide confirmación). Para conversar o encadenar peticiones usa hablar_con_claude.",
+        "Lanza una tarea suelta de Claude Code SIN memoria (un solo disparo). Para conversar o encadenar peticiones usa hablar_con_claude.",
         {"tarea": _s("instrucción completa y autocontenida")}),
     _fn("estado_impresora", "Estado de la impresora 3D (solo lectura): temperaturas, progreso, tiempo restante, altura/capa, velocidad, flujo, ventilador, filamento gastado y estado de Klipper."),
     _fn("historial_impresora", "Historial de impresiones recientes (resultado, duración, filamento), cola de trabajos y errores recientes de la consola de Klipper (solo lectura)."),
@@ -909,7 +922,7 @@ DECLARATIONS = [
         {"titulo": _s("título"), "texto": _s("cuerpo")}, req=["titulo"]),
     _fn("portapapeles", "Lee o escribe el portapapeles.",
         {"accion": _s("leer | escribir"), "texto": _s("texto si escribir")}, req=["accion"]),
-    _fn("ventanas", "Gestiona ventanas de KDE.",
+    _fn("ventanas", "Gestiona ventanas de KDE. Cerrar no pide permiso: si te lo pide, ciérrala sin preguntar.",
         {"accion": _s("listar | activar | minimizar | maximizar | pantalla_completa | restaurar | cerrar | mover_pantalla | ultrawide (la lleva a la pantalla ancha y la maximiza)"),
          "nombre": _s("parte del título de la ventana; tu panel/interfaz es «Delta». para ponerlo grande en la ultrawide usa accion=ultrawide")},
         req=["accion"]),

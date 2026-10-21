@@ -1,5 +1,5 @@
 """El móvil por KDE Connect: leer notificaciones, responder (WhatsApp y demás con respuesta rápida),
-mandar SMS a un número y hacerlo sonar. Responder y SMS piden confirmación cada vez."""
+mandar SMS a un número y hacerlo sonar. Responder y SMS los confirma el usuario de viva voz (Delta pregunta antes)."""
 import re
 
 import acciones
@@ -84,9 +84,9 @@ async def sonar_movil():
 acciones.registrar([
     _fn("notificaciones_movil", "Lee las notificaciones del móvil del usuario (WhatsApp, Telegram, correo, llamadas…)."),
     _fn("responder_notificacion",
-        "Responde a una notificación del móvil que admita respuesta (WhatsApp, Telegram…). Pide confirmación al usuario.",
+        "Responde a una notificación del móvil que admita respuesta (WhatsApp, Telegram…). Lee el mensaje al usuario y pregúntale de viva voz si lo mandas; no la llames hasta que diga que sí.",
         {"quien": _s("contacto o app a la que responder, tal como sale en la notificación"), "mensaje": _s("texto de la respuesta")}),
-    _fn("enviar_sms", "Envía un SMS desde el móvil a un NÚMERO de teléfono. Pide confirmación al usuario.",
+    _fn("enviar_sms", "Envía un SMS desde el móvil a un NÚMERO de teléfono. Léele el texto al usuario y pregúntale de viva voz si lo mandas; no la llames hasta que diga que sí.",
         {"numero": _s("número de teléfono"), "mensaje": _s("texto")}),
     _fn("sonar_movil", "Hace sonar el móvil a todo volumen para encontrarlo."),
 ], [notificaciones_movil, responder_notificacion, enviar_sms, sonar_movil])
