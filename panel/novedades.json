@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-21",
+  "t": "Arreglado: la barra de estado se quedaba DEBAJO de las demás ventanas (y con marco), y cada reinicio te borraba la vista que tenías puesta",
+  "como": "arreglo"
+ },
+ {
+  "f": "2026-10-21",
   "t": "Delta se reinicia a sí mismo cuando se lo pides, sin tocar la terminal (hace falta para que se apliquen los cambios de su código)",
   "como": "Reiníciate · Reinicia DeltaOS"
  },

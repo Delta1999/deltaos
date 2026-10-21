@@ -48,7 +48,9 @@ aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
     [ -n "$M" ] && kdotool windowminimize "$M"
     TX=$((X + AN - TIRA_AN - TIRA_M)) TY=$((Y + TIRA_M))
     kdotool windowstate --remove FULLSCREEN --remove MINIMIZED "$1"
-    kdotool windowstate --add NO_BORDER --add SKIP_TASKBAR --add KEEP_ABOVE "$1"
+    # ABOVE, no KEEP_ABOVE: kdotool rechaza el nombre largo y con él se caía el comando entero,
+    # así que la tira se quedaba con marco, en la barra de tareas y DEBAJO de las demás ventanas.
+    kdotool windowstate --add NO_BORDER --add SKIP_TASKBAR --add ABOVE "$1"
     kdotool windowmove "$1" "$TX" "$TY"; kdotool windowsize "$1" "$TIRA_AN" "$H"
     sleep 1; kdotool windowmove "$1" "$TX" "$TY"; kdotool windowsize "$1" "$TIRA_AN" "$H"
   else
@@ -86,9 +88,14 @@ sleep 2  # KWin recoloca la ventana al mostrarla; mover antes no se respeta
 ANT= FANT= VANT= MANT=
 while kill -0 $CH 2>/dev/null; do
   D=$(destino)
-  if [ -n "$D" ] && [ "${D##* }" != "$FANT" ]; then  # pantallas cambiadas (o arranque): vista por defecto
+  if [ -n "$D" ] && [ "${D##* }" != "$FANT" ]; then  # pantallas cambiadas: vista por defecto
     [ -n "$FANT" ] && { sleep 2; D=$(destino); }
-    read -r _ _ _ _ VDEF FANT <<<"$D"; echo "$VDEF" > "$VISTA"; VANT=
+    read -r _ _ _ _ VDEF FANT <<<"$D"
+    # Al arrancar se respeta la vista que tenía puesta el usuario: antes cada reinicio de Delta se la
+    # borraba y volvía a la de por defecto (con el portátil solo, la tira). Solo se impone la de por
+    # defecto al cambiar de pantallas de verdad, o si no hay vista guardada (sesión nueva).
+    if [ -n "$ARRANCADO" ] || [ ! -s "$VISTA" ]; then echo "$VDEF" > "$VISTA"; fi
+    ARRANCADO=1; VANT=
   fi
   if [ -n "$D" ] && [ "$D" != "$ANT" ]; then  # otra pantalla para el panel (por voz): misma vista, en la nueva
     [ -n "$ANT" ] && regla "$D"; ANT=$D; VANT=

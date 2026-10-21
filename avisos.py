@@ -158,8 +158,10 @@ async def _buzon_claude():
             d = None
         f.unlink(missing_ok=True)
         if d and time.time() - d.get("t", 0) < BUZON_CADUCA:
-            await acciones.avisar(f"Ha terminado una sesión de Claude Code que el usuario lanzó en «{d.get('proyecto', '?')}» "
-                                  f"(llevaba {d.get('min', '?')} min). Resúmeselo en una frase: {d.get('final', '')[:600]}")
+            await acciones.avisar(f"Ha terminado una sesión de CLAUDE CODE en la carpeta «{d.get('proyecto', '?')}» "
+                                  f"(llevaba {d.get('min', '?')} min). Dilo así: ha terminado Claude Code, y en qué carpeta "
+                                  f"(«gemini-live-assistant» es tu propio repositorio, DeltaOS). Resúmeselo en una frase: "
+                                  f"{d.get('final', '')[:600]}")
 
 
 async def vigilar():
