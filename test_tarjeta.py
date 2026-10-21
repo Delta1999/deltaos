@@ -141,4 +141,13 @@ try:
 finally:
     panel.VISTA = real
 
+# El mapa, en su versión para incrustar: sin la ficha de fotos ni el aviso de cookies que tapaban la vista (21/10).
+real, panel.VISTA = panel.VISTA, Path(tempfile.mkdtemp()) / "delta-vista"
+try:
+    panel.vista("panel")
+    asyncio.run(deltaos.mostrar("mapa", "restaurantes Chiclana"))
+    assert panel.S["visor"]["url"] == "https://maps.google.com/maps?q=restaurantes%20Chiclana&output=embed"
+finally:
+    panel.VISTA, panel.S["visor"] = real, None
+
 print("OK: la barra crece en tarjeta (texto, imagen o visor), se encoge sola y se puede quitar")

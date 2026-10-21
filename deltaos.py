@@ -46,7 +46,9 @@ async def mostrar(que, consulta=""):
         url = (f"https://www.youtube.com/embed/{vid}?autoplay=1" if re.fullmatch(r"[\w-]{11}", vid)
                else f"https://www.youtube.com/results?search_query={quote(q)}")
     elif que == "mapa":
-        url = f"https://www.google.com/maps/search/{quote(q)}"
+        # la versión para incrustar: solo el mapa y sus marcas, sin la ficha lateral con fotos de sitios ni el aviso de
+        # cookies que tapaban la vista (2026-10-21). Waze no vale aquí: su mapa incrustado no busca, solo coordenadas.
+        url = f"https://maps.google.com/maps?q={quote(q)}&output=embed"
     elif que == "wikipedia":
         url = f"https://es.m.wikipedia.org/w/index.php?search={quote(q)}"
     elif que == "google":
