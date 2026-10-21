@@ -1039,8 +1039,8 @@ FUSIONES = {
               "Imágenes, Descargas, Escritorio o Documentos/Delta) o URL, enseña además una foto, captura o plano. "
               "Para una web, un mapa, una búsqueda o un producto usa mostrar: en modo invisible el visor sale dentro de "
               "la propia barra. "
-              "fondo: la pone YA a pantalla completa en el panel (y es la que sale al dormir), cual = auto (rota; la impresión manda mientras imprime) | orbe (el ORBE: una esfera de "
-              "alambre que ondula con la voz; «pon el orbe», «pon la esfera», «modo orbe»; existe y funciona) | reloj | mascota | impresion | tiempo («pon el reloj de fondo», «pon el orbe», «salvapantallas»). pantalla_completa: cual = impresora (la "
+              "fondo: la pone YA a pantalla completa en el panel (y es la que sale al dormir), cual = auto (la de por defecto, el orbe; ya no rotan solas) | orbe (el ORBE: una esfera de "
+              "alambre que ondula con la voz; es la de por defecto y la única que NO se quita al hablarte) | reloj | mascota (desactivada de la rueda: solo si la piden) | impresion | tiempo (estación meteo a pantalla completa) («pon el reloj de fondo», «pon el orbe», «salvapantallas»). pantalla_completa: cual = impresora (la "
               "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
               "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
               "«¿qué está comiendo RAM?»).",

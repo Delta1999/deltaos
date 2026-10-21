@@ -558,6 +558,8 @@ async def elegir_mascota(cual):
     return f"Hecho: ahora la mascota es el {cual}."
 
 
+# «mascota» (el mapache paseando) sigue aquí porque se puede pedir por voz, pero está fuera de la
+# rueda del salvapantallas: el usuario la desactivó el 2026-10-21.
 ESCENAS = ("auto", "orbe", "reloj", "mascota", "impresion", "tiempo")
 
 
@@ -566,7 +568,7 @@ async def fondo(escena):
         return "Error: escena es " + " | ".join(ESCENAS) + "."
     panel.S["fondo"] = {"escena": escena, "id": time.time()}  # el panel lo pone ya, sin esperar a que duermas
     if escena == "auto":
-        return "Hecho: el fondo de espera vuelve a ir rotando."
+        return "Hecho: el fondo de espera vuelve a la de siempre, el orbe (ya no rotan solas)."
     antes = panel._vista_actual()
     # Siempre, aunque ya esté en panel: escribir la vista hace que ventana.sh lo traiga al frente.
     # 21/10: el panel estaba en «panel» pero tapado por otras ventanas, y el fondo pedido no se veía.

@@ -505,6 +505,11 @@ def _fecha(t=None):  # strftime va con el locale C y salía «MON 19 OCT»
     return f"{'LUN MAR MIÉ JUE VIE SÁB DOM'.split()[t.tm_wday]} {t.tm_mday:02d} {'ENE FEB MAR ABR MAY JUN JUL AGO SEP OCT NOV DIC'.split()[t.tm_mon - 1]}"
 
 
+_LUNA = {"New Moon": "luna nueva", "Waxing Crescent": "luna creciente", "First Quarter": "cuarto creciente",
+         "Waxing Gibbous": "creciente gibosa", "Full Moon": "luna llena", "Waning Gibbous": "menguante gibosa",
+         "Last Quarter": "cuarto menguante", "Waning Crescent": "luna menguante"}
+
+
 async def _poll_clima():
     while True:
         try:
@@ -515,15 +520,28 @@ async def _poll_clima():
             def min24(s):  # "06:30 AM" -> minutos desde medianoche
                 h, m = time.strptime(s, "%I:%M %p")[3:5]
                 return h * 60 + m
+            ast = hoy["astronomy"][0]
             S["clima"] = {"temp": int(cur["temp_C"]), "sens": int(cur["FeelsLikeC"]), "hum": int(cur["humidity"]),
                           "desc": _es(cur), "ciudad": j["nearest_area"][0]["areaName"][0]["value"],
                           "max": int(hoy["maxtempC"]), "min": int(hoy["mintempC"]), "code": int(cur["weatherCode"]),
                           "viento": int(cur["windspeedKmph"]), "dir": cur["winddir16Point"].replace("W", "O"), "uv": int(cur["uvIndex"]),
                           "lluvia": max(int(h["chanceofrain"]) for h in hoy["hourly"]),
                           "sale": min24(hoy["astronomy"][0]["sunrise"]), "pone": min24(hoy["astronomy"][0]["sunset"]),
+                          # los que solo usa la estación del salvapantallas (escena «tiempo»)
+                          "presion": int(cur["pressure"]), "nubes": int(cur["cloudcover"]), "vis": int(cur["visibility"]),
+                          "precip": float(cur["precipMM"]), "rocio": int(hoy["hourly"][0].get("DewPointC", 0)),
+                          "obs": cur.get("observation_time", ""), "luna": _LUNA.get(ast["moon_phase"], ast["moon_phase"].lower()),
+                          "ilum": int(ast["moon_illumination"]), "sol_h": float(hoy.get("sunHour", 0) or 0),
                           # horas de hoy y mañana: k = horas desde las 00:00 de hoy
-                          "horas": [{"k": d * 24 + int(h["time"]) // 100, "t": int(h["tempC"]), "c": int(h["weatherCode"])}
-                                    for d, w in enumerate(j["weather"][:2]) for h in w["hourly"]]}
+                          "horas": [{"k": d * 24 + int(h["time"]) // 100, "t": int(h["tempC"]), "c": int(h["weatherCode"]),
+                                     "ll": int(h["chanceofrain"]), "v": int(h["windspeedKmph"]), "s": int(h["FeelsLikeC"]),
+                                     "hu": int(h["humidity"])}
+                                    for d, w in enumerate(j["weather"][:2]) for h in w["hourly"]],
+                          # tres días para la fila de abajo: el icono es el del mediodía
+                          "dias": [{"f": w["date"], "min": int(w["mintempC"]), "max": int(w["maxtempC"]),
+                                    "c": int(w["hourly"][4]["weatherCode"]), "ll": max(int(h["chanceofrain"]) for h in w["hourly"]),
+                                    "uv": int(w.get("uvIndex", 0) or 0), "sale": min24(w["astronomy"][0]["sunrise"]),
+                                    "pone": min24(w["astronomy"][0]["sunset"])} for w in j["weather"][:3]]}
         except Exception:
             pass  # conserva el último clima; 15 min es poco para que caduque
         try:
@@ -537,7 +555,7 @@ async def _poll_clima():
 ORIGENES = {None, f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"}
 
 
-_VERSIONADOS = ("fondo.js", "orbe.js", "mapache3d.js", "three.module.js")
+_VERSIONADOS = ("fondo.js", "orbe.js", "tiempo.js", "mapache3d.js", "three.module.js")
 
 
 def _con_version(nombre, tipo):
@@ -836,7 +854,7 @@ async def start(ST, voz):
         app.router.add_get("/ws", _ws)
         app.router.add_get("/mapache.txt", lambda r: web.FileResponse(AQUI / "panel" / "mapache.txt"))
         app.router.add_static("/fonts", AQUI / "panel" / "fonts")
-        for js in ("fondo.js", "orbe.js", "mapache3d.js"):
+        for js in ("fondo.js", "orbe.js", "tiempo.js", "mapache3d.js"):
             app.router.add_get("/" + js, lambda r, js=js: _con_version(js, "application/javascript"))
         for js in ("three.module.js", "novedades.json"):
             app.router.add_get("/" + js, lambda r, js=js: web.FileResponse(AQUI / "panel" / js, headers=nc))

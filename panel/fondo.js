@@ -2,36 +2,42 @@
 // Clic derecho = siguiente escena · doble clic o Esc = volver al panel 2 min · clic derecho en el mapache del panel = ponerlo ya
 // · la voz fija una con la herramienta «fondo».
 // Pantalla completa (clic en la tarjeta o herramienta «pantalla_completa»): impresora con todos los datos, o sistema.
+//
+// 2026-10-21, a petición del usuario: el ORBE es la escena por defecto, ya NO rotan solas cada X tiempo
+// (se cambia a mano con el clic derecho) y la del mapache paseando está desactivada —sigue en el código y
+// la voz puede pedirla, pero no entra en la rueda—. Y el orbe es el único que no se quita al hablarle a
+// Delta: los demás descubren el panel en cuanto despierta.
 import * as THREE from '/three.module.js';
 import * as Mapache from '/mapache3d.js';
 import * as Orbe from '/orbe.js';
+import * as Tiempo from '/tiempo.js';
 
 const $ = i => document.getElementById(i);
-const ESPERA = 30e3, PAUSA = 120e3, ROTA = 90e3;
-let desde = null, fuera = 0, forzado = false, on = false, escena = null, desdeEscena = 0, ultId = null, ultCompleta = null, full = null, D = {};
+const ESPERA = 30e3, PAUSA = 120e3;
+let desde = null, fuera = 0, forzado = false, on = false, escena = null, ultId = null, ultCompleta = null, full = null, D = {};
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 
 const hhmm = () => new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
 const imprime = d => d.impresora && d.impresora.online && ['printing', 'paused'].includes(d.impresora.estado);
-const escenas = d => (imprime(d) ? ['impresion'] : []).concat(['orbe', 'reloj', 'mascota'], d.clima ? ['tiempo'] : []);
+// El orbe primero: es la de por defecto. El mapache no está: desactivado (solo por voz).
+const escenas = d => ['orbe', 'reloj'].concat(d.clima ? ['tiempo'] : [], imprime(d) ? ['impresion'] : []);
 
 function elegir(d, saltar) {
   if (full && !saltar) return full === 'impresora' ? 'impresion' : 'sistema';
   const fija = d.fondo && d.fondo.escena !== 'auto' ? d.fondo.escena : null, lista = escenas(d);
-  if (fija && !saltar) return fija === 'impresion' && !imprime(d) ? 'reloj' : fija;
-  if (saltar || !lista.includes(escena) || performance.now() - desdeEscena > ROTA)
-    return lista[(lista.indexOf(escena) + 1) % lista.length];
-  return escena;
+  if (fija && !saltar) return fija === 'impresion' && !imprime(d) ? 'orbe' : fija;
+  if (saltar) return lista[(lista.indexOf(escena) + 1) % lista.length];
+  return lista.includes(escena) ? escena : lista[0];  // sin rotación por tiempo: la que esté puesta se queda
 }
 
 function poner(e) {
   if (e === escena) return;
-  escena = e; desdeEscena = performance.now();
+  escena = e;
   for (const n of ['orbe', 'reloj', 'mascota', 'impresion', 'tiempo', 'sistema']) $('f-' + n).classList.toggle('on', n === e);
   if (e === 'orbe') Orbe.entrar();  // cada vez que se pone, la esfera vuelve a salir desde el ecuador
   if (e === 'sistema') Sis.ya();
   if (e === 'impresion') Imp.empezar();
-  if (e === 'tiempo') meteo(D);
+  if (e === 'tiempo') Tiempo.entrar();
 }
 
 function mostrar(v) {
@@ -52,10 +58,13 @@ window.fondoEspera = d => {
   const c = d.completa;  // pantalla completa pedida por voz (la del arranque no cuenta)
   if (c && c.id !== ultCompleta && ultCompleta !== null) { ultCompleta = c.id; c.que === 'salir' ? salir() : window.pantallaCompleta(c.que); return; }
   if (ultCompleta === null) ultCompleta = c ? c.id : 0;
-  const quiere = (forzado || d.estado === 'dormido') && !d.visor && !d.confirma && !document.body.classList.contains('chuleta') && !document.body.classList.contains('invisible')
+  // el orbe es su propio sistema: puesto, se queda aunque le hables (pedido el 2026-10-21). Se quita
+  // igual que siempre: doble clic, Esc o la rueda.
+  const pegado = on && escena === 'orbe';
+  const quiere = (forzado || pegado || d.estado === 'dormido') && !d.visor && !d.confirma && !document.body.classList.contains('chuleta') && !document.body.classList.contains('invisible')
     && !$('cel').classList.contains('on') && performance.now() > fuera;
   if (!quiere) desde = null; else if (desde === null) desde = performance.now();
-  mostrar(quiere && (forzado || performance.now() - desde >= ESPERA));
+  mostrar(quiere && (forzado || pegado || performance.now() - desde >= ESPERA));
   if (on) { poner(elegir(d)); textos(d); }
 };
 
@@ -82,22 +91,6 @@ function textos(d) {
   $('fr-pie').textContent = [w && `${w.temp}° · ${w.desc} · ${w.ciudad}`, a && `${a.t.slice(11, 16)} ${a.texto}`].filter(Boolean).join('   ·   ');
   $('fondo').classList.toggle('noche', new Date().getHours() < 7 && !full);
   $('fondo').classList.toggle('full', !!full);
-  if (escena === 'tiempo' && performance.now() - (meteo.t || 0) > 60e3) meteo(d);
-}
-
-// estación meteo: icono de puntos grande, temperatura y las próximas horas
-function meteo(d) {
-  const w = d.clima; meteo.t = performance.now();
-  if (!w) return;
-  const n = new Date(), min = n.getHours() * 60 + n.getMinutes(), noche = m => m < w.sale || m > w.pone,
-    hm = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`, hs = w.horas.filter(x => x.k > n.getHours()).slice(0, 6);
-  $('ft-temp').textContent = w.temp + '°';
-  $('ft-desc').textContent = `${w.desc} · ${w.ciudad}`;
-  $('ft-datos').innerHTML = [`${w.min}° / ${w.max}°`, `sensación ${w.sens}°`, `viento ${w.viento} km/h ${w.dir}`, `lluvia ${w.lluvia}%`,
-    `humedad ${w.hum}%`, `UV ${w.uv}`, `↑ ${hm(w.sale)}  ↓ ${hm(w.pone)}`].map(x => `<span>${x}</span>`).join('');
-  $('ft-horas').innerHTML = hs.map((x, i) => `<div><b>${String(x.k % 24).padStart(2, '0')}h</b><canvas id="fth${i}"></canvas>${x.t}°</div>`).join('');
-  window.icono($('ft-ico'), w.code, noche(min), 16);
-  hs.forEach((x, i) => window.icono($('fth' + i), x.c, noche(x.k % 24 * 60), 5));
 }
 
 function bucle(ms) {
@@ -105,6 +98,7 @@ function bucle(ms) {
   const t = ms / 1000;
   if (escena === 'orbe') Orbe.pintar($('fo-cv'), D);
   if (escena === 'mascota') Mapache.pintar(t, $('fm-cv'));
+  if (escena === 'tiempo') Tiempo.pintar(t, D);
   if (escena === 'impresion') Imp.pintar(t, $('f-impresion'), false);
   if (escena === 'impresion' && full) Imp.ficha(t);
   if (escena === 'sistema') Sis.pintar(t);

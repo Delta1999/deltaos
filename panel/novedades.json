@@ -1,6 +1,21 @@
 [
  {
   "f": "2026-10-21",
+  "t": "El salvapantallas ya no va rotando solo: el ORBE es el de siempre y el resto se cambia a mano con el clic derecho. El del mapache paseando queda desactivado",
+  "como": "clic derecho sobre el salvapantallas para cambiarlo"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "El orbe se queda puesto aunque le hables a Delta (el resto de salvapantallas sí destapan el panel). Se quita con doble clic, Escape o la rueda",
+  "como": "Pon el orbe"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "Estación meteorológica a pantalla completa: ahora ocupa la pantalla entera con presión, nubes, visibilidad, luna, gráfica de 27 horas con lluvia y viento, y tres días",
+  "como": "Pon el tiempo de fondo"
+ },
+ {
+  "f": "2026-10-21",
   "t": "Nuevo salvapantallas: el ORBE, una esfera de alambre que gira y ondula con tu voz y con la de Delta (el anillo rojo marca el nivel). Fuera el escudo de puntos",
   "como": "Pon el orbe · Pon la esfera"
  },

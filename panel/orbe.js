@@ -99,7 +99,7 @@ export function pintar(cv, d) {
   }
 
   if (nac < 1) return;
-  nombre(x, W, cy + R * 1.28, Math.min(H * .052, W * .044));
+  nombre(x, W, cy + R * 1.28, Math.min(H * .052, W * .044), t);
   estado(x, W, Math.min(cy + R * 1.28 + H * .11, H * .93), d, t, k);
 }
 
@@ -120,13 +120,29 @@ function trazar(x, paths, color, base, ancho) {
   }
 }
 
-function nombre(x, W, y, tam) {
+// El logotipo: DELTA Operative System. «DELTAOS» todo seguido y del mismo tamaño no se entendía
+// (2026-10-21), así que se compone a mano: la D y la S grandes, «ELTA» pequeño entre medias y la O
+// como un testigo de grabación —anillo rojo con el punto dentro— que se sigue leyendo como una O.
+function nombre(x, W, y, tam, t) {
   x.save();
-  x.font = `900 ${tam}px Doto, monospace`;
-  x.textAlign = 'center'; x.textBaseline = 'top';
-  x.letterSpacing = `${tam * .22}px`;
-  x.fillStyle = `rgba(${FG},.9)`;
-  x.fillText('DELTAOS', W / 2, y);
+  x.textBaseline = 'top';
+  const peq = tam * .52, esp = tam * .20, espP = peq * .26;
+  const gra = v => { x.font = `900 ${tam}px Doto, monospace`; x.letterSpacing = `${esp}px`; return x.measureText(v).width; };
+  const chi = v => { x.font = `900 ${peq}px Doto, monospace`; x.letterSpacing = `${espP}px`; return x.measureText(v).width; };
+  const rO = tam * .36, anchoO = rO * 2 + esp * 1.4;              // lo que ocupa la O con su aire
+  const wD = gra('D'), wELTA = chi('ELTA'), wS = gra('S');
+  let px = W / 2 - (wD + wELTA + anchoO + wS) / 2;
+  x.textAlign = 'left'; x.fillStyle = `rgba(${FG},.9)`;
+  gra('D'); x.fillText('D', px, y); px += wD;
+  chi('ELTA'); x.fillText('ELTA', px, y + (tam - peq) * .72); px += wELTA;      // apoyada en la línea base
+  // la O: anillo rojo grueso (se lee como letra) y dentro el punto que late, como el REC del panel
+  const cxO = px + anchoO / 2, cyO = y + tam * .47;
+  x.strokeStyle = `rgba(${ROJO},.95)`; x.lineWidth = Math.max(2, tam * .11);
+  x.beginPath(); x.arc(cxO, cyO, rO, 0, 7); x.stroke();
+  x.fillStyle = `rgba(${ROJO},${Math.sin(t * 2.2) > -.2 ? .95 : .18})`;
+  x.beginPath(); x.arc(cxO, cyO, rO * .40, 0, 7); x.fill();
+  px += anchoO;
+  x.fillStyle = `rgba(${FG},.9)`; gra('S'); x.fillText('S', px, y);
   x.restore();
 }
 
