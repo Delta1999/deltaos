@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-21",
+  "t": "Delta se reinicia a sí mismo cuando se lo pides, sin tocar la terminal (hace falta para que se apliquen los cambios de su código)",
+  "como": "Reiníciate · Reinicia DeltaOS"
+ },
+ {
+  "f": "2026-10-21",
   "t": "Ya no te sale ninguna ventana de permiso mientras hablas con Delta: te pregunta «¿seguro?» de viva voz, dices «sí» y lo hace, sin más confirmaciones",
   "como": "«apaga el ordenador» → «¿seguro?» → «sí»"
  },

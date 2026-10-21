@@ -22,7 +22,11 @@ async def main(texto, segundos):
         fin, quieto, dicho = time.monotonic() + segundos, None, ""
         while time.monotonic() < fin:
             try:
-                d = json.loads((await asyncio.wait_for(ws.receive(), 2)).data)
+                m = await asyncio.wait_for(ws.receive(), 2)
+                if not isinstance(m.data, str):  # el panel se ha ido: Delta se ha reiniciado o ha muerto
+                    print("(el panel se ha cerrado: Delta se está reiniciando)", flush=True)
+                    return
+                d = json.loads(m.data)
             except asyncio.TimeoutError:
                 pass
             for p in d.get("pasos", []):

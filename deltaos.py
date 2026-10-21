@@ -7,6 +7,7 @@ import asyncio
 import html
 import json
 import re
+import subprocess
 import time
 from pathlib import Path
 from urllib.parse import quote, unquote
@@ -626,6 +627,27 @@ async def energia(accion, minutos="0"):
                                   "en unos segundos. Despídete en una frase muy corta.") + aviso
 
 
+async def reiniciar_delta():
+    """Reinicia el propio Delta cuando el usuario lo pide (lo pidió el 2026-10-21). El script corre en una sesión
+    aparte, así que sobrevive a que Delta muera; la vista (panel/mascota/invisible) la relee ventana.sh."""
+    ocupado = [n for n, e in ST["trabajos"].items() if e == "en curso"]
+    if ST.get("claude", {}).get("estado") in ("trabajando", "esperando permiso"):
+        ocupado.append("Claude Code")
+    acciones.tarea(_reiniciar_luego())
+    return ("Hecho: me reinicio en unos segundos. Despídete en una frase muy corta («Enseguida vuelvo»)." +
+            (f" Ojo, se queda a medias: {', '.join(ocupado)}." if ocupado else ""))
+
+
+async def _reiniciar_luego():
+    await asyncio.sleep(1)
+    t0 = time.monotonic()
+    while ST["hablando"] and time.monotonic() - t0 < 15:  # que acabe la despedida antes de morir
+        await asyncio.sleep(0.3)
+    await asyncio.sleep(1.5)  # lo que quede sonando en paplay
+    subprocess.Popen([str(AQUI / "reiniciar.sh")], start_new_session=True,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 async def _energia_luego(cmd, espera):
     await asyncio.sleep(espera + 2)
     t0 = time.monotonic()
@@ -718,9 +740,14 @@ acciones.registrar([
                  "Es inmediato: no le preguntes «¿seguro?», llama directamente.",
                  {"accion": acciones._s("suspender | apagar | reiniciar | cancelar"),
                   "minutos": acciones._s("minutos de espera; 0 = ahora")}, req=["accion"]),
+    acciones._fn("reiniciar_delta",
+                 "Te reinicia a TI (DeltaOS: tu proceso, el panel y la mascota), sin tocar el ordenador. Úsala cuando el "
+                 "usuario diga «reiníciate», «reinicia DeltaOS», «reinicia el asistente» o «vuelve a arrancar». "
+                 "Hace falta para que se apliquen los cambios de tu código. No la uses si dice «reinicia el ordenador»: "
+                 "eso es energia accion=reiniciar. Es inmediato: no le preguntes «¿seguro?», llama directamente."),
     acciones._fn("mover_a_pantalla",
                  "Lleva la interfaz (panel o barra de estado, que son la misma ventana) y/o la mascota a otra pantalla, y se queda ahí.",
                  {"cual": acciones._s("interfaz | mascota | todo"),
                   "donde": acciones._s("otra | arriba | abajo | izquierda | derecha | principal | ultrawide")}, req=["cual"]),
     acciones._fn("quitar_de_tira", "Quita la tarjeta (o la web, mapa o informe) de la barra de estado y la deja en pequeño."),
-], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia, mover_a_pantalla, quitar_de_tira))
+], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia, reiniciar_delta, mover_a_pantalla, quitar_de_tira))
