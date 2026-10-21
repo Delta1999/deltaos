@@ -878,6 +878,8 @@ async def start(ST, voz):
         acciones.tarea(f())
     acciones.tarea(_poll_arreglos(ST))
     acciones.tarea(_difusor(ST))
+    import raton  # botones del ratón: escuchar y privacidad
+    acciones.tarea(raton.vigilar(ST))
     print(f"Panel en http://127.0.0.1:{PORT}")
     return True
 
