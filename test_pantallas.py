@@ -48,12 +48,13 @@ assert panel.PANTALLA["mascota"].read_text().strip() == "eDP-1"
 
 # ventana.sh elige la misma pantalla que Python: la pedida si está encendida, si no la que no es la principal.
 destino = Path("panel/ventana.sh").read_text().split("destino() {", 1)[1].split("\n}\n", 1)[0]
-def sh(want):
+def sh(want, ks=KS):
     (tmp / "pant").write_text(want)
     script = f'kscreen-doctor() {{ printf %s "$KS"; }}\nPANT={tmp}/pant SALIDA=\ndestino() {{{destino}\n}}\ndestino'
-    return subprocess.run(["bash", "-c", script], capture_output=True, text=True, env={"KS": KS, "PATH": "/usr/bin:/bin"}).stdout.split()
+    return subprocess.run(["bash", "-c", script], capture_output=True, text=True, env={"KS": ks, "PATH": "/usr/bin:/bin"}).stdout.split()
 assert sh("eDP-1")[:5] == ["434", "1080", "1652", "930", "panel"], sh("eDP-1")
 assert sh("")[:4] == ["0", "0", "2520", "1080"] and sh("DP-1")[:4] == ["0", "0", "2520", "1080"]  # apagada → la de siempre
+assert sh("", UNA)[4] == "invisible", "solo el portátil: la barra, la mascota oculta por defecto (21/10, hasta el gato nuevo)"
 assert sh("eDP-1")[5] == sh("")[5], "la firma es el juego de pantallas, no la elegida: si no, cambiar de pantalla resetea la vista"
 
 # El escudo: pedirlo en modo barra pone el panel, que es donde se pinta, y el panel lo enseña ya (forzado), no al dormir.

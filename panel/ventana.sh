@@ -5,7 +5,8 @@
 # «invisible» = mascota oculta y el panel encogido a una barra de estado en la esquina superior derecha,
 # siempre encima y sin robar el foco; «invisible-grande» = esa misma barra con una tarjeta desplegada;
 # «oculto» = ni barra ni mascota, todo minimizado (Delta sigue escuchando).
-# Al cambiar las pantallas se elige sola: con HDMI, panel; solo el portátil, mascota.
+# Al cambiar las pantallas se elige sola: con HDMI, panel; solo el portátil, la barra (la mascota, oculta
+# por defecto hasta que esté el diseño nuevo del gato: 2026-10-21; se saca con «modo mascota»).
 # Uso: ventana.sh [NOMBRE_SALIDA]   p.ej. eDP-1 o HDMI-A-1
 DIR="$(cd "$(dirname "$0")" && pwd)"
 URL="http://127.0.0.1:7876"
@@ -28,7 +29,7 @@ destino() {
       if(s=="") s=uno
       if(s=="") exit
       split(g[s],a," "); split(a[1],xy,","); split(a[2],wh,"x")
-      print xy[1], xy[2], wh[1], wh[2], (k>1 ? "panel" : "mascota"), f}'
+      print xy[1], xy[2], wh[1], wh[2], (k>1 ? "panel" : "invisible"), f}'
 }
 aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
   read -r X Y AN AL _ <<<"$2"
