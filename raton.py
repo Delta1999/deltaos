@@ -4,7 +4,8 @@ El receptor manda dos de sus botones como teclas por su nodo de teclado: el de �
 de ZOOM es Ctrl izquierda. Delta se queda ese nodo en exclusiva (EVIOCGRAB), así KDE ya no abre la Vista general
 ni hace zoom con ellos, y el Meta y el Ctrl del teclado de verdad siguen igual. Si Delta no está en marcha, los
 botones vuelven a hacer lo de siempre.
-  ventanas → escuchar, como si hubiera oído «Delta»; si ya escucha, a dormir (stand-by)
+  ventanas → escuchar, como si hubiera oído «Delta»; si ya escucha, a dormir (stand-by); si la interfaz está en
+             el salón (firetv.py), la trae al portátil y escucha
   ZOOM     → privacidad on/off
 Solo stdlib: se lee struct input_event a pelo."""
 import asyncio
@@ -13,6 +14,7 @@ import os
 import struct
 
 import acciones
+import firetv
 
 DISPOSITIVO = "/dev/input/by-id/usb-MOSART_Semi._2.4G_RF_Keyboard___Mouse-event-kbd"
 EVENTO = struct.Struct("llHHi")  # struct input_event de 64 bits: timeval, type, code, value
@@ -34,6 +36,10 @@ def _hacer(ST, orden):
         panel._cmd(ST, "privacidad")
     elif ST.get("privacidad"):
         panel.notificar("info", "Privacidad activada: pulsa ZOOM en el ratón para que vuelva a escucharte")
+    elif firetv.DONDE["aqui"] == "salon":  # estás en la habitación: la interfaz y el micro vuelven al portátil
+        acciones.tarea(firetv.interfaz_portatil())
+        if not ST["activo"]:
+            acciones.activar()
     else:
         acciones.dormir_ahora() if ST["activo"] else acciones.activar()
 

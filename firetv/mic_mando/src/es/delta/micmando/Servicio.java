@@ -13,6 +13,8 @@ import android.util.Log;
  * Versión sin pantalla: la misma grabación como servicio en primer plano, para probar si Android 9 deja grabar
  * con otra app delante (a una app escondida el micro le da silencio). Arranque, solo desde ADB:
  *   am start-foreground-service -n es.delta.micmando/.Servicio --ei seg 180
+ * o, para que el mando sea el micro de Delta (ver Emisora), hasta am stopservice:
+ *   am start-foreground-service -n es.delta.micmando/.Servicio --es enviar IP:7877 --es clave CLAVE
  */
 public class Servicio extends Service {
     static final String CANAL = "mic";
@@ -26,6 +28,16 @@ public class Servicio extends Service {
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .setContentTitle("Delta escucha el mando")
                 .build());
+        String enviar = i == null ? null : i.getStringExtra("enviar");  // IP:puerto del portátil
+        if (enviar != null) {
+            if (!Emisora.seguir) {
+                Emisora.seguir = true;
+                String clave = i.getStringExtra("clave");
+                int dp = enviar.lastIndexOf(':');
+                new Thread(() -> Emisora.emitir(enviar.substring(0, dp), Integer.parseInt(enviar.substring(dp + 1)), clave)).start();
+            }
+            return START_NOT_STICKY;
+        }
         if (grabando) {
             Log.w(Grabadora.T, "ya estaba grabando");
             return START_NOT_STICKY;
@@ -41,6 +53,12 @@ public class Servicio extends Service {
             stopSelf();
         }).start();
         return START_NOT_STICKY;
+    }
+
+    @Override
+    public void onDestroy() {
+        Emisora.seguir = false;  // am stopservice
+        super.onDestroy();
     }
 
     @Override

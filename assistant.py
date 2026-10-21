@@ -259,6 +259,8 @@ async def audio_input_loop():
             while data := await asyncio.to_thread(recorder.stdout.read, AUDIO_CHUNK):
                 if ST.get("privacidad"):
                     continue  # modo privacidad: se descarta todo, ni la palabra clave se procesa
+                if firetv.DONDE["aqui"] == "salon":
+                    data = firetv.trozo(len(data))  # interfaz en el salón: el portátil sordo, se oye el mando
                 medir_mic(data)
                 if not ST["activo"]:
                     estaba = False

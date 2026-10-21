@@ -3,7 +3,9 @@ interfaz de DeltaOS en la tele (la app firetv/mic_mando, actividad Tele).
 
 Fire OS deshace cosas por su cuenta (reactiva Alexa en cada arranque, puede dormir o desactivar apps): _blindar()
 lo vuelve a dejar todo como debe estar tras cada arranque y cada 5 minutos. El estado va al panel en S["tele"].
-Un clic en el botón del micro del mando (lo lee devicecontrol y sale en logcat) pasa la interfaz al salón.
+Un clic en el botón del micro del mando (lo lee devicecontrol y sale en logcat) pasa la interfaz al salón y despierta
+a Delta. Con la interfaz en el salón el micro del portátil queda sordo: Delta oye solo el mando (la app del stick manda
+su audio a MANDO_PUERTO y trozo() lo da en lugar del del portátil). El botón de ventanas del ratón la devuelve (raton.py).
 """
 import asyncio
 import time
@@ -41,6 +43,9 @@ _FIJAR = "; ".join([  # idempotente: se repite entero cada vez, sin mirar antes
 CADA_BLINDAJE = 300
 BOTON = "Received Key name: ALEXA, code: 319, action: 0"
 DONDE = {"aqui": "portatil", "pulsado": 0.0}  # dónde está la interfaz: portatil | salon
+MANDO_PUERTO = 7877
+_MANDO = bytearray()  # audio del mando aún no consumido (16 kHz mono s16le)
+MANDO_MAX = 16000 * 2  # 1 s: si Delta no lo consume (reconectando…), lo viejo sobra
 _boot = {"id": None, "t": 0.0}
 
 
@@ -99,8 +104,40 @@ def _url():
     return f"http://{ip}:{panel.PORT}/?t={panel.TELE_CLAVE}"
 
 
+def trozo(n):
+    """n bytes del mando para Delta en lugar del micro del portátil; sin botón pulsado, silencio."""
+    d = bytes(_MANDO[:n])
+    del _MANDO[:n]
+    return d + bytes(n - len(d))
+
+
+async def _recibir(r, w):
+    """La app del stick manda la clave en la primera línea y luego el audio del mando."""
+    try:
+        if w.get_extra_info("peername")[0] != panel.TELE_IP or \
+                (await asyncio.wait_for(r.readline(), 5)).strip().decode() != panel.TELE_CLAVE:
+            return
+        while d := await r.read(3200):
+            if DONDE["aqui"] == "salon":
+                _MANDO.extend(d)
+                del _MANDO[:-MANDO_MAX]
+    except (asyncio.TimeoutError, OSError, UnicodeDecodeError):
+        pass
+    finally:
+        w.close()
+
+
+async def _micro_mando():
+    """Que la app del stick esté mandando el audio del mando (tras un reinicio del stick, otra vez)."""
+    ip = panel.ip_para_la_tele()
+    _, out = await _adb(f"dumpsys activity services {PROPIA} | grep -c ServiceRecord")
+    if ip and out.strip() in ("", "0"):
+        await _adb(f"am start-foreground-service -n {PROPIA}/.Servicio --es enviar {ip}:{MANDO_PUERTO} "
+                   f"--es clave {panel.TELE_CLAVE}")
+
+
 async def interfaz_salon(tapar=True):
-    """La interfaz a la tele. tapar=False: si hay otra app delante (Netflix…), la deja."""
+    """La interfaz a la tele y el mando como micro. tapar=False: si hay otra app delante (Netflix…), la deja."""
     url = _url()
     if not url:
         return "El panel no escucha en la red de casa (¿cambió la wifi?): reinicia Delta y vuelve a pedirlo."
@@ -109,18 +146,23 @@ async def interfaz_salon(tapar=True):
     if e is None:
         return "El Fire TV del salón no responde (¿desenchufado o sin wifi?)."
     DONDE["aqui"] = "salon"
+    await _micro_mando()
     if not tapar and e["on"] and e["app"] not in ("inicio", "delta"):
         return f"Estás en el salón; dejo {e['app']} delante."
     rc, out = await _adb(f"input keyevent 224; am start -n {PROPIA}/.Tele --es url '{url}'")
-    return "Paso la interfaz a la tele del salón." if rc == 0 and "Error" not in out else f"No pude: {out[-200:]}"
+    if rc != 0 or "Error" in out:
+        return f"No pude: {out[-200:]}"
+    return "Paso la interfaz a la tele del salón; ahora te oigo por el mando (el micro del portátil queda sordo)."
 
 
 async def interfaz_portatil():
     DONDE["aqui"] = "portatil"
+    _MANDO.clear()
+    await _adb(f"am stopservice -n {PROPIA}/.Servicio")
     e = await _estado()
     if e and e["app"] == "delta":
         await _adb(f"am start -n {PROPIA}/.Tele --ez salir true")
-    return "La interfaz vuelve al portátil."
+    return "La interfaz vuelve al portátil; vuelvo a oírte por su micro."
 
 
 async def _boton():
@@ -134,7 +176,13 @@ async def _boton():
             async for _ in p.stdout:
                 if time.monotonic() - DONDE["pulsado"] > 3:  # mantener pulsado o repetir no cuenta dos veces
                     DONDE["pulsado"] = time.monotonic()
-                    print(f"📺 botón del mando: {await interfaz_salon(tapar=False)}")
+                    if DONDE["aqui"] != "salon":
+                        print(f"📺 botón del mando: {await interfaz_salon(tapar=False)}")
+                    ST = acciones.ST
+                    if ST.get("privacidad"):
+                        panel.notificar("info", "Privacidad activada: no te oigo ni por el mando")
+                    elif not ST["activo"]:
+                        acciones.activar()  # como si hubiera oído «Delta»
             await p.wait()
         except Exception as ex:
             print(f"📺 Fire TV, botón: {ex}")
@@ -143,10 +191,18 @@ async def _boton():
 
 async def vigilar():
     acciones.tarea(_boton())
+    if ip := panel.ip_para_la_tele():
+        try:
+            await asyncio.start_server(_recibir, ip, MANDO_PUERTO)
+        except OSError as e:
+            print(f"📺 Fire TV: sin micro del mando ({e})")
     while True:
         try:
             await _blindar()
-            panel.S["tele"] = await _estado()
+            if DONDE["aqui"] == "salon":
+                await _micro_mando()
+            e = await _estado()
+            panel.S["tele"] = e and {**e, "aqui": DONDE["aqui"]}
         except Exception:
             pass
         await asyncio.sleep(30)
@@ -190,6 +246,9 @@ acciones.registrar([
         "interfaz_tele: tu interfaz (el panel de DeltaOS) a la tele del salón («pasa la interfaz a la tele», «me voy al "
         "salón»). interfaz_portatil: vuelve al portátil («pásala al portátil», «me vuelvo a la habitación»). "
         "volver_a_delta: tras Netflix u otra app, el panel otra vez en la tele («vuelve a Delta», «quita Netflix»). "
+        "La interfaz cambia de sitio también sin ti (el botón del mando la lleva al salón, el de ventanas del ratón la "
+        "devuelve al portátil): no supongas dónde está; si te piden pasarla, llama SIEMPRE a la herramienta aunque creas "
+        "que ya está allí, y di solo lo que ella conteste. "
         "Teclas: pausa/seguir (la misma), atras, inicio, arriba/abajo/izquierda/derecha, ok, adelantar, retroceder, "
         "siguiente, anterior, subir_volumen/bajar_volumen, silenciar, menu, apagar, encender.",
         {"accion": _s("estado | abrir | interfaz_tele | interfaz_portatil | volver_a_delta | " + " | ".join(TECLAS)),
