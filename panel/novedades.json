@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-21",
+  "t": "El orbe 2 (la gota) enseña el puntero y se aparta del ratón: donde apuntas se le hace un hoyo y el cuerpo se retira un poco",
+  "como": "Pon el orbe 2 y pasa el ratón por encima"
+ },
+ {
+  "f": "2026-10-21",
   "t": "La mascota del escritorio queda apagada hasta nueva orden: Delta arranca sin ella. Pedir un animal la vuelve a encender (y hay que reiniciar Delta para verla).",
   "como": "quita la mascota · pon el mapache"
  },

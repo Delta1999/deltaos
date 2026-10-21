@@ -81,11 +81,13 @@ $('fondo').addEventListener('dblclick', salir);
 // La rueda también lo quita: el reloj tapa el panel en cuanto Delta se duerme, que es justo cuando
 // quieres subir a releer la conversación, y antes solo salía con doble clic o Escape (2026-10-20).
 $('fondo').addEventListener('wheel', salir, { passive: true });
-$('fondo').addEventListener('mousemove', e => {  // el mapache sigue al ratón
+$('fondo').addEventListener('mousemove', e => {  // el mapache sigue al ratón y la gota se aparta de él
+  if (escena === 'blob') { const r = $('fb-cv').getBoundingClientRect(); return Gota.raton(e.clientX - r.left, e.clientY - r.top); }
   if (escena !== 'mascota') return;
   const r = $('fm-cv').getBoundingClientRect();
   Mapache.raton(e.clientX - r.left, e.clientY - r.top, performance.now() / 1000);
 });
+$('fondo').addEventListener('mouseleave', () => Gota.raton(null, 0));
 addEventListener('keydown', e => { if (e.key === 'Escape') salir(); });
 
 function textos(d) {

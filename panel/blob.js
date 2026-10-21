@@ -21,14 +21,21 @@ const SEG = 192;        // segmentos de la esfera: con menos se ve el polígono 
 const ENTRA = 1.4;      // segundos que tarda en salir (crece y se deforma desde una bola lisa)
 
 let r3 = null, t0 = 0, NV = 0, MV = 0, V = 0, giro = 0, fase = 0, ult = 0;
-export const entrar = () => { t0 = performance.now() / 1000; giro = 0; fase = 0; ult = 0; NV = MV = V = 0; };
+export const entrar = () => { t0 = performance.now() / 1000; giro = 0; fase = 0; ult = 0; NV = MV = V = 0; E = 0; };
+
+// El ratón la empuja (pedido el 2026-10-21): donde apunta se le hace un hoyo, como si la gota se
+// apartase del dedo, y todo el cuerpo se retira un poco. Viene en píxeles del lienzo; null = fuera.
+let rx = null, ry = 0, E = 0;
+const dirR = new THREE.Vector3(0, 0, 1);
+export const raton = (x, y) => { rx = x; ry = y; };
 
 const suave = v => v < 0 ? 0 : v > 1 ? 1 : v * v * (3 - 2 * v);
 
 // ---- el ruido de Perlin periódico (Stefan Gustavson, dominio público) y la función de deformación.
 // Va con prefijo d_ para no chocar con nada que traiga three.js en sus propios chunks.
 const CABECERA = /* glsl */`
-uniform float tiempo, frecuencia, distor, periodo, detalle, detalleFrec;
+uniform float tiempo, frecuencia, distor, periodo, detalle, detalleFrec, empuje;
+uniform vec3 raton;
 
 vec3 d_mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec4 d_mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -99,7 +106,9 @@ vec3 d_orthogonal(vec3 v) {
 float f(vec3 punto) {
   float masa = d_pnoise(punto / frecuencia + mod(tiempo, periodo), vec3(periodo)) * distor;
   float piel = d_pnoise(punto * detalleFrec + mod(tiempo * 1.6, periodo), vec3(periodo)) * detalle;
-  return masa + piel;
+  // el hoyo del ratón: una campana alrededor de la dirección a la que apunta (a = 1 - cos del ángulo)
+  float a = 1.0 - dot(normalize(punto), raton);
+  return masa + piel - empuje * .3 * exp(-a / .14);
 }
 `;
 
@@ -148,6 +157,7 @@ function montar(cv) {
   const u = {
     tiempo: {value: 0}, frecuencia: {value: 1.35}, distor: {value: .3},
     periodo: {value: 4}, detalle: {value: .035}, detalleFrec: {value: 3.4},
+    empuje: {value: 0}, raton: {value: dirR},
   };
   const mat = new THREE.MeshPhysicalMaterial({
     color: 0xffffff, roughness: .14, metalness: 0, clearcoat: 1, clearcoatRoughness: .12,
@@ -206,15 +216,43 @@ export function pintar(cv, d) {
   giro += dt * (.12 + (hablando ? .34 : est === 'trabajando' ? .25 : 0) + V * .5);
   malla.rotation.set(Math.sin(t * .11) * .22, giro, Math.sin(t * .07) * .12);
   malla.scale.setScalar(.8 * (.6 + .4 * nac) * (1 + V * .04));   // con voz se hincha un poco
-  malla.position.y = .46;   // arriba del centro: debajo van la hora y la conversación
+  malla.position.set(0, .46, 0);   // arriba del centro: debajo van la hora y la conversación
+  empujar(cam, malla, w, h, sigue);
 
   u.tiempo.value = fase;
   u.distor.value = (.20 + .05 * Math.sin(t * .55) + V * .26) * nac;   // respira siempre; con voz, se hincha
   u.detalle.value = (.02 + V * .045) * nac;                          // y le sale grano en la piel
+  u.empuje.value = E * nac;
   ren.render(escena, cam);
 
   hora();
   conversacion(d, nac);
+}
+
+// El rayo del ratón contra la gota sin deformar. Si la toca, el hoyo va donde la toca; si pasa
+// cerca, va hacia el lado del ratón y con menos fuerza. La dirección y la fuerza se suavizan, que
+// si no el hoyo salta de un sitio a otro al mover el ratón deprisa.
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), cen = new THREE.Vector3(), pc = new THREE.Vector3();
+function empujar(cam, malla, w, h, sigue) {
+  let obj = 0;
+  if (rx !== null) {
+    ndc.set(rx / w * 2 - 1, 1 - ry / h * 2);
+    ray.setFromCamera(ndc, cam);
+    const R = malla.scale.x * 1.05, o = ray.ray.origin, d = ray.ray.direction;
+    malla.getWorldPosition(cen);
+    pc.copy(o).addScaledVector(d, cen.clone().sub(o).dot(d));       // punto del rayo más cerca del centro
+    const dist = pc.distanceTo(cen);
+    if (dist < R) pc.copy(o).addScaledVector(d, cen.clone().sub(o).dot(d) - Math.sqrt(R * R - dist * dist));
+    else pc.sub(cen).setLength(R).add(cen);
+    obj = dist < R ? 1 : 1 - suave((dist - R) / (R * .7));
+    if (obj > 0) dirR.lerp(malla.worldToLocal(pc.clone()).normalize(), .25).normalize();
+  }
+  E = sigue(E, obj, .12, .5);
+  // el cuerpo se aparta del ratón: hacia el lado contrario, en el plano de la pantalla
+  if (E > 0) {
+    const lado = malla.localToWorld(dirR.clone()).sub(cen);
+    malla.position.x -= lado.x * E * .07; malla.position.y -= lado.y * E * .07;
+  }
 }
 
 // ---- la hora: «1 9 : 4 2», sin segundos. Los dos puntos laten solos (CSS), que es el único
