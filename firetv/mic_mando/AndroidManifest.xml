@@ -3,6 +3,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="es.delta.micmando" android:versionCode="1" android:versionName="0.1">
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-feature android:name="android.software.leanback" android:required="false"/>
     <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
     <uses-feature android:name="android.hardware.microphone" android:required="false"/>
@@ -14,5 +15,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- DUMP solo lo tiene el shell de ADB: ninguna otra app del stick puede encender el micro -->
+        <service android:name=".Servicio" android:exported="true" android:permission="android.permission.DUMP"/>
     </application>
 </manifest>
