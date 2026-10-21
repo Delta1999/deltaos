@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Experimento: ¿se puede grabar el micro del mando del Fire TV sin Alexa? -->
+<!-- Delta en el Fire TV: el micro del mando (Servicio) y la interfaz en la tele (Tele) -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="es.delta.micmando" android:versionCode="1" android:versionName="0.1">
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
     <uses-feature android:name="android.software.leanback" android:required="false"/>
     <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
     <uses-feature android:name="android.hardware.microphone" android:required="false"/>
-    <application android:label="Delta mic">
+    <application android:label="Delta" android:usesCleartextTraffic="true">
         <activity android:name=".Main" android:exported="true"
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
             <intent-filter>
@@ -16,6 +17,9 @@
             </intent-filter>
         </activity>
         <!-- DUMP solo lo tiene el shell de ADB: ninguna otra app del stick puede encender el micro -->
+        <activity android:name=".Tele" android:exported="true" android:permission="android.permission.DUMP"
+            android:launchMode="singleTask" android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"/>
         <service android:name=".Servicio" android:exported="true" android:permission="android.permission.DUMP"/>
     </application>
 </manifest>

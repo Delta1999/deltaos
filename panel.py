@@ -8,6 +8,7 @@ import glob
 import json
 import math
 import os
+import secrets
 import socket
 import subprocess
 import urllib.parse
@@ -556,6 +557,40 @@ async def _poll_clima():
 
 # ---- servidor ----
 ORIGENES = {None, f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"}
+# La tele del salón (Fire TV) ve el panel por la red de casa: solo desde su IP y con esta clave, que cambia en cada
+# arranque y le llega por ADB (firetv.py). En el stick hay apps de terceros: sin clave no ven nada, y con ella solo
+# miran (el WebSocket de la tele no atiende órdenes; la voz va por el micro).
+TELE_IP = "192.168.0.101"
+TELE_CLAVE = secrets.token_urlsafe(24)
+
+
+def _de_la_tele(request):
+    return request.remote not in ("127.0.0.1", "::1")
+
+
+@web.middleware
+async def _guardia(request, handler):
+    if not _de_la_tele(request):
+        return await handler(request)
+    if request.remote != TELE_IP:
+        raise web.HTTPForbidden()
+    if request.query.get("t") == TELE_CLAVE:  # la primera carga; el resto (scripts, fuentes, ws) va con la cookie
+        r = await handler(request)
+        r.set_cookie("delta_tele", TELE_CLAVE, httponly=True, samesite="Strict")
+        return r
+    if not secrets.compare_digest(request.cookies.get("delta_tele", ""), TELE_CLAVE):
+        raise web.HTTPForbidden()
+    return await handler(request)
+
+
+def ip_para_la_tele():
+    """IP de este portátil vista desde el stick, o None si no hay red hacia él."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as u:
+            u.connect((TELE_IP, 9))  # UDP: no manda nada, solo elige la ruta
+            return u.getsockname()[0]
+    except OSError:
+        return None
 
 
 _VERSIONADOS = ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "mapache3d.js", "three.module.js")
@@ -584,6 +619,8 @@ async def _ws(request):
     try:
         await ws.send_str(json.dumps(snapshot(request.app["ST"])))  # estado completo al conectar
         async for m in ws:
+            if _de_la_tele(request):
+                continue  # la tele solo mira
             try:  # el navegador manda su posición {"geo":[lat,lon]} o un botón {"cmd":"privacidad"}
                 msg = json.loads(m.data)
                 if isinstance(msg.get("llave"), (int, float)):
@@ -848,7 +885,7 @@ async def start(ST, voz):
     """Arranca el servidor en 127.0.0.1; devuelve True si quedó escuchando."""
     S["voz"] = voz
     try:
-        app = web.Application()
+        app = web.Application(middlewares=[_guardia])
         app["ST"] = ST
         # no-cache: sin él Chromium daba por bueno el fondo.js viejo un buen rato (caché heurística por Last-Modified)
         # y un cambio del panel no se veía ni recargando (2026-10-21). Con no-cache revalida por ETag.
@@ -871,6 +908,12 @@ async def start(ST, voz):
         runner = web.AppRunner(app, access_log=None)
         await runner.setup()
         await web.TCPSite(runner, "127.0.0.1", PORT).start()
+        if ip := ip_para_la_tele():  # para la tele del salón (ver _guardia)
+            ORIGENES.add(f"http://{ip}:{PORT}")
+            try:
+                await web.TCPSite(runner, ip, PORT).start()
+            except OSError as e:
+                print(f"Panel no disponible para la tele: {e}")
     except Exception as e:
         print(f"Panel no disponible: {e}")
         return False

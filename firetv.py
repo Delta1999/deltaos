@@ -1,9 +1,12 @@
-"""El Fire TV Stick del salón por ADB (red, ya autorizado): abrir apps, teclas del mando y qué tiene puesto.
+"""El Fire TV Stick del salón por ADB (red, ya autorizado): abrir apps, teclas del mando, qué tiene puesto y la
+interfaz de DeltaOS en la tele (la app firetv/mic_mando, actividad Tele).
 
-Alexa está desactivada en el stick, pero el sistema reactiva com.amazon.vizzini en cada arranque: vigilar() lo nota
-por el boot_id y la vuelve a desactivar. El estado (encendida y app delante) va al panel en S["tele"].
+Fire OS deshace cosas por su cuenta (reactiva Alexa en cada arranque, puede dormir o desactivar apps): _blindar()
+lo vuelve a dejar todo como debe estar tras cada arranque y cada 5 minutos. El estado va al panel en S["tele"].
+Un clic en el botón del micro del mando (lo lee devicecontrol y sale en logcat) pasa la interfaz al salón.
 """
 import asyncio
+import time
 
 import acciones
 import panel
@@ -24,7 +27,21 @@ ALEXA = ("com.amazon.vizzini", "com.amazon.vizzini.ftvcds", "com.amazon.alexadir
          "com.amazon.alexa.externalmediaplayer.fireos", "com.amazon.tv.alexaalerts", "com.amazon.tv.alexanotifications",
          "com.amazon.firetv.androidskillconnectioncapability", "com.amazon.comms.starktachyon",
          "com.amazon.rtcsessioncontroller", "com.amazon.whad", "com.amazon.wha.mediabrowserservice", "com.amazon.whasettings")
-_boot = {"id": None}
+PROPIA = "es.delta.micmando"
+APK = acciones.AQUI / "firetv" / "mic_mando" / "build" / "micmando.apk"
+# sin estas no hay botón del micro, ni panel en la tele, ni vuelta al inicio
+NECESARIAS = (PROPIA, "com.amazon.tv.devicecontrol", "com.amazon.webview.chromium", "com.amazon.tv.launcher")
+_FIJAR = "; ".join([  # idempotente: se repite entero cada vez, sin mirar antes
+    "cmd appops set com.amazon.vizzini RECORD_AUDIO ignore",  # si Alexa vuelve, que siga sorda
+    f"pm grant {PROPIA} android.permission.RECORD_AUDIO",
+    f"cmd appops set {PROPIA} RECORD_AUDIO allow", f"cmd appops set {PROPIA} RUN_IN_BACKGROUND allow",
+    f"cmd appops set {PROPIA} START_FOREGROUND allow",
+    f"dumpsys deviceidle whitelist +{PROPIA}",  # que el ahorro de energía no la duerma
+    "settings put secure screensaver_enabled 0"])  # sin salvapantallas de paisajes: tapaba el panel y el primer clic
+CADA_BLINDAJE = 300
+BOTON = "Received Key name: ALEXA, code: 319, action: 0"
+DONDE = {"aqui": "portatil", "pulsado": 0.0}  # dónde está la interfaz: portatil | salon
+_boot = {"id": None, "t": 0.0}
 
 
 async def _adb(cmd, timeout=10):
@@ -37,6 +54,8 @@ async def _adb(cmd, timeout=10):
 
 
 def _nombre(pkg):
+    if pkg == PROPIA:
+        return "delta"
     return next((n for n, p in APPS.items() if p == pkg), "inicio" if pkg == "com.amazon.tv.launcher" else pkg)
 
 
@@ -50,23 +69,83 @@ async def _estado():
     return {"on": on, "app": _nombre(pkg) if on else ""}
 
 
-async def _sin_alexa():
-    """Tras cada arranque del stick: Alexa fuera otra vez."""
+async def _blindar(forzar=False):
+    """Tras cada arranque del stick y cada 5 min: Alexa fuera y sorda, lo nuestro instalado, activo y sin dormir."""
     rc, boot = await _adb("cat /proc/sys/kernel/random/boot_id")
-    if rc != 0 or boot == _boot["id"]:
+    if rc != 0 or (boot == _boot["id"] and time.monotonic() - _boot["t"] < CADA_BLINDAJE and not forzar):
         return
     _, desact = await _adb("pm list packages -d")  # corta; la de activas pasa del recorte de _run
+    desact = set(desact.replace("package:", "").split())
     for p in ALEXA:
-        if f"package:{p}\n" not in desact + "\n":
+        if p not in desact:
             await _adb(f"pm disable-user --user 0 {p}")
             print(f"📺 Fire TV: {p} había vuelto, desactivada")
-    _boot["id"] = boot
+    for p in NECESARIAS:
+        if p in desact:
+            await _adb(f"pm enable {p}")
+            print(f"📺 Fire TV: {p} estaba desactivada, activada")
+    _, hay = await _adb(f"pm list packages {PROPIA}")
+    if f"package:{PROPIA}" not in hay.split() and APK.exists():
+        rc2, out = await _run(["adb", "-s", DIR, "install", "-r", str(APK)], timeout=60)
+        print(f"📺 Fire TV: la app de Delta no estaba, reinstalada: {out[-80:]}")
+    await _adb(_FIJAR)
+    _boot.update(id=boot, t=time.monotonic())
+
+
+def _url():
+    ip = panel.ip_para_la_tele()
+    if not ip or f"http://{ip}:{panel.PORT}" not in panel.ORIGENES:
+        return None  # la red cambió desde que arrancó Delta: el panel no escucha en esa IP
+    return f"http://{ip}:{panel.PORT}/?t={panel.TELE_CLAVE}"
+
+
+async def interfaz_salon(tapar=True):
+    """La interfaz a la tele. tapar=False: si hay otra app delante (Netflix…), la deja."""
+    url = _url()
+    if not url:
+        return "El panel no escucha en la red de casa (¿cambió la wifi?): reinicia Delta y vuelve a pedirlo."
+    await _blindar()
+    e = await _estado()
+    if e is None:
+        return "El Fire TV del salón no responde (¿desenchufado o sin wifi?)."
+    DONDE["aqui"] = "salon"
+    if not tapar and e["on"] and e["app"] not in ("inicio", "delta"):
+        return f"Estás en el salón; dejo {e['app']} delante."
+    rc, out = await _adb(f"input keyevent 224; am start -n {PROPIA}/.Tele --es url '{url}'")
+    return "Paso la interfaz a la tele del salón." if rc == 0 and "Error" not in out else f"No pude: {out[-200:]}"
+
+
+async def interfaz_portatil():
+    DONDE["aqui"] = "portatil"
+    e = await _estado()
+    if e and e["app"] == "delta":
+        await _adb(f"am start -n {PROPIA}/.Tele --ez salir true")
+    return "La interfaz vuelve al portátil."
+
+
+async def _boton():
+    """Lee del logcat del stick las pulsaciones del botón del micro; cada una pasa la interfaz al salón."""
+    while True:
+        try:
+            await _run(["adb", "connect", DIR], timeout=8)
+            p = await asyncio.create_subprocess_exec(
+                "adb", "-s", DIR, "shell", f"logcat -T \"$(date '+%m-%d %H:%M:%S.000')\" | grep --line-buffered '{BOTON}'",
+                stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+            async for _ in p.stdout:
+                if time.monotonic() - DONDE["pulsado"] > 3:  # mantener pulsado o repetir no cuenta dos veces
+                    DONDE["pulsado"] = time.monotonic()
+                    print(f"📺 botón del mando: {await interfaz_salon(tapar=False)}")
+            await p.wait()
+        except Exception as ex:
+            print(f"📺 Fire TV, botón: {ex}")
+        await asyncio.sleep(15)  # stick apagado o sin red: reintenta
 
 
 async def vigilar():
+    acciones.tarea(_boton())
     while True:
         try:
-            await _sin_alexa()
+            await _blindar()
             panel.S["tele"] = await _estado()
         except Exception:
             pass
@@ -80,6 +159,10 @@ async def tele_salon(accion, app="", veces="1"):
         if not e:
             return "El Fire TV del salón no responde (¿desenchufado o sin wifi?)."
         return f"La tele del salón está encendida con {e['app']}." if e["on"] else "El Fire TV del salón está en reposo."
+    if accion in ("interfaz_tele", "volver_a_delta"):
+        return await interfaz_salon()
+    if accion == "interfaz_portatil":
+        return await interfaz_portatil()
     if accion == "abrir":
         n = app.strip().lower()
         n = ALIAS.get(n, n)
@@ -89,7 +172,7 @@ async def tele_salon(accion, app="", veces="1"):
         rc, out = await _adb(f"monkey -p {APPS[n]} -c android.intent.category.LEANBACK_LAUNCHER 1")
         return f"Abro {n} en la tele del salón." if rc == 0 and "No activities" not in out else f"No pude abrir {n}: {out[-200:]}"
     if accion not in TECLAS:
-        return f"Acción no válida: estado | abrir | {' | '.join(TECLAS)}"
+        return f"Acción no válida: estado | abrir | interfaz_tele | interfaz_portatil | volver_a_delta | {' | '.join(TECLAS)}"
     try:
         n = max(1, min(int(veces or 1), 20))
     except ValueError:
@@ -104,9 +187,12 @@ acciones.registrar([
     _fn("tele_salon",
         "La tele del SALÓN (Fire TV Stick): abrir Netflix, YouTube, Twitch, Max, Prime Video… y manejarla como el mando. "
         "No es poner_tele (canales en directo en el ordenador). estado: si está encendida y qué app tiene. abrir: una app. "
+        "interfaz_tele: tu interfaz (el panel de DeltaOS) a la tele del salón («pasa la interfaz a la tele», «me voy al "
+        "salón»). interfaz_portatil: vuelve al portátil («pásala al portátil», «me vuelvo a la habitación»). "
+        "volver_a_delta: tras Netflix u otra app, el panel otra vez en la tele («vuelve a Delta», «quita Netflix»). "
         "Teclas: pausa/seguir (la misma), atras, inicio, arriba/abajo/izquierda/derecha, ok, adelantar, retroceder, "
         "siguiente, anterior, subir_volumen/bajar_volumen, silenciar, menu, apagar, encender.",
-        {"accion": _s("estado | abrir | " + " | ".join(TECLAS)),
+        {"accion": _s("estado | abrir | interfaz_tele | interfaz_portatil | volver_a_delta | " + " | ".join(TECLAS)),
          "app": _s("abrir: " + ", ".join(APPS)),
          "veces": _s("teclas: cuántas veces pulsarla (p. ej. 5 para bajar el volumen 5 puntos), por defecto 1")},
         req=["accion"]),

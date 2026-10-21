@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-21",
+  "t": "La interfaz de DeltaOS en la tele del salón: un clic en el botón del micro del mando (o «pasa la interfaz a la tele») la pone a pantalla completa y la tele no se duerme; «pásala al portátil» la devuelve, y si el portátil se apaga la tele vuelve sola al inicio",
+  "como": "Pasa la interfaz a la tele"
+ },
+ {
+  "f": "2026-10-21",
   "t": "La tele del salón (Fire TV): Delta abre Netflix, YouTube, Twitch, Max o Prime Video, la pausa, cambia el volumen y sabe qué tiene puesto; el panel la enseña en Dispositivos (TELE) y, si el stick se reinicia, vuelve a quitarle Alexa sola",
   "como": "Delta, pon Netflix en la tele del salón"
  },
