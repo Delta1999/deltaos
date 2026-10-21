@@ -57,14 +57,14 @@ assert sh("")[:4] == ["0", "0", "2520", "1080"] and sh("DP-1")[:4] == ["0", "0",
 assert sh("eDP-1")[5] == sh("")[5], "la firma es el juego de pantallas, no la elegida: si no, cambiar de pantalla resetea la vista"
 
 # El escudo: pedirlo en modo barra pone el panel, que es donde se pinta, y el panel lo enseña ya (forzado), no al dormir.
-v = panel._vista_actual()
+v, panel.VISTA = panel.VISTA, tmp / "delta-vista"  # sin tocar la vista de verdad
 try:
     panel.vista("invisible")
     r = asyncio.run(deltaos.fondo("delta"))
     assert panel._vista_actual() == "panel" and "pantalla completa" in r and "modo invisible" in r, r
     assert panel.S["fondo"]["escena"] == "delta"
 finally:
-    panel.vista(v)
+    panel.VISTA = v
 assert "forzado = d.fondo.escena !== 'auto'" in Path("panel/fondo.js").read_text()
 
 print("OK: interfaz y mascota cambian de pantalla por voz y se quedan; el escudo se ve al pedirlo")

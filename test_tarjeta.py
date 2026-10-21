@@ -126,4 +126,19 @@ assert "TIRA_ALTA=" in v and '[ "$3" = invisible-grande ] && H=$TIRA_ALTA' in v
 assert '"${3%%-*}" = invisible' in v, "la rama tiene que aceptar el sufijo"
 assert '[ "$3" = oculto ]' in v, "ventana.sh tiene que saber esconderlo todo"
 
+# «quita el informe de la barra» (21/10): quita la tarjeta y el visor, y la barra sigue en su modo.
+assert acciones._real("vista", {"accion": "quitar_tarjeta"}) == ("quitar_de_tira", {})
+real, panel.VISTA = panel.VISTA, Path(tempfile.mkdtemp()) / "delta-vista"  # sin tocar la vista de verdad
+try:
+    panel.vista("invisible")
+    panel.tarjeta("METEO", "13-19 °C", 60)
+    panel.S["visor"] = {"url": "x", "titulo": "x", "id": 1}
+    assert asyncio.run(deltaos.quitar_de_tira()).startswith("Hecho")
+    assert panel._TARJETA is None and panel.S["visor"] is None and panel._vista_actual() == "invisible"
+    panel.tarjeta("METEO", "13-19 °C", 60)
+    asyncio.run(deltaos.mostrar("cerrar"))
+    assert panel._TARJETA is None and panel._vista_actual() == "invisible", "«cierra eso» también vale"
+finally:
+    panel.VISTA = real
+
 print("OK: la barra crece en tarjeta (texto, imagen o visor), se encoge sola y se puede quitar")

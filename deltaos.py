@@ -38,7 +38,8 @@ async def mostrar(que, consulta=""):
     que, q = que.strip().lower(), consulta.strip()
     if que == "cerrar":
         panel.S["visor"] = None
-        return "Visor cerrado: el panel vuelve a la vista principal."
+        panel.quitar_tarjeta()  # en la barra, «cierra eso» también es la tarjeta que haya puesto
+        return "Visor cerrado (y la tarjeta de la barra, si había): todo vuelve a su vista, sin cambiar de modo."
     if que == "youtube":
         rc, out = await _run(["yt-dlp", "--get-id", "--no-warnings", "--no-playlist", f"ytsearch1:{q}"], timeout=40)
         vid = out.strip().splitlines()[-1] if rc == 0 and out.strip() else ""
@@ -510,6 +511,14 @@ async def mostrar_en_tira(texto="", titulo="", segundos="", imagen=""):
     return f"Hecho: lo tiene en la barra {puesto:g} segundos. Dile en una frase qué le has puesto."
 
 
+async def quitar_de_tira():
+    """«Quita eso de la barra»: solo la tarjeta y el visor; la barra se queda donde estaba. Antes no había
+    con qué y Delta ponía el panel completo (21/10, «quita el informe meteorológico de la barra»)."""
+    panel.S["visor"] = None
+    panel.quitar_tarjeta()
+    return "Hecho: quitada de la barra; la barra sigue puesta, en pequeño."
+
+
 async def elegir_mascota(cual):
     if cual not in ("mapache", "gato"):
         return "Error: cual es mapache o gato."
@@ -684,4 +693,5 @@ acciones.registrar([
                  "Lleva la interfaz (panel o barra de estado, que son la misma ventana) y/o la mascota a otra pantalla, y se queda ahí.",
                  {"cual": acciones._s("interfaz | mascota | todo"),
                   "donde": acciones._s("otra | arriba | abajo | izquierda | derecha | principal | ultrawide")}, req=["cual"]),
-], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia, mover_a_pantalla))
+    acciones._fn("quitar_de_tira", "Quita la tarjeta (o la web, mapa o informe) de la barra de estado y la deja en pequeño."),
+], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia, mover_a_pantalla, quitar_de_tira))

@@ -979,7 +979,9 @@ FUSIONES = {
                {"poner": _r("poner_musica"), "tele": _r("poner_tele", {"canal": "canal"}),
                 **{a: _r("controlar_musica", fijo={"accion": a}) for a in _MUSICA}}),
     "vista": ("Tu interfaz. panel / mascota / invisible: panel completo, solo el animal flotando («modo mascota»), o "
-              "ni animal ni panel y solo la barra de estado en una esquina («modo invisible», «quítate de en medio», «esconde la mascota», «quita el bicho del escritorio», «no quiero verte»). "
+              "ni animal ni panel y solo la barra de estado en una esquina («modo invisible», «enséñame / muéstrame / pon la barra de estado», «quítate de en medio», «esconde la mascota», «quita el bicho del escritorio», «no quiero verte»). "
+              "OJO: «la barra» es SIEMPRE invisible, nunca panel; panel es solo «panel completo», «abre la interfaz entera». "
+              "quitar_tarjeta: quita lo que hayas puesto en la barra (tarjeta, web, mapa, informe) y la deja en pequeño, sin cambiar de modo («quita eso de la barra», «quita el informe de la barra», «ya lo he visto»). "
               "oculto: quita también la barra de estado y no deja nada en pantalla («quita la barra», «fuera todo», «no dejes nada»); sigues escuchando igual, y con invisible vuelve. "
               "elegir_mascota: cual = mapache | gato, qué animal es la mascota («pon el gato», «quiero el mapache»). "
               "pantalla: cual = interfaz (el panel y la barra de estado, que son la misma ventana) | mascota | todo, y donde = "
@@ -1009,6 +1011,7 @@ FUSIONES = {
                "oculto": _r("cambiar_vista", fijo={"modo": "oculto"}),
                "elegir_mascota": _r("elegir_mascota", {"cual": "cual"}),
                "pantalla": _r("mover_a_pantalla", {"cual": "cual", "donde": "donde"}),
+               "quitar_tarjeta": _r("quitar_de_tira"),
                "fondo": _r("fondo", {"escena": "cual"}), "pantalla_completa": _r("pantalla_completa", {"que": "cual"})}),
     "documentos": ("Secretario, en ~/Documentos/Delta/documentos. crear: redacta carta, instancia, reclamación, resumen, "
                    "acta, lista, apuntes, dossier, notas dictadas… («hazme un PDF», «redáctame», «toma nota de esto en un "
