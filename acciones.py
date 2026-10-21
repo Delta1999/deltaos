@@ -698,7 +698,14 @@ def leer_memoria():
     return _mem.contexto()
 
 
+# 21/10: Delta guardaba las averías y los «pendiente para mañana» en la memoria, donde Claude no los ve.
+PARA_CLAUDE = re.compile(r"aver[ií]a|mejora|pendiente para|para (el )?claude|no (se )?(funciona|muestra|ve|mueve|va)\b|"
+                         r"arregl|falla\b|deber[ií]a (poder|hacer|salir)", re.I)
+
+
 async def recordar(nota):
+    if PARA_CLAUDE.search(nota):  # aunque el usuario diga «recuérdalo» o «apúntalo»: el registro, no la memoria
+        return await anotar_mejora(nota) + " (Va al registro de Claude Code, no a la memoria: allí es donde se arregla.)"
     return _mem.guardar(nota)
 
 
@@ -714,32 +721,36 @@ async def buscar_memoria(consulta):
     return "Encontrado:\n" + "\n".join(f"- {x['texto']}" for x in r)
 
 
-MEJORAS_LOG = AQUI / "mejoras_pendientes.log"
-AVERIAS_LOG = AQUI / "averias.log"   # lo revisa Claude Code
+MEJORAS_LOG = AQUI / "mejoras_pendientes.log"   # averías y mejoras de Delta, todas aquí: lo revisa Claude Code
 
 
-# Delta lo usaba como registro de averías («micrófono saturado» ×20): eso no es una capacidad nueva.
-AVERIAS = re.compile(r"micr[oó]fono|saturad|ruido|eco\b|no (te |me )?(oigo|escucho|entiendo)|sin conexi[oó]n|desconectad|"
-                     r"impresora (est[aá] )?(pausada|apagada|imprimiendo)|error|fall[oaó]|no funciona", re.I)
+# Las de audio se repetían a decenas («micrófono saturado» ×20): de esas, una cada 10 min como mucho.
+AUDIO = re.compile(r"micr[oó]fono|saturad|ruido|eco\b|no (te |me )?(oigo|escucho|entiendo)", re.I)
+AVERIAS = re.compile(AUDIO.pattern + r"|sin conexi[oó]n|desconectad|impresora (est[aá] )?(pausada|apagada|imprimiendo)|"
+                     r"error|fall[oaó]|no (se )?(funciona|muestra|ve|mueve|va)\b|aver[ií]a|roto|se cuelga", re.I)
+
+
+_ULT_AUDIO = 0
 
 
 async def anotar_mejora(descripcion):
+    """El buzón único de averías y mejoras para Claude Code. Antes eran dos ficheros y la memoria, y lo que el usuario
+    llamaba «avería» o «mejora» al revés se perdía (2026-10-21)."""
     d = descripcion.strip()
-    if AVERIAS.search(d):
-        # ponytail: una avería cada 10 min como mucho; si hacen falta distintas a la vez, deduplicar por texto
-        if time.time() - (AVERIAS_LOG.stat().st_mtime if AVERIAS_LOG.exists() else 0) > 600:
-            with open(AVERIAS_LOG, "a") as f:
-                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {d}\n")
-        return ("Esto es una avería, no una capacidad nueva: queda en el registro de averías para que la revise el "
-                "programador. No vuelvas a anotarla; cuéntaselo al usuario de palabra si hace falta.")
-    if MEJORAS_LOG.exists() and d.lower() in MEJORAS_LOG.read_text().lower():
-        return "Ya estaba anotado."
+    tipo = "avería" if AVERIAS.search(d) else "mejora"
+    hay = MEJORAS_LOG.read_text() if MEJORAS_LOG.exists() else ""
+    if d.lower() in hay.lower():
+        return "Ya estaba anotado para Claude Code."
+    global _ULT_AUDIO
+    if AUDIO.search(d):
+        if time.time() - _ULT_AUDIO < 600:
+            return "Ya hay una avería de audio anotada hace nada: no la repitas; díselo al usuario de palabra si hace falta."
+        _ULT_AUDIO = time.time()
     with open(MEJORAS_LOG, "a") as f:
-        f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {descripcion.strip()}\n")
-    print(f"\n💡 [MEJORA SOLICITADA]: {descripcion.strip()}\n")
-    lista = "; ".join(l.split("] ", 1)[-1] for l in MEJORAS_LOG.read_text().splitlines())
-    return ("Anotado. Pendientes ahora: " + lista + ". No anotes variantes o reformulaciones de estas: "
-            "solo ideas claramente distintas, y como mucho una por cada cosa que pida el usuario.")
+        f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [{tipo}] {d}\n")
+    print(f"\n💡 [{tipo.upper()} PARA CLAUDE]: {d}\n")
+    return (f"Anotado como {tipo} para Claude Code, que revisa ese registro al ponerse con Delta. Díselo así al usuario. "
+            "No anotes variantes de lo mismo: solo cosas claramente distintas.")
 
 
 # --- sistema (KDE / PipeWire) ---
@@ -951,18 +962,21 @@ FUSIONES = {
                {"programar": _r("programar_aviso"), "ver": _r("ver_avisos"),
                 "cancelar": _r("cancelar_aviso", {"cual": "texto"}), "parar_alarma": _r("parar_alarma"),
                 "no_molestar": _r("no_molestar", {"minutos": "en_minutos"})}),
-    "claude": ("Claude Code, el agente de código del repo WORMHOLE. hablar: UNA conversación persistente que recuerda lo "
+    "claude": ("Claude Code. mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, mascota, escudo, voz, "
+               "herramientas…) ya, avería o mejora; si no corre prisa, memoria accion=anotar_mejora. hablar: el repo "
+               "WORMHOLE (CAD, piezas, impresión), UNA conversación persistente que recuerda lo "
                "anterior (vale «ahora hazlo más grueso»), trabaja en segundo plano y avisa; úsala para toda petición de "
                "código, CAD o archivos del repo. tarea_suelta: un disparo sin memoria (pide confirmación). "
                "estado: qué hace ahora. cancelar: interrumpe su tarea.",
-               {"mensaje": "hablar/tarea_suelta: lo que quieres que haga, completo y claro"},
-               {"hablar": _r("hablar_con_claude"), "tarea_suelta": _r("preguntar_a_claude", {"tarea": "mensaje"}),
+               {"mensaje": "hablar/tarea_suelta/mejorar_delta: lo que quieres que haga, completo y con las palabras del usuario"},
+               {"mejorar_delta": _r("mejorar_delta", {"peticion": "mensaje"}), "hablar": _r("hablar_con_claude"), "tarea_suelta": _r("preguntar_a_claude", {"tarea": "mensaje"}),
                 "estado": _r("estado_claude"), "cancelar": _r("cancelar_claude")}),
     "memoria": ("Memoria persistente (sobrevive a reinicios). recordar: guarda una nota. buscar: rebusca en TODO lo "
                 "que te ha contado alguna vez; las notas que ves al despertar son solo las últimas, así que si "
                 "pregunta por algo dicho hace tiempo, BUSCA antes de decir que no lo sabes. olvidar: borra las notas "
-                "que contengan texto. anotar_mejora: cuando el USUARIO pida una función NUEVA que aún no tienes, para "
-                "el programador; una avería que persiste (micro, audio, impresora…) anótala UNA sola vez, no repitas.",
+                "que contengan texto. anotar_mejora: el buzón para Claude Code de TODO lo que falle o falte en Delta, sea "
+                "avería o mejora (el usuario las confunde, da igual), y aunque diga «apúntalo», «recuérdalo», «para "
+                "mañana» o «díselo a Claude»: NUNCA con recordar. Si pide arreglarlo YA, claude accion=mejorar_delta.",
                 {"texto": "la nota, lo que buscar, el fragmento a borrar o la mejora descrita con claridad"},
                 {"recordar": _r("recordar", {"nota": "texto"}), "olvidar": _r("olvidar", {"fragmento": "texto"}),
                  "buscar": _r("buscar_memoria", {"consulta": "texto"}),

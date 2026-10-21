@@ -1,9 +1,13 @@
 """Modo invisible y scroll de los subtítulos (.venv/bin/python test_vista.py)"""
 import asyncio
+import tempfile
+from pathlib import Path
 
 import acciones
 import deltaos
 import panel
+
+panel.VISTA = Path(tempfile.mkdtemp()) / "delta-vista"  # la de verdad no: la borraba y el panel real se quedaba sin vista
 
 # La vista viaja en el snapshot: la página no tiene otra forma de saberla (ventana.sh también la escribe).
 for modo in ("panel", "mascota", "invisible"):

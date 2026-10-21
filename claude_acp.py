@@ -162,6 +162,8 @@ async def _turno(mensaje, propio=None, voz=True):
                 print(f"ACP: sin modo acceptEdits ({e})")
         await _conn.prompt(session_id=_sid_delta if propio else _sid, prompt=[text_block(mensaje)])
         final = _estado["texto"].strip() or "(sin texto)"
+        if propio and LIMITE.search(final):  # 21/10: con el límite de sesión no hace nada y la petición se perdía
+            raise RuntimeError(f"Claude Code no ha podido ({final[:160]})")
         if propio:
             await _registrar(propio[0], propio[1], final)
         _estado.update(estado="libre", ultimo="hecho")
@@ -175,8 +177,12 @@ async def _turno(mensaje, propio=None, voz=True):
         _estado.update(estado="libre", ultimo="falló")
         await cerrar()  # la próxima vez se reconecta
         panel.notificar("alerta", f"Claude Code falló: {e}")
+        guardada = ""
+        if propio:  # que no se pierda: al buzón que Claude revisa al ponerse con Delta
+            await acciones.anotar_mejora(propio[0])
+            guardada = " La petición ha quedado anotada en el registro de averías y mejoras, así que no se pierde."
         if voz:
-            await avisar(f"Falló la conversación con Claude Code: {e}")
+            await avisar(f"Falló la conversación con Claude Code: {e}.{guardada}")
     finally:
         _tarea = None
         _estado["auto"] = False
@@ -232,7 +238,9 @@ async def mejorar_delta(peticion, voz=True):
     """voz=False: arreglos de la llave inglesa, que se lanzan solos con el PC libre y no deben despertar a Delta."""
     global _tarea
     if ocupado():
-        return f"Claude Code sigue ocupado con: {_estado['tarea']}. Espera a que termine o cancélalo."
+        await acciones.anotar_mejora(peticion)
+        return (f"Claude Code sigue ocupado con: {_estado['tarea']}. La petición queda anotada en el registro de averías y "
+                "mejoras, para que no se pierda; si corre prisa, pídela otra vez cuando acabe.")
     antes = await _foto()
     _tarea = acciones.tarea(_turno(PROPIO + peticion, (peticion, antes), voz))
     return ("Enviado a Claude Code, que trabaja sobre el propio repositorio de Delta. Los pasos salen en el panel, "
@@ -240,8 +248,17 @@ async def mejorar_delta(peticion, voz=True):
 
 
 # ---------- herramientas para Gemini ----------
+LIMITE = re.compile(r"hit your .{0,20}limit|session limit|usage limit|rate limit|l[ií]mite de (uso|sesi[oó]n)", re.I)
+# Lo del propio Delta que llega por «hablar» (el repo WORMHOLE) se desvía a mejorar_delta (21/10: el usuario dice
+# «díselo a Claude» y Delta elegía el Claude equivocado).
+DE_DELTA = re.compile(r"\bdelta(os)?\b|mascota|barra de estado|\bescudo\b|tu (panel|interfaz|voz|barra)|aver[ií]as?\b|"
+                      r"mejoras? (de|para|pendientes)", re.I)
+
+
 async def hablar_con_claude(mensaje):
     global _tarea
+    if DE_DELTA.search(mensaje):
+        return await mejorar_delta(mensaje) + " (Era del propio Delta: lo he mandado a su repositorio, no a WORMHOLE.)"
     if _tarea and not _tarea.done():
         return f"Claude Code sigue ocupado con: {_estado['tarea']}. Espera a que termine o cancélalo."
     _tarea = acciones.tarea(_turno(mensaje))

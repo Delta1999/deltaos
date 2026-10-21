@@ -25,6 +25,9 @@ Repositorio canónico: `~/gemini-live-assistant`. Trabaja aquí, sobre estos arc
 Añade `{"f": "AAAA-MM-DD", "t": "qué hace", "como": "frase de ejemplo para pedirlo"}` al principio. Se ve al tocar la hora del panel.
 Si actualizas la chuleta (`#chuleta` en index.html), mantenla coherente.
 
+## Buzón de averías y mejoras: `mejoras_pendientes.log`
+Todo lo que el usuario pide a Delta para luego (avería o mejora, las confunde) acaba ahí con su etiqueta `[avería]`/`[mejora]`; también lo que `mejorar_delta` no pudo hacer (límite, ocupado, fallo). Al empezar a trabajar en Delta, léelo, dile al usuario qué hay pendiente y, cuando arregles algo, bórralo de ahí.
+
 ## Cambios pedidos desde Delta (`mejorar_delta`)
 Quedan en `CAMBIOS_DELTA.md` con refs git `refs/delta/<fecha>/{antes,despues}` (fotos con `git stash create`).
 Si te llama Delta: NO reinicies Delta (eres un proceso hijo suyo); di al final si hace falta reiniciar o basta con recargar el panel.

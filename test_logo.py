@@ -2,12 +2,15 @@
 import asyncio
 import json
 import re
+import tempfile
 from pathlib import Path
 
 import assistant  # noqa: F401  (registra y fusiona, igual que al arrancar)
 import acciones
 import deltaos
 import panel
+
+panel.VISTA = Path(tempfile.mkdtemp()) / "delta-vista"  # fondo() escribe la vista: no la de verdad
 
 AQUI = Path(__file__).parent
 j = json.loads((AQUI / "panel" / "logo.json").read_text())
@@ -27,12 +30,12 @@ assert j["w"] * .35 < oi[0] < j["w"] * .75 and j["h"] * .2 < oi[1] < j["h"] * .6
 assert "delta" in deltaos.ESCENAS
 real, args = acciones._real("vista", {"accion": "fondo", "cual": "delta"})
 assert (real, args) == ("fondo", {"escena": "delta"}), (real, args)
-assert asyncio.run(acciones.HANDLERS[real](**args)) == "Hecho: fondo de espera delta."
+assert asyncio.run(acciones.HANDLERS[real](**args)).startswith("Hecho: delta a pantalla completa")
 assert panel.S["fondo"]["escena"] == "delta"
 assert asyncio.run(acciones.HANDLERS["fondo"](escena="galaxia")).startswith("Error")
 
 # El módulo y el logo tienen que estar entre los ficheros que sirve el panel, o la escena sale negra.
-srv = re.search(r'for js in \(([^)]*)\)', (AQUI / "panel.py").read_text()).group(1)
+srv = " ".join(re.findall(r'for js in \(([^)]*)\)', (AQUI / "panel.py").read_text()))  # dos listas: con versión y sin ella
 assert '"delta.js"' in srv and '"logo.json"' in srv, srv
 # y fondo.js tiene que pintarla, no solo conocerla
 fjs = (AQUI / "panel" / "fondo.js").read_text()
