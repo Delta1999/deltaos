@@ -518,14 +518,15 @@ async def mover_a_pantalla(cual, donde="otra"):
 
 
 async def mostrar_en_tira(texto="", titulo="", segundos="", imagen=""):
-    """Fase 8: enseña algo concreto en la barra de estado, que crece en una tarjeta y se vuelve a
-    encoger sola. En panel completo no hace falta —ahí ya se ve todo—, así que solo tiene sentido
-    con la barra puesta. Con `imagen` enseña además una foto, una captura o un plano del disco."""
+    """Fase 8: enseña algo concreto en una tarjeta que se quita sola. Con la barra puesta, la barra
+    crece en ella; en panel completo (21/10) flota sobre el panel. Con `imagen` enseña además una
+    foto, una captura o un plano del disco."""
     if not str(texto or "").strip() and not str(imagen or "").strip():
         return "Error: no hay nada que enseñar."
-    if not panel._vista_actual().startswith("invisible"):
-        return ("Error: la tarjeta es de la barra de estado, y ahora está el panel entero. "
-                "Dilo en voz alta, o pon el modo invisible antes.")
+    vista = panel._vista_actual()
+    if not (vista.startswith("invisible") or vista == "panel"):
+        return ("Error: ahora no hay ni panel ni barra de estado en pantalla. "
+                "Dilo en voz alta, o pon el panel o el modo invisible antes.")
     url = ""
     if str(imagen or "").strip():
         im = str(imagen).strip()
@@ -540,12 +541,17 @@ async def mostrar_en_tira(texto="", titulo="", segundos="", imagen=""):
     except ValueError:
         return 'Error: segundos tiene que ser un número, p.ej. "30".'
     puesto = panel.tarjeta(titulo or "DELTA", texto, seg, imagen=url)
-    return f"Hecho: lo tiene en la barra {puesto:g} segundos. Dile en una frase qué le has puesto."
+    donde = "en el panel" if vista == "panel" else "en la barra"
+    return f"Hecho: lo tiene {donde} {puesto:g} segundos. Dile en una frase qué le has puesto."
 
 
 async def quitar_de_tira():
     """«Quita eso de la barra»: solo la tarjeta y el visor; la barra se queda donde estaba. Antes no había
-    con qué y Delta ponía el panel completo (21/10, «quita el informe meteorológico de la barra»)."""
+    con qué y Delta ponía el panel completo (21/10, «quita el informe meteorológico de la barra»).
+    En panel completo, si hay tarjeta, «quita eso» es la tarjeta: el visor grande se deja."""
+    if panel._vista_actual() == "panel" and panel._TARJETA:
+        panel.quitar_tarjeta()
+        return "Hecho: tarjeta quitada del panel."
     panel.S["visor"] = None
     panel.quitar_tarjeta()
     return "Hecho: quitada de la barra; la barra sigue puesta, en pequeño."
@@ -560,20 +566,26 @@ async def elegir_mascota(cual):
 
 # «mascota» (el mapache paseando) sigue aquí porque se puede pedir por voz, pero está fuera de la
 # rueda del salvapantallas: el usuario la desactivó el 2026-10-21.
-ESCENAS = ("auto", "orbe", "blob", "reloj", "mascota", "impresion", "tiempo")
+ESCENAS = ("auto", "orbe1", "orbe2", "reloj", "mascota", "impresion", "tiempo")
+# El usuario los llama «orbe 1» (el de alambre) y «orbe 2» (la gota blanca) desde el 2026-10-21;
+# dentro del panel siguen siendo «orbe» y «blob», que es como se llaman los ficheros y los divs.
+NOMBRES = {"orbe": "el orbe 1", "blob": "el orbe 2"}
+ALIAS = {"orbe1": "orbe", "orbe 1": "orbe", "orbe": "orbe", "esfera": "orbe",
+         "orbe2": "blob", "orbe 2": "blob", "blob": "blob", "gota": "blob"}
 
 
 async def fondo(escena):
-    if escena not in ESCENAS:
+    escena = ALIAS.get(str(escena or "").strip().lower(), escena)
+    if escena not in ESCENAS and escena not in ("orbe", "blob"):
         return "Error: escena es " + " | ".join(ESCENAS) + "."
     panel.S["fondo"] = {"escena": escena, "id": time.time()}  # el panel lo pone ya, sin esperar a que duermas
     if escena == "auto":
-        return "Hecho: el fondo de espera vuelve a la de siempre, el orbe (ya no rotan solas)."
+        return "Hecho: el fondo de espera vuelve a la de siempre, el orbe 1 (ya no rotan solas)."
     antes = panel._vista_actual()
     # Siempre, aunque ya esté en panel: escribir la vista hace que ventana.sh lo traiga al frente.
     # 21/10: el panel estaba en «panel» pero tapado por otras ventanas, y el fondo pedido no se veía.
     panel.vista("panel")  # en barra, mascota u oculto el panel no se ve, y el fondo va dentro del panel
-    return (f"Hecho: {escena} a pantalla completa en el panel" + (f" (estaba en modo {antes}: he puesto el panel)" if antes != "panel" else "")
+    return (f"Hecho: {NOMBRES.get(escena, escena)} a pantalla completa en el panel" + (f" (estaba en modo {antes}: he puesto el panel)" if antes != "panel" else "")
             + ". Se quita con doble clic, Escape o la rueda del ratón; también sale solo cuando duermes.")
 
 
@@ -676,7 +688,7 @@ acciones.registrar([
                  "diga «pasar C.O.S.», «pasa las COS», «comprobaciones operativas», «¿está todo bien?». Contesta breve: "
                  "si sale OK, que todo está operativo (y las notas sin ⚠️ en una frase); si hay ⚠️, di cada fallo."),
     acciones._fn("mostrar_en_tira",
-        "Enseña un texto corto en la tira del modo invisible, que crece en una tarjeta y se encoge sola. Para cifras, listas o resultados que se leen mejor escritos que dichos («apúntamelo ahí», «ponlo en pantalla»). Solo funciona con el modo invisible puesto.",
+        "Enseña un texto corto en una tarjeta que se quita sola: en el panel completo flota sobre él; en modo invisible la barra crece en ella. Para cifras, listas o resultados que se leen mejor escritos que dichos («apúntamelo ahí», «ponlo en pantalla»).",
         {"texto": acciones._s("lo que enseñar, una cosa por línea"),
          "titulo": acciones._s("rótulo de la tarjeta (opcional)"),
          "segundos": acciones._s("cuánto dejarla puesta, 5-180 (por defecto 40)")}, req=["texto"]),

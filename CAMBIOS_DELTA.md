@@ -68,3 +68,24 @@ acciones.py | 2 +-
 ```
 
 Ver: `git diff refs/delta/20261021-025406/antes refs/delta/20261021-025406/despues` · Deshacer: `git diff refs/delta/20261021-025406/antes refs/delta/20261021-025406/despues | git apply -R`
+
+## 2026-10-21 16:42 · vía Delta (Gemini Live → Claude Code)
+
+**Petición:** Mejora la interfaz del panel para que permita mostrar tarjetas de información directamente en él.
+
+**Claude:**  `deltaos.py` y actualizo las descripciones para Gemini.Novedades y chuleta:Verifico sintaxis de Python y del JS del panel:Hago una captura de prueba de la tarjeta con datos ficticios para ver cómo queda:Delta ya puede mostrar tarjetas de información (texto, cifras, listas o una foto) en el panel completo: aparecen flotando a la derecha, encima de todo, y se quitan solas al acabar el tiempo, con la × o diciendo «quita eso». Antes solo salían en la barra de estado; también he actualizado la novedad, la chuleta y las instrucciones de Delta.
+
+Hace falta reiniciar Delta, porque los cambios en Python no se aplican solo recargando el panel. No he hecho commit.
+
+Comprobé la sintaxis de los ficheros y saqué una captura de una tarjeta de prueba, que se ve bien. No lo he probado con Delta en marcha.
+
+```
+acciones.py          |  8 ++++----
+ deltaos.py           | 24 +++++++++++++++---------
+ panel.py             |  7 +++++--
+ panel/index.html     | 41 +++++++++++++++++++++++++++++++++++++----
+ panel/novedades.json |  5 +++++
+ 5 files changed, 66 insertions(+), 19 deletions(-)
+```
+
+Ver: `git diff refs/delta/20261021-164248/antes refs/delta/20261021-164248/despues` · Deshacer: `git diff refs/delta/20261021-164248/antes refs/delta/20261021-164248/despues | git apply -R`

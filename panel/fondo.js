@@ -101,7 +101,7 @@ function bucle(ms) {
   if (!on) return;
   const t = ms / 1000;
   if (escena === 'orbe') Orbe.pintar($('fo-cv'), D);
-  if (escena === 'blob') Gota.pintar($('fb-cv'), $('fb-txt'), D);
+  if (escena === 'blob') Gota.pintar($('fb-cv'), D);
   if (escena === 'mascota') Mapache.pintar(t, $('fm-cv'));
   if (escena === 'tiempo') Tiempo.pintar(t, D);
   if (escena === 'impresion') Imp.pintar(t, $('f-impresion'), false);

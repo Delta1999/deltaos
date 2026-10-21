@@ -362,7 +362,8 @@ def _tarjeta_viva(ahora):
     if tj["hasta"] <= ahora:
         quitar_tarjeta()
         return None
-    return {"titulo": tj["titulo"], "lineas": tj["lineas"], "img": tj.get("img", "")}
+    return {"titulo": tj["titulo"], "lineas": tj["lineas"], "img": tj.get("img", ""),
+            "quedan": round(tj["hasta"] - ahora)}  # la barrita que se vacía en la del panel
 
 
 def _vista_actual():
@@ -389,6 +390,8 @@ def _cmd(ST, cmd):
         acciones.tarea(_abrir_tiempo())
     elif cmd == "cerrar_visor":
         S["visor"] = None
+    elif cmd == "quitar_tarjeta":  # la × de la tarjeta del panel completo
+        quitar_tarjeta()
     elif cmd == "reset_estable":  # botón del menú de la hora; sesión aparte para sobrevivir al reinicio de Delta
         subprocess.Popen([str(Path(__file__).with_name("reset_estable.sh"))], start_new_session=True,
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -589,7 +592,7 @@ async def _ws(request):
                     _pegar(request.app["ST"], msg["pegar"])
                 if isinstance(msg.get("encargo"), str) and msg["encargo"].strip():  # delta_pide.py (Claude Code)
                     await acciones.encargo_claude(msg["encargo"].strip()[:2000])
-                if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "vista_panel", "vista_mascota", "tiempo", "reset_estable"):
+                if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "quitar_tarjeta", "vista_panel", "vista_mascota", "tiempo", "reset_estable"):
                     _cmd(request.app["ST"], msg["cmd"])
                 g = msg.get("geo")
                 if g and len(g) == 3 and all(isinstance(x, (int, float)) for x in g) and g[2] <= PRECISA:

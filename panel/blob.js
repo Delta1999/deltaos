@@ -10,9 +10,12 @@
 //   · Delta habla   → la gota se deforma con SU nivel de voz y gira más deprisa.
 //   · Delta escucha → se deforma con lo que entra por el micro, más suave (se ve que el micro vive).
 //   · en reposo      → solo respira.
-// Debajo va el mismo rótulo «Delta.OS» y la misma línea de datos que el orbe de alambre.
+//
+// Debajo NO va el rótulo «Delta.OS» ni la telemetría del orbe 1 (lo pidió el usuario el 2026-10-21:
+// dos salvapantallas con el mismo pie son el mismo salvapantallas con otra piel). Van la hora, fina y
+// muy espaciada como una inscripción, y la conversación en curso en burbujas. Las burbujas son HTML
+// y no lienzo: así heredan las del panel y tienen scroll de verdad.
 import * as THREE from '/three.module.js';
-import * as Orbe from '/orbe.js';
 
 const SEG = 192;        // segmentos de la esfera: con menos se ve el polígono en la silueta
 const ENTRA = 1.4;      // segundos que tarda en salir (crece y se deforma desde una bola lisa)
@@ -172,7 +175,7 @@ function montar(cv) {
   return {ren, escena, cam, malla, u};
 }
 
-export function pintar(cv, txt, d) {
+export function pintar(cv, d) {
   const w = cv.clientWidth, h = cv.clientHeight;
   if (!w || !h) return;
   if (!r3) r3 = montar(cv);
@@ -192,18 +195,56 @@ export function pintar(cv, txt, d) {
   const dt = ult ? Math.min(.1, (ms - ult) / 1000) : 0; ult = ms;
   giro += dt * (.12 + (hablando ? .34 : est === 'trabajando' ? .25 : 0) + voz * .6);
   malla.rotation.set(Math.sin(t * .11) * .22, giro, Math.sin(t * .07) * .12);
-  malla.scale.setScalar(.9 * (.6 + .4 * nac));
-  malla.position.y = .28;   // un poco por encima del centro: debajo va el rótulo
+  malla.scale.setScalar(.8 * (.6 + .4 * nac));
+  malla.position.y = .46;   // arriba del centro: debajo van la hora y la conversación
 
   u.tiempo.value = t * .42 + voz * t * .25;
   u.distor.value = (.20 + .05 * Math.sin(t * .55) + voz * .30) * nac;   // respira siempre; con voz, se hincha
   u.detalle.value = (.02 + voz * .05) * nac;
   ren.render(escena, cam);
 
-  // el rótulo, en su propio lienzo 2D encima (el mismo del orbe de alambre)
-  const k = Math.min(devicePixelRatio || 1, 2);
-  if (txt.width !== Math.round(w * k)) { txt.width = w * k; txt.height = h * k; }
-  const x = txt.getContext('2d');
-  x.clearRect(0, 0, txt.width, txt.height);
-  if (nac >= 1) Orbe.pie(x, txt.width, txt.height, txt.height * .76, d, t, k);
+  hora();
+  conversacion(d, nac);
+}
+
+// ---- la hora: «1 9 : 4 2», sin segundos. Los dos puntos laten solos (CSS), que es el único
+// movimiento que se permite aquí: lo demás lo pone la gota.
+let ultMin = -1;
+function hora() {
+  const n = new Date(), m = n.getHours() * 60 + n.getMinutes();
+  if (m === ultMin) return;
+  ultMin = m;
+  const e = document.getElementById('fb-hora');
+  e.innerHTML = String(n.getHours()).padStart(2, '0') + '<i>:</i>' + String(n.getMinutes()).padStart(2, '0');
+}
+
+// ---- la conversación, en las mismas burbujas del panel.
+// Se apaga sola a los 20 s de la última frase, que si no acabas con un salvapantallas lleno de texto
+// viejo; mientras estés leyendo más arriba con la rueda no se apaga, y una frase nueva la devuelve.
+const APAGA = 20e3;
+let firma = '', ultCambio = 0, ultRueda = 0, atado = false;
+const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+
+function conversacion(d, nac) {
+  const c = document.getElementById('fb-chat');
+  if (!atado) {   // la rueda sobre las burbujas es para leerlas, no para quitar el salvapantallas
+    atado = true;
+    c.addEventListener('wheel', e => { e.stopPropagation(); ultRueda = performance.now(); }, {passive: true});
+  }
+  const fr = (d.frases || []).slice(-14);
+  const nueva = fr.map(f => f.rol + f.t).join('\u0000');
+  if (nueva !== firma) {
+    const abajo = c.scrollHeight - c.scrollTop - c.clientHeight < 40;
+    firma = nueva; ultCambio = performance.now();
+    c.innerHTML = fr.map(f => {
+      const tu = f.rol === 'tú';
+      return `<div class="msg ${tu ? 'tu' : 'delta'}"><small>${tu ? 'TÚ' : 'DELTA'}${f.h ? ' · ' + f.h : ''}</small>` +
+        `<div class="bub">${esc(f.t)}</div></div>`;
+    }).join('');
+    if (abajo) c.scrollTop = c.scrollHeight;
+  }
+  // leyendo = subido a releer: entonces no se apaga aunque pasen los 20 s
+  const leyendo = c.scrollHeight - c.scrollTop - c.clientHeight > 40;
+  const vivo = performance.now() - Math.max(ultCambio, ultRueda) < APAGA;
+  c.classList.toggle('apagado', nac < 1 || !fr.length || !(vivo || leyendo));
 }
