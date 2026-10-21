@@ -20,8 +20,8 @@ import * as THREE from '/three.module.js';
 const SEG = 192;        // segmentos de la esfera: con menos se ve el polígono en la silueta
 const ENTRA = 1.4;      // segundos que tarda en salir (crece y se deforma desde una bola lisa)
 
-let r3 = null, t0 = 0, NV = 0, MV = 0, giro = 0, ult = 0;
-export const entrar = () => { t0 = performance.now() / 1000; giro = 0; ult = 0; };
+let r3 = null, t0 = 0, NV = 0, MV = 0, V = 0, giro = 0, fase = 0, ult = 0;
+export const entrar = () => { t0 = performance.now() / 1000; giro = 0; fase = 0; ult = 0; NV = MV = V = 0; };
 
 const suave = v => v < 0 ? 0 : v > 1 ? 1 : v * v * (3 - 2 * v);
 
@@ -185,22 +185,32 @@ export function pintar(cv, d) {
   }
 
   const ms = performance.now(), t = ms / 1000 - t0;
-  // los niveles se persiguen en vez de saltar: llegan cada 0,4 s por el WebSocket
-  NV += ((d.nivel || 0) - NV) * .25;
-  MV += (((d.mic || {}).nivel || 0) - MV) * .25;
   const est = d.estado || 'dormido', hablando = est === 'hablando';
-  const voz = hablando ? NV : est === 'escuchando' ? MV * .7 : 0;
   const nac = suave(t / ENTRA);
-
   const dt = ult ? Math.min(.1, (ms - ult) / 1000) : 0; ult = ms;
-  giro += dt * (.12 + (hablando ? .34 : est === 'trabajando' ? .25 : 0) + voz * .6);
+
+  // La voz se sigue con constantes de tiempo, no con un factor por fotograma: el nivel llega a
+  // saltos cada 0,4 s por el WebSocket y aquí interesa que la gota lo *acompañe*. Sube deprisa
+  // (se nota al empezar a hablar) y baja despacio (no da tirones en cada sílaba), y después se
+  // vuelve a suavizar otra vez: eso es lo «gradual». El orbe 1 puede ir más nervioso porque es
+  // alambre; esta gota, al ser una superficie sólida, delata cualquier salto.
+  const sigue = (v, obj, sube, baja) => v + (obj - v) * (1 - Math.exp(-dt / (obj > v ? sube : baja)));
+  NV = sigue(NV, d.nivel || 0, .13, .80);
+  MV = sigue(MV, (d.mic || {}).nivel || 0, .18, 1.0);
+  const bruto = hablando ? NV : est === 'escuchando' ? MV * .7 : 0;
+  V = sigue(V, bruto, .28, .65);
+
+  // la fase del ruido se acumula (como el giro): así la voz cambia la VELOCIDAD del hervor y no
+  // da un salto en el ruido, que es lo que pasaba al multiplicar la voz por el tiempo absoluto.
+  fase += dt * (.42 + V * .30);
+  giro += dt * (.12 + (hablando ? .34 : est === 'trabajando' ? .25 : 0) + V * .5);
   malla.rotation.set(Math.sin(t * .11) * .22, giro, Math.sin(t * .07) * .12);
-  malla.scale.setScalar(.8 * (.6 + .4 * nac));
+  malla.scale.setScalar(.8 * (.6 + .4 * nac) * (1 + V * .04));   // con voz se hincha un poco
   malla.position.y = .46;   // arriba del centro: debajo van la hora y la conversación
 
-  u.tiempo.value = t * .42 + voz * t * .25;
-  u.distor.value = (.20 + .05 * Math.sin(t * .55) + voz * .30) * nac;   // respira siempre; con voz, se hincha
-  u.detalle.value = (.02 + voz * .05) * nac;
+  u.tiempo.value = fase;
+  u.distor.value = (.20 + .05 * Math.sin(t * .55) + V * .26) * nac;   // respira siempre; con voz, se hincha
+  u.detalle.value = (.02 + V * .045) * nac;                          // y le sale grano en la piel
   ren.render(escena, cam);
 
   hora();
