@@ -120,29 +120,27 @@ function trazar(x, paths, color, base, ancho) {
   }
 }
 
-// El logotipo: DELTA Operative System. «DELTAOS» todo seguido y del mismo tamaño no se entendía
-// (2026-10-21), así que se compone a mano: la D y la S grandes, «ELTA» pequeño entre medias y la O
-// como un testigo de grabación —anillo rojo con el punto dentro— que se sigue leyendo como una O.
+// El logotipo, calcado de la referencia que dio el usuario (2026-10-21): «Delta.OS» en la misma
+// matriz de puntos que el resto del panel, con el punto de separación en rojo —ahí se lee DELTA ·
+// Operative System— y, dentro de la O, cuatro puntos rojos que parpadean como un testigo de
+// grabación. Antes era todo «DELTAOS» seguido y en mayúsculas y no se entendía el concepto.
 function nombre(x, W, y, tam, t) {
   x.save();
-  x.textBaseline = 'top';
-  const peq = tam * .52, esp = tam * .20, espP = peq * .26;
-  const gra = v => { x.font = `900 ${tam}px Doto, monospace`; x.letterSpacing = `${esp}px`; return x.measureText(v).width; };
-  const chi = v => { x.font = `900 ${peq}px Doto, monospace`; x.letterSpacing = `${espP}px`; return x.measureText(v).width; };
-  const rO = tam * .36, anchoO = rO * 2 + esp * 1.4;              // lo que ocupa la O con su aire
-  const wD = gra('D'), wELTA = chi('ELTA'), wS = gra('S');
-  let px = W / 2 - (wD + wELTA + anchoO + wS) / 2;
-  x.textAlign = 'left'; x.fillStyle = `rgba(${FG},.9)`;
-  gra('D'); x.fillText('D', px, y); px += wD;
-  chi('ELTA'); x.fillText('ELTA', px, y + (tam - peq) * .72); px += wELTA;      // apoyada en la línea base
-  // la O: anillo rojo grueso (se lee como letra) y dentro el punto que late, como el REC del panel
-  const cxO = px + anchoO / 2, cyO = y + tam * .47;
-  x.strokeStyle = `rgba(${ROJO},.95)`; x.lineWidth = Math.max(2, tam * .11);
-  x.beginPath(); x.arc(cxO, cyO, rO, 0, 7); x.stroke();
-  x.fillStyle = `rgba(${ROJO},${Math.sin(t * 2.2) > -.2 ? .95 : .18})`;
-  x.beginPath(); x.arc(cxO, cyO, rO * .40, 0, 7); x.fill();
-  px += anchoO;
-  x.fillStyle = `rgba(${FG},.9)`; gra('S'); x.fillText('S', px, y);
+  x.font = `900 ${tam}px Doto, monospace`;
+  x.textAlign = 'left'; x.textBaseline = 'top';
+  x.letterSpacing = `${tam * .10}px`;
+  const an = v => x.measureText(v).width;
+  const wD = an('Delta'), wP = an('.'), wO = an('O');
+  let px = W / 2 - (wD + wP + an('OS')) / 2;
+  x.fillStyle = `rgba(${FG},.92)`; x.fillText('Delta', px, y); px += wD;
+  x.fillStyle = `rgba(${ROJO},.95)`; x.fillText('.', px, y); px += wP;
+  x.fillStyle = `rgba(${FG},.92)`; x.fillText('OS', px, y);
+  // los cuatro puntos del hueco de la O: mismo paso y mismo tamaño que los de la tipografía
+  const paso = tam * .135, r = tam * .045, cx = px + wO / 2 - tam * .115, cy = y + tam * .44;
+  x.fillStyle = `rgba(${ROJO},${.22 + .78 * (Math.sin(t * 3.2) > -.2 ? 1 : 0)})`;
+  for (const dx of [-1, 1]) for (const dy of [-1, 1]) {
+    x.beginPath(); x.arc(cx + dx * paso / 2, cy + dy * paso / 2, r, 0, 7); x.fill();
+  }
   x.restore();
 }
 

@@ -14,7 +14,7 @@ import * as Tiempo from '/tiempo.js';
 
 const $ = i => document.getElementById(i);
 const ESPERA = 30e3, PAUSA = 120e3;
-let desde = null, fuera = 0, forzado = false, on = false, escena = null, ultId = null, ultCompleta = null, full = null, D = {};
+let desde = null, fuera = 0, forzado = false, on = false, escena = null, manual = null, ultId = null, ultCompleta = null, full = null, D = {};
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 
 const hhmm = () => new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
@@ -24,7 +24,9 @@ const escenas = d => ['orbe', 'reloj'].concat(d.clima ? ['tiempo'] : [], imprime
 
 function elegir(d, saltar) {
   if (full && !saltar) return full === 'impresora' ? 'impresion' : 'sistema';
-  const fija = d.fondo && d.fondo.escena !== 'auto' ? d.fondo.escena : null, lista = escenas(d);
+  // `manual` (el clic derecho) manda sobre la escena fijada por voz: si no, la fijada volvía a
+  // ponerse en el siguiente mensaje del WebSocket y el clic derecho no servía de nada (2026-10-21).
+  const fija = manual || (d.fondo && d.fondo.escena !== 'auto' ? d.fondo.escena : null), lista = escenas(d);
   if (fija && !saltar) return fija === 'impresion' && !imprime(d) ? 'orbe' : fija;
   if (saltar) return lista[(lista.indexOf(escena) + 1) % lista.length];
   return lista.includes(escena) ? escena : lista[0];  // sin rotación por tiempo: la que esté puesta se queda
@@ -53,7 +55,7 @@ window.fondoEspera = d => {
   const nuevo = d.fondo && d.fondo.id !== ultId;
   // pedido por voz («pon el orbe»): se ve YA, también despierto. Antes solo cambiaba el fondo de cuando duerme,
   // y Delta decía «ya lo tiene» sin que saliera nada (2026-10-21). Se quita igual: doble clic, Esc o la rueda.
-  if (nuevo && ultId !== null) { fuera = 0; desde = performance.now() - ESPERA; escena = null; forzado = d.fondo.escena !== 'auto'; }
+  if (nuevo && ultId !== null) { fuera = 0; desde = performance.now() - ESPERA; escena = null; manual = null; forzado = d.fondo.escena !== 'auto'; }
   if (d.fondo) ultId = d.fondo.id; else if (ultId === null) ultId = 0;
   const c = d.completa;  // pantalla completa pedida por voz (la del arranque no cuenta)
   if (c && c.id !== ultCompleta && ultCompleta !== null) { ultCompleta = c.id; c.que === 'salir' ? salir() : window.pantallaCompleta(c.que); return; }
@@ -69,10 +71,10 @@ window.fondoEspera = d => {
 };
 
 window.pantallaCompleta = que => { full = que; forzado = true; fuera = 0; escena = null; window.fondoEspera(D); if (on) poner(elegir(D)); };
-const siguiente = e => { e.preventDefault(); full = null; $('fondo').classList.remove('full'); poner(elegir(D, true)); };
+const siguiente = e => { e.preventDefault(); full = null; $('fondo').classList.remove('full'); manual = elegir(D, true); poner(manual); };
 $('fondo').addEventListener('contextmenu', siguiente);
 $('mapa').addEventListener('contextmenu', e => { e.preventDefault(); forzado = true; fuera = 0; window.fondoEspera(D); });
-const salir = () => { const era = full; full = null; if (on) { forzado = false; fuera = era ? 0 : performance.now() + PAUSA; mostrar(false); } };
+const salir = () => { const era = full; full = null; manual = null; if (on) { forzado = false; fuera = era ? 0 : performance.now() + PAUSA; mostrar(false); } };
 $('fondo').addEventListener('dblclick', salir);
 // La rueda también lo quita: el reloj tapa el panel en cuanto Delta se duerme, que es justo cuando
 // quieres subir a releer la conversación, y antes solo salía con doble clic o Escape (2026-10-20).
