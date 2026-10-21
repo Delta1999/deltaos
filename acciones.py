@@ -393,7 +393,11 @@ async def preguntar_a_claude(tarea):  # pasarle algo a Claude Code no se pregunt
 
 
 async def ver_trabajos():
-    return "\n".join(f"{n}: {e}" for n, e in ST["trabajos"].items()) or "No hay trabajos."
+    def linea(n, e):
+        pr = ST.get("progreso", {}).get(n) or {}
+        min_ = round(((pr.get("fin") or time.time()) - pr["ini"]) / 60) if pr.get("ini") else None
+        return f"{n}: {e}" + (f" · {pr['etapa']}" if pr.get("etapa") else "") + (f" · {min_} min" if min_ is not None else "")
+    return "\n".join(linea(n, e) for n, e in ST["trabajos"].items()) or "No hay trabajos."
 
 
 async def estado_proyectos(nombre=""):

@@ -132,17 +132,21 @@ def _gem():
     return _cli.aio.models
 
 
+LLAMADA_MAX = 150    # s por llamada a Gemini: sin tope, una colgada dejó la investigación muda 20 min (21/10)
+INVESTIGA_MAX = 600  # s la investigación entera; pasado eso falla y lo dice, en vez de quedarse «en curso» para siempre
+
+
 async def _json(prompt):
-    r = await _gem().generate_content(model=MODELO, contents=prompt,
-                                      config=types.GenerateContentConfig(response_mime_type="application/json"))
+    r = await asyncio.wait_for(_gem().generate_content(model=MODELO, contents=prompt,
+                               config=types.GenerateContentConfig(response_mime_type="application/json")), LLAMADA_MAX)
     return json.loads(r.text)
 
 
 async def _salto(pregunta, pedir="Investiga con búsquedas y responde con datos concretos, cifras y fechas"):
     """Una búsqueda con Google: respuesta + fuentes web reales (grounding)."""
-    r = await _gem().generate_content(
+    r = await asyncio.wait_for(_gem().generate_content(
         model=MODELO, contents=f"{pedir}: {pregunta}",
-        config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())]))
+        config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())])), LLAMADA_MAX)
     gm = r.candidates[0].grounding_metadata if r.candidates else None
     fuentes = [(c.web.title or c.web.uri, c.web.uri) for c in (gm.grounding_chunks or []) if c.web] if gm else []
     return pregunta, r.text or "", fuentes
@@ -166,6 +170,26 @@ async def _biblioteca():
 
 
 async def _investigar(pregunta):
+    """Con su trabajo en ST["trabajos"] y la etapa en ST["progreso"]: así «¿cómo va?» tiene una respuesta
+    de verdad (taller → trabajos) y no la que se invente el modelo, que el 21/10 dijo «ultimando» 20 min
+    sobre una investigación colgada."""
+    nombre = time.strftime("investigación-%H%M")
+    ST["trabajos"][nombre] = "en curso"
+    prog = ST.setdefault("progreso", {})[nombre] = {"etapa": "preparando", "pct": 0, "ini": time.time(), "fin": None}
+    try:
+        await asyncio.wait_for(_investigar_(pregunta, prog), INVESTIGA_MAX)
+        ST["trabajos"][nombre] = "terminó bien"
+    except Exception as e:
+        ST["trabajos"][nombre] = "falló"
+        prog["etapa"] = f"falló en «{prog['etapa']}»"
+        porque = f"tardaba más de {INVESTIGA_MAX // 60} minutos" if isinstance(e, asyncio.TimeoutError) else str(e) or type(e).__name__
+        await avisar(f"La investigación sobre «{pregunta}» ha fallado ({porque}) y no hay informe. "
+                     "Díselo al usuario tal cual y ofrécele repetirla.")
+    finally:
+        prog["fin"] = time.time()
+
+
+async def _investigar_(pregunta, prog):
     t0 = time.time()
     p = paso(f"Investigo · {pregunta[:60]}")
     try:
@@ -178,6 +202,7 @@ async def _investigar(pregunta):
         notas = []
         for salto in (1, 2):
             subs = plan["subpreguntas"][:5]
+            prog.update(etapa=f"búsquedas web, ronda {salto} de 2 ({len(subs)})", pct=15 + 30 * (salto - 1))
             paso(f"Salto {salto}: {len(subs)} búsquedas", "hecho")
             notas += await asyncio.gather(*(_salto(s) for s in subs))
             if salto == 1:  # segundo salto: lo que falta o se contradice
@@ -189,13 +214,14 @@ async def _investigar(pregunta):
         web_ = "\n\n".join(f"P: {q}\nR: {r}\nFuentes: {', '.join(f'[{num[u]}]' for _, u in fs)}" for q, r, fs in notas)
         loc = "\n\n".join(f"[L{i + 1}] {n}:\n{t}" for i, (n, t) in enumerate(docs))
         paso("Sintetizo y cruzo fuentes", "hecho")
-        r = await _gem().generate_content(model=MODELO, contents=(
+        prog.update(etapa="redactando el informe", pct=80)
+        r = await asyncio.wait_for(_gem().generate_content(model=MODELO, contents=(
             f"Escribe un informe de investigación en español sobre: «{pregunta}».\n"
             "Cruza las notas web y los documentos locales; señala acuerdos y contradicciones entre fuentes. "
             "Cita CADA afirmación con [n] (web) o [Ln] (documento local), solo con los números dados. "
             "Primera línea: RESUMEN: <dos frases para decir en voz alta>. Después, solo un fragmento HTML "
             "(h1, h2, p, ul, li, strong, table) sin estilos, sin scripts y sin lista de fuentes.\n\n"
-            f"NOTAS WEB:\n{web_}\n\nDOCUMENTOS LOCALES:\n{loc or '(ninguno)'}"))
+            f"NOTAS WEB:\n{web_}\n\nDOCUMENTOS LOCALES:\n{loc or '(ninguno)'}")), LLAMADA_MAX)
         texto = (r.text or "").strip().removeprefix("```html").removesuffix("```")
         resumen, _, cuerpo = texto.partition("\n")
         cuerpo = re.sub(r"\[(L?\d+)\]", r'<a href="#f\1" class="c">[\1]</a>', cuerpo.strip().removeprefix("```html"))
@@ -208,13 +234,14 @@ async def _investigar(pregunta):
         (INFORMES / nombre).write_text(PLANTILLA.format(t=html.escape(pregunta), cuerpo=cuerpo, fuentes=lista,
                                                         meta=f"{len(citadas)} fuentes citadas de {len(fuentes)} consultadas · {len(docs)} locales · {round(time.time() - t0)} s"))
         p["e"] = "hecho"
+        prog.update(etapa="listo", pct=100)
         _ver(f"/informes/{quote(nombre)}", f"INFORME · {pregunta}")
         panel.notificar("info", f"Investigación lista: {pregunta[:80]}")
         await avisar(f"La investigación sobre «{pregunta}» ha terminado y el informe está en el panel. "
                      f"Díselo al usuario en una o dos frases: {resumen.removeprefix('RESUMEN:').strip()}")
-    except Exception as e:
+    except BaseException:
         p["e"] = "falló"
-        await avisar(f"La investigación sobre «{pregunta}» falló: {e}")
+        raise  # el aviso lo da _investigar, que también ve el tiempo agotado
 
 
 # ---------- edición de informes ----------
@@ -304,8 +331,10 @@ async def buscar(consulta):
 
 async def investigar(pregunta):
     acciones.tarea(_investigar(pregunta))
-    return (f"Investigación profunda en marcha (web + {BIBLIOTECA}). Tarda uno o dos minutos; "
-            "los pasos salen en el panel y te aviso al terminar. Díselo al usuario en una frase.")
+    return (f"Investigación profunda en marcha (web + {BIBLIOTECA}). Suele tardar de 2 a 5 minutos y como mucho "
+            f"{INVESTIGA_MAX // 60}; te llegará un aviso al terminar o al fallar. Díselo al usuario en una frase. "
+            "Si pregunta cómo va o cuánto falta, mira taller → trabajos y dile la etapa que pone: NUNCA inventes "
+            "progreso ni plazos («ultimando», «menos de un minuto») sin haberlo mirado.")
 
 
 PLANTILLA = """<!doctype html><html lang="es"><meta charset="utf-8"><title>{t}</title>

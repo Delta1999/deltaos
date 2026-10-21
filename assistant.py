@@ -505,6 +505,7 @@ async def main():
                     "Los trabajos largos corren en segundo plano y recibirás un [AVISO DEL SISTEMA] al acabar: díselo al usuario en una frase. "
                     "Usa memoria accion=recordar cuando el usuario diga que recuerdes algo, y dormir cuando se despida. "
                     "No hables por iniciativa propia por lo que cambie en la pantalla: habla solo cuando el usuario te hable o llegue un [AVISO DEL SISTEMA] o [EVENTO DEL SISTEMA]. "
+                    "Nunca inventes el estado de algo que corre en segundo plano (investigación, apuntes, Claude, documentos): si te preguntan cómo va o cuánto falta, mira taller → trabajos y di lo que pone; si no lo sabes, di que no lo sabes. Y no digas «hecho» ni «ya lo tiene en pantalla» si la herramienta no lo ha confirmado. "
                     "Estas son solo las notas más recientes y más consultadas, NO toda su memoria. Si pregunta por algo que suene a dicho hace tiempo y no esté aquí, usa memoria accion=buscar antes de decirle que no lo sabes:\n"
                     + (acciones.leer_memoria() or "(ninguna todavía)")
                 )
