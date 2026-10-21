@@ -778,6 +778,18 @@ async def brillo(porcentaje):
     return (await _run([*BRILLO, "setBrightness", "i", str(val)]))[1] or f"Brillo al {porcentaje}%."
 
 
+async def modo_oscuro(accion="activar"):
+    """Tema de KDE (BreezeDark/BreezeLight) y preferencia GTK/navegador a la vez."""
+    gs = ["gsettings", "set", "org.gnome.desktop.interface", "color-scheme"]
+    if accion == "consultar":
+        r = (await _run(["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"]))[1]
+        return "El escritorio está en modo oscuro." if "dark" in r else "El escritorio está en modo claro."
+    oscuro = accion != "desactivar"
+    await _run(["plasma-apply-colorscheme", "BreezeDark" if oscuro else "BreezeLight"])
+    await _run([*gs, "prefer-dark" if oscuro else "prefer-light"])
+    return "Modo oscuro puesto." if oscuro else "Modo claro puesto."
+
+
 async def notificar(titulo, texto=""):
     subprocess.Popen(["notify-send", titulo, texto], stderr=subprocess.DEVNULL)
     return "Notificación enviada."
@@ -891,6 +903,8 @@ DECLARATIONS = [
         {"accion": _s("fijar | subir | bajar | silenciar | activar_sonido | consultar"),
          "valor": _s("porcentaje, si aplica")}, req=["accion"]),
     _fn("brillo", "Fija el brillo de pantalla.", {"porcentaje": _s("1-100")}),
+    _fn("modo_oscuro", "Pone el escritorio (KDE y apps) en modo oscuro o claro, o dice cuál tiene.",
+        {"accion": _s("activar (oscuro) | desactivar (claro) | consultar")}),
     _fn("notificar", "Muestra una notificación de escritorio.",
         {"titulo": _s("título"), "texto": _s("cuerpo")}, req=["titulo"]),
     _fn("portapapeles", "Lee o escribe el portapapeles.",
@@ -924,7 +938,7 @@ def registrar(declaraciones, handlers):
 HANDLERS = {f.__name__: f for f in (
     abrir, ejecutar_herramienta_wormhole, verificar_diseno, ejecutar_shell, preguntar_a_claude,
     ver_trabajos, estado_impresora, historial_impresora, programar_aviso_impresora, estado_proyectos, recordar, olvidar, buscar_memoria, anotar_mejora,
-    volumen, brillo, notificar, poner_musica, controlar_musica, poner_tele, portapapeles, ventanas, dormir)}
+    volumen, brillo, modo_oscuro, notificar, poner_musica, controlar_musica, poner_tele, portapapeles, ventanas, dormir)}
 
 
 ETIQUETAS = {"estado_impresora": "Miro la impresora", "historial_impresora": "Leo el historial de la impresora",
@@ -1012,8 +1026,8 @@ FUSIONES = {
               "Imágenes, Descargas, Escritorio o Documentos/Delta) o URL, enseña además una foto, captura o plano. "
               "Para una web, un mapa, una búsqueda o un producto usa mostrar: en modo invisible el visor sale dentro de "
               "la propia barra. "
-              "fondo: la pone YA a pantalla completa en el panel (y es la que sale al dormir), cual = auto (rota; la impresión manda mientras imprime) | delta (el logo del "
-              "sistema en puntos) | reloj | mascota | impresion | tiempo («pon el reloj de fondo», «pon el logo», «salvapantallas»). pantalla_completa: cual = impresora (la "
+              "fondo: la pone YA a pantalla completa en el panel (y es la que sale al dormir), cual = auto (rota; la impresión manda mientras imprime) | delta (el ESCUDO: el logo del "
+              "sistema en puntos; «modo escudo», «pon el escudo», «pon el logo»; existe y funciona) | reloj | mascota | impresion | tiempo («pon el reloj de fondo», «pon el logo», «salvapantallas»). pantalla_completa: cual = impresora (la "
               "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
               "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
               "«¿qué está comiendo RAM?»).",

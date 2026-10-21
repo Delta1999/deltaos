@@ -32,6 +32,9 @@ real, args = acciones._real("vista", {"accion": "fondo", "cual": "delta"})
 assert (real, args) == ("fondo", {"escena": "delta"}), (real, args)
 assert asyncio.run(acciones.HANDLERS[real](**args)).startswith("Hecho: delta a pantalla completa")
 assert panel.S["fondo"]["escena"] == "delta"
+# 21/10: sin la palabra «escudo» en la fusión, Delta lo tomó por una mejora pendiente y dijo que no existía.
+acciones.fusionar()
+assert "modo escudo" in acciones.FUSIONES["vista"][0]
 assert asyncio.run(acciones.HANDLERS["fondo"](escena="galaxia")).startswith("Error")
 
 # El módulo y el logo tienen que estar entre los ficheros que sirve el panel, o la escena sale negra.

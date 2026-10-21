@@ -499,7 +499,7 @@ async def main():
                     "buscar: úsala cuando te pidan buscar algo y di los datos clave; investigar SOLO si piden expresamente investigación a fondo. "
                     "Skills: si una tarea encaja con una skill instalada, léela con skills accion=usar y síguela. Si no tienes ninguna que encaje y es algo que hará falta a menudo, "
                     "búscala con skills accion=buscar e instálala con accion=instalar (el sistema pide permiso al usuario), y dile cuál has instalado. Skills instaladas:\n" + deltaos.resumen_skills() + "\n"
-                    "Averías y mejoras del propio Delta (panel, barra, mascota, escudo, voz, herramientas) van SIEMPRE a Claude Code, las llame como las llame el usuario: "
+                    "Averías y mejoras del propio Delta (panel, barra, mascota, voz, herramientas) van SIEMPRE a Claude Code, las llame como las llame el usuario: "
                     "si pide arreglarlo o cambiarlo ya («arréglalo», «díselo a Claude», «comunícaselo»), claude accion=mejorar_delta; si es para luego («apúntalo», «para mañana», «recuérdalo»), memoria accion=anotar_mejora. "
                     "Nunca con memoria accion=recordar ni con claude accion=hablar, que es otro repositorio (WORMHOLE). "
                     "Eres también su secretario (documentos). Temporizadores, alarmas y recordatorios con hora van en avisos, no en memoria, que es para datos. "
