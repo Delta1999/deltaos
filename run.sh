@@ -64,7 +64,10 @@ trap cleanup EXIT INT TERM
 
 case " $* " in *" --sin-panel "*) ;; *)
   [ -n "$WAYLAND_DISPLAY$DISPLAY" ] && { "$DIR/panel/ventana.sh" >/dev/null 2>&1 9>&- & VENTANA=$!
-    "$DIR/.venv/bin/python3" "$DIR/mascota.py" >/dev/null 2>&1 9>&- & MASCOTA=$!; } ;;
+    # La mascota del escritorio está desactivada mientras exista este fichero (lo pidió el usuario
+    # el 2026-10-21, «hasta nueva orden»): para volver a tenerla, borrarlo y reiniciar Delta.
+    [ -f "$DIR/mascota_off.txt" ] && echo "🦝 mascota: desactivada (mascota_off.txt)" \
+      || { "$DIR/.venv/bin/python3" "$DIR/mascota.py" >/dev/null 2>&1 9>&- & MASCOTA=$!; }; } ;;
 esac
 cleanup_ventana() { [ -n "$VENTANA" ] && pkill -f "user-data-dir=$DIR/panel/.chromium" 2>/dev/null; [ -n "$MASCOTA" ] && kill "$MASCOTA" 2>/dev/null; }
 trap 'cleanup_ventana; cleanup' EXIT INT TERM

@@ -45,5 +45,6 @@ avisos.json
 memoria.md
 memoria.db
 mascota_elegida.txt
+mascota_off.txt
 *.kate-swp
 .*.kate-swp

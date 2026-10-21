@@ -1028,7 +1028,7 @@ FUSIONES = {
               "OJO: «la barra» es SIEMPRE invisible, nunca panel; panel es solo «panel completo», «abre la interfaz entera». "
               "quitar_tarjeta: quita la tarjeta que hayas puesto (en el panel o en la barra) y lo que haya en la barra (web, mapa, informe), sin cambiar de modo («quita eso», «quita eso de la barra», «quita el informe de la barra», «ya lo he visto»). "
               "oculto: quita también la barra de estado y no deja nada en pantalla («quita la barra», «fuera todo», «no dejes nada»); sigues escuchando igual, y con invisible vuelve. "
-              "elegir_mascota: cual = mapache | gato, qué animal es la mascota («pon el gato», «quiero el mapache»). "
+              "elegir_mascota: cual = mapache | gato | ninguna, qué animal es la mascota del escritorio («pon el gato», «quiero el mapache»); ninguna la apaga («quita la mascota», «no quiero mascota»). OJO: ahora mismo está en ninguna, desactivada por el usuario, y volver a pedir un animal la enciende (hace falta reiniciar Delta para que salga). "
               "pantalla: cual = interfaz (el panel y la barra de estado, que son la misma ventana) | mascota | todo, y donde = "
               "otra | arriba | abajo | izquierda | derecha | principal | ultrawide: la lleva a esa pantalla y se queda ahí aunque "
               "cambies de modo («mueve la interfaz a la otra pantalla», «la barra a la pantalla de arriba», «la mascota a la de "
@@ -1045,7 +1045,7 @@ FUSIONES = {
               "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
               "«¿qué está comiendo RAM?»).",
               {"cual": "fondo: auto | orbe1 | orbe2 | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
-                       "elegir_mascota: mapache | gato; pantalla: interfaz | mascota | todo",
+                       "elegir_mascota: mapache | gato | ninguna; pantalla: interfaz | mascota | todo",
                "donde": "pantalla: otra | arriba | abajo | izquierda | derecha | principal | ultrawide",
                "texto": "tarjeta: lo que enseñar, una cosa por línea",
                "titulo": "tarjeta: rótulo (opcional)",

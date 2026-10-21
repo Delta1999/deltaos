@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-21",
+  "t": "La mascota del escritorio queda apagada hasta nueva orden: Delta arranca sin ella. Pedir un animal la vuelve a encender (y hay que reiniciar Delta para verla).",
+  "como": "quita la mascota · pon el mapache"
+ },
+ {
+  "f": "2026-10-21",
   "t": "Salvapantallas «orbe 2»: la misma esfera pero sólida, una gota blanca de barniz que respira y se deforma con la voz. Debajo, la hora grabada y la conversación en burbujas, que se apaga sola a los 20 s (si subes a leer con la rueda, se queda). El de alambre es ahora el «orbe 1».",
   "como": "pon el orbe 2"
  },

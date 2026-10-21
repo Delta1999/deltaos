@@ -436,6 +436,10 @@ async def sincronizar_skills():
 async def cambiar_vista(modo):
     if modo not in ("panel", "mascota", "invisible", "oculto"):
         return "Error: el modo es panel, mascota, invisible u oculto."
+    if modo == "mascota" and (AQUI / "mascota_off.txt").exists():
+        # sin proceso de mascota, el modo mascota deja la pantalla vacía: mejor decirlo (21/10)
+        return ("Error: la mascota del escritorio está desactivada por petición del usuario. "
+                "Dile que, si la quiere otra vez, lo pida y se vuelve a activar.")
     panel.vista(modo)
     if modo == "oculto":
         return ("Hecho: quitada la barra de estado. Sigo escuchando igual; dile que para recuperarla "
@@ -558,9 +562,22 @@ async def quitar_de_tira():
 
 
 async def elegir_mascota(cual):
-    if cual not in ("mapache", "gato"):
-        return "Error: cual es mapache o gato."
+    # «ninguna» la apaga del todo (el usuario la desactivó el 2026-10-21, «hasta nueva orden») y
+    # pedir un animal la vuelve a encender: es el mismo interruptor que mira run.sh al arrancar.
+    if cual not in ("mapache", "gato", "ninguna"):
+        return "Error: cual es mapache, gato o ninguna."
+    off = AQUI / "mascota_off.txt"
+    if cual == "ninguna":
+        off.write_text("La mascota del escritorio está desactivada: run.sh no la arranca mientras exista\n"
+                       "este fichero. Para volver a tenerla, pedir «pon el mapache» o «pon el gato».\n")
+        M = "masc"
+        subprocess.run(["pkill", "-f", f"/{M}ota.py"], capture_output=True)
+        return "Hecho: la mascota del escritorio queda desactivada hasta que la pida otra vez."
+    volvia = off.exists()
+    off.unlink(missing_ok=True)
     (AQUI / "mascota_elegida.txt").write_text(cual + "\n")  # mascota.py lo vigila y se vuelve a arrancar con ella
+    if volvia:
+        return f"Hecho: la mascota vuelve, y es el {cual}. Dile que hace falta reiniciarte para que salga."
     return f"Hecho: ahora la mascota es el {cual}."
 
 
