@@ -565,8 +565,9 @@ async def fondo(escena):
     if escena == "auto":
         return "Hecho: el fondo de espera vuelve a ir rotando."
     antes = panel._vista_actual()
-    if antes != "panel":
-        panel.vista("panel")  # en barra, mascota u oculto el panel no se ve, y el fondo va dentro del panel
+    # Siempre, aunque ya esté en panel: escribir la vista hace que ventana.sh lo traiga al frente.
+    # 21/10: el panel estaba en «panel» pero tapado por otras ventanas, y el escudo no se veía.
+    panel.vista("panel")  # en barra, mascota u oculto el panel no se ve, y el fondo va dentro del panel
     return (f"Hecho: {escena} a pantalla completa en el panel" + (f" (estaba en modo {antes}: he puesto el panel)" if antes != "panel" else "")
             + ". Se quita con doble clic, Escape o la rueda del ratón; también sale solo cuando duermes.")
 

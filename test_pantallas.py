@@ -63,8 +63,15 @@ try:
     r = asyncio.run(deltaos.fondo("delta"))
     assert panel._vista_actual() == "panel" and "pantalla completa" in r and "modo invisible" in r, r
     assert panel.S["fondo"]["escena"] == "delta"
+    t = panel.VISTA.stat().st_mtime_ns
+    asyncio.run(deltaos.fondo("delta"))  # ya en panel: se reescribe igual, para que ventana.sh lo suba al frente
+    assert panel.VISTA.stat().st_mtime_ns > t
 finally:
     panel.VISTA = v
 assert "forzado = d.fondo.escena !== 'auto'" in Path("panel/fondo.js").read_text()
+# Y el panel real lo recibe: los scripts van con su fecha en la URL, que la caché vieja de Chromium no sirva el fondo.js de ayer.
+import re
+assert re.search(r'src="/fondo\.js\?v=\d+"', panel._con_version("index.html", "text/html").text)
+assert re.search(r"'/delta\.js\?v=\d+'", panel._con_version("fondo.js", "application/javascript").text)
 
 print("OK: interfaz y mascota cambian de pantalla por voz y se quedan; el escudo se ve al pedirlo")
