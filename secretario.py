@@ -11,6 +11,7 @@ import re
 import shutil
 import tempfile
 import time
+import unicodedata
 from pathlib import Path
 from urllib.parse import quote
 
@@ -153,10 +154,27 @@ async def crear_documento(encargo, formato="pdf", buscar="no", al_movil="no"):
             "Díselo al usuario en una frase.")
 
 
+def _palabras(t):
+    t = unicodedata.normalize("NFKD", t.lower()).encode("ascii", "ignore").decode()
+    return [w for w in re.split(r"[^a-z0-9]+", t) if w and w not in _RELLENO and not re.fullmatch(r"\d{8}|\d{4}", w)]
+
+
+_RELLENO = set("de del la el los las lo y e o a al en un una unos unas para por con sin que mi me".split())
+
+
 def _buscar(nombre):
-    hay = [f for d in (deltaos.INFORMES, DOCS) for f in d.iterdir()
-           if f.is_file() and nombre.lower() in f.name.lower()]
-    return max(hay, key=lambda f: f.stat().st_mtime) if hay else None
+    # 21/10: Delta pide por el título («Resumen provisional: Skills de…») y el fichero lleva el título
+    # recortado y con guiones; por eso se compara por palabras y no como texto literal.
+    pide = set(_palabras(nombre))
+    mejor, nota = None, (0, 0)
+    for f in (f for d in (deltaos.INFORMES, DOCS) for f in d.iterdir() if f.is_file()):
+        tiene = set(_palabras(f.stem)) or {f.suffix}
+        comun = len(pide & tiene)
+        if nombre.lower() in f.name.lower() or (pide and comun >= min(2, len(pide)) and comun / min(len(pide), len(tiene)) >= 0.8):
+            n = (comun, f.stat().st_mtime)
+            if n > nota:
+                mejor, nota = f, n
+    return mejor
 
 
 async def convertir_documento(nombre, formato="pdf"):
