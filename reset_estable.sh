@@ -4,7 +4,7 @@
 # No toca lo ignorado por git: memoria, avisos, logs, .venv, perfil del navegador.
 # Lo lanza panel.py en una sesión aparte (start_new_session): sobrevive a que mate a Delta.
 cd "$(dirname "$0")" || exit 1
-VERSION=v3.5   # la última etiquetada; cambiar al etiquetar la siguiente
+VERSION=v4   # la última etiquetada; cambiar al etiquetar la siguiente
 F=$(date +%F_%H%M%S)
 exec >>assistant.log 2>&1
 git rev-parse -q --verify "$VERSION" >/dev/null || { echo "♻️ reset: no existe $VERSION"; exit 1; }

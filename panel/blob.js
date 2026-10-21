@@ -20,14 +20,19 @@ import * as THREE from '/three.module.js';
 const SEG = 192;        // segmentos de la esfera: con menos se ve el polígono en la silueta
 const ENTRA = 1.4;      // segundos que tarda en salir (crece y se deforma desde una bola lisa)
 
-let r3 = null, t0 = 0, NV = 0, MV = 0, V = 0, giro = 0, fase = 0, ult = 0;
-export const entrar = () => { t0 = performance.now() / 1000; giro = 0; fase = 0; ult = 0; NV = MV = V = 0; E = 0; };
+// Cada lienzo lleva su gota y su estado: la grande del salvapantallas y la mini de la cabecera del
+// panel, que sustituye al mapache (pedido el 2026-10-21). La mini no tiene hora, ni conversación, ni
+// ratón: es solo la gota, centrada y con menos triángulos, que a 120 px no se nota la diferencia.
+const GOTAS = new WeakMap();
+const nueva = () => ({r3: null, t0: performance.now() / 1000, NV: 0, MV: 0, V: 0, giro: 0, fase: 0, ult: 0,
+  rx: null, ry: 0, E: 0, dirR: new THREE.Vector3(0, 0, 1)});
+const de = cv => GOTAS.get(cv) || (GOTAS.set(cv, nueva()), GOTAS.get(cv));
+const fb = () => de(document.getElementById('fb-cv'));
+export const entrar = () => { const g = fb(); Object.assign(g, {t0: performance.now() / 1000, giro: 0, fase: 0, ult: 0, NV: 0, MV: 0, V: 0, E: 0}); };
 
 // El ratón la empuja (pedido el 2026-10-21): donde apunta se le hace un hoyo, como si la gota se
 // apartase del dedo, y todo el cuerpo se retira un poco. Viene en píxeles del lienzo; null = fuera.
-let rx = null, ry = 0, E = 0;
-const dirR = new THREE.Vector3(0, 0, 1);
-export const raton = (x, y) => { rx = x; ry = y; };
+export const raton = (x, y) => { const g = fb(); g.rx = x; g.ry = y; };
 
 const suave = v => v < 0 ? 0 : v > 1 ? 1 : v * v * (3 - 2 * v);
 
@@ -144,7 +149,7 @@ function entorno(ren) {
   return env;
 }
 
-function montar(cv) {
+function montar(cv, dirR, seg) {
   const ren = new THREE.WebGLRenderer({canvas: cv, antialias: true, alpha: true, powerPreference: 'high-performance'});
   ren.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
   ren.setClearColor(0x000000, 0);
@@ -172,7 +177,7 @@ function montar(cv) {
       .replace('#include <begin_vertex>', '  vec3 transformed = displacedPosition;');
   };
 
-  const malla = new THREE.Mesh(new THREE.SphereGeometry(1, SEG, SEG), mat);
+  const malla = new THREE.Mesh(new THREE.SphereGeometry(1, seg, seg), mat);
   escena.add(malla);
 
   // luz: una clave blanca que marca el volumen y un contraluz rojo, el acento del panel
@@ -185,19 +190,23 @@ function montar(cv) {
   return {ren, escena, cam, malla, u};
 }
 
-export function pintar(cv, d) {
+export const pintar = (cv, d) => dibujar(cv, d, false);
+export const mini = (cv, d) => dibujar(cv, d, true);
+
+function dibujar(cv, d, peque) {
   const w = cv.clientWidth, h = cv.clientHeight;
   if (!w || !h) return;
-  if (!r3) r3 = montar(cv);
-  const {ren, escena, cam, malla, u} = r3;
+  const g = de(cv);
+  if (!g.r3) g.r3 = montar(cv, g.dirR, peque ? 64 : SEG);
+  const {ren, escena, cam, malla, u} = g.r3;
   if (cv.width !== Math.round(w * ren.getPixelRatio()) || cv.height !== Math.round(h * ren.getPixelRatio())) {
     ren.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
   }
 
-  const ms = performance.now(), t = ms / 1000 - t0;
+  const ms = performance.now();
   const est = d.estado || 'dormido', hablando = est === 'hablando';
-  const nac = suave(t / ENTRA);
-  const dt = ult ? Math.min(.1, (ms - ult) / 1000) : 0; ult = ms;
+  const t = ms / 1000 - g.t0, nac = suave(t / ENTRA);
+  const dt = g.ult ? Math.min(.1, (ms - g.ult) / 1000) : 0; g.ult = ms;
 
   // La voz se sigue con constantes de tiempo, no con un factor por fotograma: el nivel llega a
   // saltos cada 0,4 s por el WebSocket y aquí interesa que la gota lo *acompañe*. Sube deprisa
@@ -205,25 +214,27 @@ export function pintar(cv, d) {
   // vuelve a suavizar otra vez: eso es lo «gradual». El orbe 1 puede ir más nervioso porque es
   // alambre; esta gota, al ser una superficie sólida, delata cualquier salto.
   const sigue = (v, obj, sube, baja) => v + (obj - v) * (1 - Math.exp(-dt / (obj > v ? sube : baja)));
-  NV = sigue(NV, d.nivel || 0, .13, .80);
-  MV = sigue(MV, (d.mic || {}).nivel || 0, .18, 1.0);
-  const bruto = hablando ? NV : est === 'escuchando' ? MV * .7 : 0;
-  V = sigue(V, bruto, .28, .65);
+  g.NV = sigue(g.NV, d.nivel || 0, .13, .80);
+  g.MV = sigue(g.MV, (d.mic || {}).nivel || 0, .18, 1.0);
+  const bruto = hablando ? g.NV : est === 'escuchando' ? g.MV * .7 : 0;
+  const V = g.V = sigue(g.V, bruto, .28, .65);
 
   // la fase del ruido se acumula (como el giro): así la voz cambia la VELOCIDAD del hervor y no
   // da un salto en el ruido, que es lo que pasaba al multiplicar la voz por el tiempo absoluto.
-  fase += dt * (.42 + V * .30);
-  giro += dt * (.12 + (hablando ? .34 : est === 'trabajando' ? .25 : 0) + V * .5);
-  malla.rotation.set(Math.sin(t * .11) * .22, giro, Math.sin(t * .07) * .12);
-  malla.scale.setScalar(.8 * (.6 + .4 * nac) * (1 + V * .04));   // con voz se hincha un poco
-  malla.position.set(0, .46, 0);   // arriba del centro: debajo van la hora y la conversación
-  empujar(cam, malla, w, h, sigue);
+  g.fase += dt * (.42 + V * .30);
+  g.giro += dt * (.12 + (hablando ? .34 : est === 'trabajando' ? .25 : 0) + V * .5);
+  malla.rotation.set(Math.sin(t * .11) * .22, g.giro, Math.sin(t * .07) * .12);
+  // con voz se hincha un poco; la mini llena su cuadro (la cámara ve ±1,77 a esa distancia)
+  malla.scale.setScalar((peque ? 1.4 : .8) * (.6 + .4 * nac) * (1 + V * .04));
+  if (peque) { malla.position.set(0, 0, 0); g.E = 0; }
+  else { malla.position.set(0, .46, 0); empujar(g, cam, malla, w, h, sigue); }   // arriba: debajo van la hora y la conversación
 
-  u.tiempo.value = fase;
+  u.tiempo.value = g.fase;
   u.distor.value = (.20 + .05 * Math.sin(t * .55) + V * .26) * nac;   // respira siempre; con voz, se hincha
   u.detalle.value = (.02 + V * .045) * nac;                          // y le sale grano en la piel
-  u.empuje.value = E * nac;
+  u.empuje.value = g.E * nac;
   ren.render(escena, cam);
+  if (peque) return;
 
   hora();
   conversacion(d, nac);
@@ -233,7 +244,8 @@ export function pintar(cv, d) {
 // cerca, va hacia el lado del ratón y con menos fuerza. La dirección y la fuerza se suavizan, que
 // si no el hoyo salta de un sitio a otro al mover el ratón deprisa.
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), cen = new THREE.Vector3(), pc = new THREE.Vector3();
-function empujar(cam, malla, w, h, sigue) {
+function empujar(g, cam, malla, w, h, sigue) {
+  const {rx, ry, dirR} = g;
   let obj = 0;
   if (rx !== null) {
     ndc.set(rx / w * 2 - 1, 1 - ry / h * 2);
@@ -247,7 +259,7 @@ function empujar(cam, malla, w, h, sigue) {
     obj = dist < R ? 1 : 1 - suave((dist - R) / (R * .7));
     if (obj > 0) dirR.lerp(malla.worldToLocal(pc.clone()).normalize(), .25).normalize();
   }
-  E = sigue(E, obj, .12, .5);
+  const E = g.E = sigue(g.E, obj, .12, .5);
   // el cuerpo se aparta del ratón: hacia el lado contrario, en el plano de la pantalla
   if (E > 0) {
     const lado = malla.localToWorld(dirR.clone()).sub(cen);

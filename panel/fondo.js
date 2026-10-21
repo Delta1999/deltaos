@@ -1,5 +1,5 @@
 // Modo espera del panel: a los 30 s de dormir sin visor tapa el panel con una escena limpia.
-// Clic derecho = siguiente escena · doble clic o Esc = volver al panel 2 min · clic derecho en el mapache del panel = ponerlo ya
+// Clic derecho = siguiente escena · doble clic o Esc = volver al panel 2 min · clic derecho en el mini orbe del panel = ponerlo ya · clic = el orbe 2
 // · la voz fija una con la herramienta «fondo».
 // Pantalla completa (clic en la tarjeta o herramienta «pantalla_completa»): impresora con todos los datos, o sistema.
 //
@@ -75,7 +75,10 @@ window.fondoEspera = d => {
 window.pantallaCompleta = que => { full = que; forzado = true; fuera = 0; escena = null; window.fondoEspera(D); if (on) poner(elegir(D)); };
 const siguiente = e => { e.preventDefault(); full = null; $('fondo').classList.remove('full'); manual = elegir(D, true); poner(manual); };
 $('fondo').addEventListener('contextmenu', siguiente);
-$('mapa').addEventListener('contextmenu', e => { e.preventDefault(); forzado = true; fuera = 0; window.fondoEspera(D); });
+$('miniorbe').addEventListener('contextmenu', e => { e.preventDefault(); forzado = true; fuera = 0; window.fondoEspera(D); });
+// El mini orbe de la cabecera del panel (en lugar del mapache, 2026-10-21): clic = el orbe 2 en grande
+window.miniOrbe = (cv, d) => Gota.mini(cv, d);
+$('miniorbe').addEventListener('click', () => { full = null; manual = 'blob'; forzado = true; fuera = 0; escena = null; window.fondoEspera(D); });
 const salir = () => { const era = full; full = null; manual = null; if (on) { forzado = false; fuera = era ? 0 : performance.now() + PAUSA; mostrar(false); } };
 $('fondo').addEventListener('dblclick', salir);
 // La rueda también lo quita: el reloj tapa el panel en cuanto Delta se duerme, que es justo cuando

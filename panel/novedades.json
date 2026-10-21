@@ -1,6 +1,16 @@
 [
  {
   "f": "2026-10-21",
+  "t": "El mapache de junto a la hora es ahora un mini orbe: el orbe 2 en pequeño, que respira y se deforma con la voz; clic = el orbe 2 en grande. Los puntos del dock van debajo de la hora",
+  "como": "Clic en el mini orbe"
+ },
+ {
+  "f": "2026-10-21",
+  "t": "Con la interfaz en la tele del salón el portátil no escucha: Delta te oye por el micro del mando; el botón de ventanas del ratón la devuelve al portátil",
+  "como": "Mantén el botón del micro del mando y pregunta «¿qué hora es?»"
+ },
+ {
+  "f": "2026-10-21",
   "t": "La interfaz de DeltaOS en la tele del salón: un clic en el botón del micro del mando (o «pasa la interfaz a la tele») la pone a pantalla completa y la tele no se duerme; «pásala al portátil» la devuelve, y si el portátil se apaga la tele vuelve sola al inicio",
   "como": "Pasa la interfaz a la tele"
  },

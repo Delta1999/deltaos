@@ -10,6 +10,7 @@ Repositorio canónico: `~/gemini-live-assistant`. Trabaja aquí, sobre estos arc
 - `panel.py` + `panel/index.html` + `panel/fondo.js` — panel web en 127.0.0.1:7876 (aiohttp + WebSocket; `S` = estado que se difunde).
 - `mascota.py` — mascota PyQt6 (mapache 3D de puntos) que se pasea por el escritorio.
 - `secretario.py` — documentos (crear_documento, convertir_documento).
+- `firetv.py` + `firetv/mic_mando/` — la tele del salón (Fire TV por ADB): herramienta tele_salon, la interfaz en la tele y el micro del mando (app Android propia `es.delta.micmando`).
 
 ## Reglas (obligatorias)
 - La impresora (Moonraker 192.168.0.102:7125) es SOLO LECTURA: únicamente GET, nunca comandos.
@@ -45,5 +46,5 @@ Si te llama Delta: NO reinicies Delta (eres un proceso hijo suyo); di al final s
   y después `echo mascota > $XDG_RUNTIME_DIR/delta-vista` si estaba en modo mascota.
 - Tras cada arranque/reinicio (lo pidió el usuario): revisar en `assistant.log` las líneas `🩺 servicios:` (`comprobar_servicios.sh`) y `🔊 audio:` (`comprobar_audio.sh`); si hay ⚠️, arreglarlo o decírselo antes de dar Delta por buena.
 
-## Versión estable v2.1
-Tag `v2.1` (antes `v2.0`, que sigue existiendo). El botón «↺ Volver a v2.1» del menú de la hora (ws `reset_v2` → `reset_v2.sh`) hace `git reset --hard v2.1` y reinicia Delta; antes guarda lo posterior en el tag `antes-del-reset-<fecha>` y lo no commiteado en un stash. Para una versión estable nueva, mover el tag solo si el usuario lo pide.
+## Versión estable v4
+Tag `v4` (antes `v3.5`, `v3.0`, `v2.1`, `v2.0`, que siguen existiendo). El botón «↺ Volver a v4» del menú de la hora (ws `reset_estable` → `reset_estable.sh`, variable `VERSION`) hace `git reset --hard v4` y reinicia Delta; antes guarda lo posterior en el tag `antes-del-reset-<fecha>` y lo no commiteado en un stash. Para una versión estable nueva, mover el tag (y `VERSION`, el botón y su `confirm` en index.html) solo si el usuario lo pide.
