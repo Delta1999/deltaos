@@ -162,8 +162,8 @@ async def _turno(mensaje, propio=None, voz=True):
                 print(f"ACP: sin modo acceptEdits ({e})")
         await _conn.prompt(session_id=_sid_delta if propio else _sid, prompt=[text_block(mensaje)])
         final = _estado["texto"].strip() or "(sin texto)"
-        if propio and LIMITE.search(final):  # 21/10: con el límite de sesión no hace nada y la petición se perdía
-            raise RuntimeError(f"Claude Code no ha podido ({final[:160]})")
+        if LIMITE.search(final):  # límite de tokens o sesión de Claude Code
+            raise RuntimeError(f"Límite de tokens de Claude Code alcanzado: {final[:160]}")
         if propio:
             await _registrar(propio[0], propio[1], final)
         _estado.update(estado="libre", ultimo="hecho")
@@ -178,9 +178,17 @@ async def _turno(mensaje, propio=None, voz=True):
         await cerrar()  # la próxima vez se reconecta
         panel.notificar("alerta", f"Claude Code falló: {e}")
         guardada = ""
+        es_limite = bool(LIMITE.search(str(e)))
         if propio:  # que no se pierda: al buzón que Claude revisa al ponerse con Delta
             await acciones.anotar_mejora(propio[0])
-            guardada = " La petición ha quedado anotada en el registro de averías y mejoras, así que no se pierde."
+            if es_limite:
+                await acciones.mejorar_delta_cherry(f"[Fallback falta de tokens en Claude] {propio[0]}")
+                guardada = (" Claude Code no tiene tokens. La petición ha quedado anotada en cherry_pendientes.txt "
+                            "para que Cherry se encargue de ella.")
+            else:
+                guardada = " La petición ha quedado anotada en el registro de averías y mejoras, así que no se pierde."
+        elif es_limite:
+            guardada = " Claude Code no tiene tokens. Puedes pedirme que se lo pase a Cherry diciendo «dile a Cherry que...»."
         if voz:
             await avisar(f"Falló la conversación con Claude Code: {e}.{guardada}")
     finally:
@@ -237,6 +245,8 @@ def ocupado():
 async def mejorar_delta(peticion, voz=True):
     """voz=False: arreglos de la llave inglesa, que se lanzan solos con el PC libre y no deben despertar a Delta."""
     global _tarea
+    if re.search(r"\bcherry\b", peticion, re.I):
+        return await acciones.mejorar_delta_cherry(peticion)
     if ocupado():
         await acciones.anotar_mejora(peticion)
         return (f"Claude Code sigue ocupado con: {_estado['tarea']}. La petición queda anotada en el registro de averías y "
@@ -257,6 +267,8 @@ DE_DELTA = re.compile(r"\bdelta(os)?\b|mascota|barra de estado|\bescudo\b|tu (pa
 
 async def hablar_con_claude(mensaje):
     global _tarea
+    if re.search(r"\bcherry\b", mensaje, re.I):
+        return await acciones.mejorar_delta_cherry(mensaje)
     if DE_DELTA.search(mensaje):
         return await mejorar_delta(mensaje) + " (Era del propio Delta: lo he mandado a su repositorio, no a WORMHOLE.)"
     if _tarea and not _tarea.done():

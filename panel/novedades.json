@@ -1,5 +1,10 @@
 [
  {
+  "f": "2026-10-24",
+  "t": "Plan B con Cherry para mejoras de Delta o tareas cuando Claude no tenga tokens",
+  "como": "«mejora esto con Cherry», «dile a Cherry que cambie esto»"
+ },
+ {
   "f": "2026-10-21",
   "t": "El mapache de junto a la hora es ahora un mini orbe: el orbe 2 en pequeño, que respira y se deforma con la voz; clic = el orbe 2 en grande. Los puntos del dock van debajo de la hora",
   "como": "Clic en el mini orbe"

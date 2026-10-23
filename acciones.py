@@ -768,6 +768,25 @@ async def anotar_mejora(descripcion):
             "No anotes variantes de lo mismo: solo cosas claramente distintas.")
 
 
+CHERRY_PENDIENTES = AQUI / "cherry_pendientes.txt"
+
+
+async def mejorar_delta_cherry(peticion):
+    """Plan B: Registra una petición de mejora de DeltaOS o tarea en cherry_pendientes.txt para Cherry Studio."""
+    p = peticion.strip()
+    linea = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Cherry] {p}\n"
+    with open(CHERRY_PENDIENTES, "a", encoding="utf-8") as f:
+        f.write(linea)
+    print(f"\n🍒 [PETICIÓN PARA CHERRY]: {p}\n")
+    try:
+        import panel
+        panel.notificar("info", f"Petición para Cherry registrada: {p[:50]}")
+    except Exception:
+        pass
+    return ("Petición registrada para Cherry en cherry_pendientes.txt. "
+            "Dile al usuario que ya se lo has apuntado a Cherry y que lo procesará desde Cherry Studio.")
+
+
 # --- sistema (KDE / PipeWire) ---
 async def volumen(accion, valor=""):
     sink = "@DEFAULT_AUDIO_SINK@"
@@ -936,6 +955,8 @@ DECLARATIONS = [
     _fn("poner_tele", "Pone un canal de televisión en directo en una ventana. Sustituye a lo que sonara.",
         {"canal": _s("cuatro | telecinco | fdf | energy | divinity | be mad")}),
     _fn("dormir", "Vuelve al modo espera cuando el usuario se despide o dice que ya está."),
+    _fn("cherry", "Plan B cuando Claude Code no tenga tokens o el usuario pida usar Cherry («mejora esto con Cherry», «dile a Cherry que cambie esto»). Anota la tarea en cherry_pendientes.txt para que Cherry la resuelva.",
+        {"peticion": _s("lo que el usuario pide que haga Cherry, completo y detallado")}, req=["peticion"]),
 ]
 
 TOOLS = [types.Tool(google_search=types.GoogleSearch()),
@@ -951,7 +972,8 @@ def registrar(declaraciones, handlers):
 HANDLERS = {f.__name__: f for f in (
     abrir, ejecutar_herramienta_wormhole, verificar_diseno, ejecutar_shell, preguntar_a_claude,
     ver_trabajos, estado_impresora, historial_impresora, programar_aviso_impresora, estado_proyectos, recordar, olvidar, buscar_memoria, anotar_mejora,
-    volumen, brillo, modo_oscuro, notificar, poner_musica, controlar_musica, poner_tele, portapapeles, ventanas, dormir)}
+    volumen, brillo, modo_oscuro, notificar, poner_musica, controlar_musica, poner_tele, portapapeles, ventanas, dormir, mejorar_delta_cherry)}
+HANDLERS["cherry"] = mejorar_delta_cherry
 
 
 ETIQUETAS = {"estado_impresora": "Miro la impresora", "historial_impresora": "Leo el historial de la impresora",
@@ -960,7 +982,8 @@ ETIQUETAS = {"estado_impresora": "Miro la impresora", "historial_impresora": "Le
              "usar_skill": "Leo la skill", "mirar_detalle": "Miro la pantalla en alta resolución",
              "hablar_con_claude": "Encargo a Claude Code", "ejecutar_shell": "Comando", "recordar": "Guardo en memoria",
              "buscar_memoria": "Rebusco en la memoria",
-             "consultar_clima": "Consulto el tiempo", "abrir": "Abro", "dormir": "A dormir"}
+             "consultar_clima": "Consulto el tiempo", "abrir": "Abro", "dormir": "A dormir",
+             "mejorar_delta_cherry": "Anoto para Cherry", "cherry": "Anoto para Cherry"}
 MAX_PASOS = 7
 
 # Fusión (2026-10-19): 55 herramientas confundían al modelo; las de un mismo tema van en una con «accion».
@@ -989,14 +1012,17 @@ FUSIONES = {
                {"programar": _r("programar_aviso"), "ver": _r("ver_avisos"),
                 "cancelar": _r("cancelar_aviso", {"cual": "texto"}), "parar_alarma": _r("parar_alarma"),
                 "no_molestar": _r("no_molestar", {"minutos": "en_minutos"})}),
-    "claude": ("Claude Code. mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, mascota, fondos, voz, "
-               "herramientas…) ya, avería o mejora; si no corre prisa, memoria accion=anotar_mejora. hablar: el repo "
-               "WORMHOLE (CAD, piezas, impresión), UNA conversación persistente que recuerda lo "
+    "claude": ("Claude Code y Cherry (Plan B). mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, mascota, fondos, voz, "
+               "herramientas…) ya con Claude Code; si no corre prisa, memoria accion=anotar_mejora. "
+               "cherry: Plan B cuando Claude no tenga tokens o el usuario pida expresamente usar Cherry («mejora esto con Cherry», «dile a Cherry que cambie esto»); "
+               "hablar: el repo WORMHOLE (CAD, piezas, impresión), UNA conversación persistente que recuerda lo "
                "anterior (vale «ahora hazlo más grueso»), trabaja en segundo plano y avisa; úsala para toda petición de "
                "código, CAD o archivos del repo. tarea_suelta: un disparo sin memoria (pide confirmación). "
                "estado: qué hace ahora. cancelar: interrumpe su tarea.",
-               {"mensaje": "hablar/tarea_suelta/mejorar_delta: lo que quieres que haga, completo y con las palabras del usuario"},
-               {"mejorar_delta": _r("mejorar_delta", {"peticion": "mensaje"}), "hablar": _r("hablar_con_claude"), "tarea_suelta": _r("preguntar_a_claude", {"tarea": "mensaje"}),
+               {"mensaje": "hablar/tarea_suelta/mejorar_delta/cherry: lo que quieres que haga, completo y con las palabras del usuario"},
+               {"mejorar_delta": _r("mejorar_delta", {"peticion": "mensaje"}),
+                "cherry": _r("mejorar_delta_cherry", {"peticion": "mensaje"}),
+                "hablar": _r("hablar_con_claude"), "tarea_suelta": _r("preguntar_a_claude", {"tarea": "mensaje"}),
                 "estado": _r("estado_claude"), "cancelar": _r("cancelar_claude")}),
     "memoria": ("Memoria persistente (sobrevive a reinicios). recordar: guarda una nota. buscar: rebusca en TODO lo "
                 "que te ha contado alguna vez; las notas que ves al despertar son solo las últimas, así que si "
