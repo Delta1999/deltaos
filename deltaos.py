@@ -234,7 +234,8 @@ async def _investigar_(pregunta, prog):
         lista += "".join(f'<li id="fL{i + 1}">[L{i + 1}] {html.escape(n)} (biblioteca local)</li>'
                          for i, (n, _) in enumerate(docs) if f"L{i + 1}" in citadas)
         nombre = time.strftime("%Y%m%d-%H%M-") + (re.sub(r"[^\w]+", "-", pregunta.lower())[:50].strip("-") or "informe") + ".html"
-        (INFORMES / nombre).write_text(PLANTILLA.format(t=html.escape(pregunta), cuerpo=cuerpo, fuentes=lista,
+        tema_act = panel.S.get("tema", "nothing")
+        (INFORMES / nombre).write_text(PLANTILLA.format(tema=tema_act, t=html.escape(pregunta), cuerpo=cuerpo, fuentes=lista,
                                                         meta=f"{len(citadas)} fuentes citadas de {len(fuentes)} consultadas · {len(docs)} locales · {round(time.time() - t0)} s"))
         p["e"] = "hecho"
         prog.update(etapa="listo", pct=100)
@@ -251,7 +252,11 @@ async def _investigar_(pregunta, prog):
 VERSIONES = INFORMES / ".versiones"  # fuera de la ruta servida: _informe solo da ficheros de INFORMES
 ESTILO_EDICION = ('<style id="ed">.sr{text-decoration:underline #D71921 2px;text-underline-offset:3px}.rojo{color:#D71921}'
                   "mark{background:#ffd60a;color:#000;padding:0 2px}.nota{border-left:3px solid #D71921;padding:4px 12px;"
-                  "margin:12px 0;color:#cfcfcf;font-size:14px}@media print{.nota{color:#333}.rojo,.sr{color:#c00}}</style>")
+                  "margin:12px 0;color:#cfcfcf;font-size:14px}"
+                  "[data-tema=\"ios\"] .sr{text-decoration:underline #0A84FF 2px}"
+                  "[data-tema=\"ios\"] .rojo{color:#0A84FF}"
+                  "[data-tema=\"ios\"] .nota{border-left:3px solid #0A84FF;background:rgba(10,132,255,.08);border-radius:0 10px 10px 0}"
+                  "@media print{.nota{color:#333}.rojo,.sr{color:#c00}}</style>")
 
 
 def _buscar_informe(q):
@@ -340,7 +345,7 @@ async def investigar(pregunta):
             "progreso ni plazos («ultimando», «menos de un minuto») sin haberlo mirado.")
 
 
-PLANTILLA = """<!doctype html><html lang="es"><meta charset="utf-8"><title>{t}</title>
+PLANTILLA = """<!doctype html><html lang="es" data-tema="{tema}"><meta charset="utf-8"><title>{t}</title>
 <style>
 @font-face{{font-family:Doto;font-weight:900;src:url(/fonts/doto-900.ttf)}}
 @font-face{{font-family:'Space Grotesk';font-weight:400;src:url(/fonts/spacegrotesk-400.ttf)}}
@@ -362,6 +367,19 @@ PLANTILLA = """<!doctype html><html lang="es"><meta charset="utf-8"><title>{t}</
   --accent:#D71921;
 }}
 
+[data-tema="ios"]{{
+  --black:#000000;
+  --surface:rgba(28, 28, 30, 0.78);
+  --surface-raised:rgba(44, 44, 46, 0.85);
+  --border:rgba(255, 255, 255, 0.12);
+  --border-visible:rgba(255, 255, 255, 0.20);
+  --text-disabled:rgba(235, 235, 245, 0.35);
+  --text-secondary:rgba(235, 235, 245, 0.65);
+  --text-primary:#F2F2F7;
+  --text-display:#FFFFFF;
+  --accent:#0A84FF;
+}}
+
 body{{
   background:var(--black);
   color:var(--text-primary);
@@ -370,6 +388,11 @@ body{{
   margin:0 auto;
   padding:48px 32px 96px;
   -webkit-font-smoothing:antialiased;
+}}
+
+[data-tema="ios"] body{{
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;
+  letter-spacing:-0.011em;
 }}
 
 .meta{{
@@ -383,6 +406,13 @@ body{{
   padding-bottom:12px;
 }}
 
+[data-tema="ios"] .meta{{
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  letter-spacing:.08em;
+  font-size:11px;
+  border-bottom:1px solid rgba(255,255,255,0.12);
+}}
+
 h1{{
   font-family:Doto,'Space Mono',monospace;
   font-weight:900;
@@ -391,6 +421,14 @@ h1{{
   letter-spacing:-.01em;
   color:var(--text-display);
   margin:0 0 28px;
+}}
+
+[data-tema="ios"] h1{{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif;
+  font-weight:700;
+  font-size:34px;
+  line-height:1.2;
+  letter-spacing:-0.025em;
 }}
 
 h2{{
@@ -406,12 +444,29 @@ h2{{
   border-bottom:1px solid var(--border-visible);
 }}
 
+[data-tema="ios"] h2{{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif;
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--accent);
+  border-bottom:1px solid rgba(255,255,255,0.12);
+}}
+
 h3{{
   font-family:'Space Grotesk',sans-serif;
   font-size:18px;
   font-weight:700;
   color:var(--text-display);
   margin:28px 0 10px;
+}}
+
+[data-tema="ios"] h3{{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif;
+  font-size:18px;
+  font-weight:600;
+  letter-spacing:-0.015em;
 }}
 
 p{{margin:14px 0;color:var(--text-primary)}}
@@ -437,12 +492,36 @@ a.c{{
 }}
 a.c:hover{{border-color:var(--accent);background:rgba(215,25,33,.12)}}
 
+[data-tema="ios"] a.c{{
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  color:#0A84FF;
+  border:1px solid rgba(10,132,255,.35);
+  background:rgba(10,132,255,.14);
+  border-radius:9999px;
+  padding:1px 6px;
+  font-size:11px;
+  font-weight:600;
+}}
+[data-tema="ios"] a.c:hover{{
+  background:#0A84FF;
+  color:#FFFFFF;
+  border-color:#0A84FF;
+}}
+
 table{{
   border-collapse:collapse;
   width:100%;
   margin:24px 0;
   font-size:14px;
   border:1px solid var(--border);
+}}
+
+[data-tema="ios"] table{{
+  border-radius:14px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(28,28,30,0.65);
+  backdrop-filter:blur(20px);
 }}
 
 th{{
@@ -458,10 +537,25 @@ th{{
   background:var(--surface);
 }}
 
+[data-tema="ios"] th{{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.05em;
+  background:rgba(44,44,46,0.85);
+  border-bottom:1px solid rgba(255,255,255,0.14);
+  border-right:1px solid rgba(255,255,255,0.08);
+}}
+
 td{{
   border:1px solid var(--border);
   padding:10px 14px;
   color:var(--text-primary);
+}}
+
+[data-tema="ios"] td{{
+  border:1px solid rgba(255,255,255,0.08);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
 }}
 
 ul.f{{
@@ -475,6 +569,11 @@ ul.f{{
   font-size:12px;
 }}
 
+[data-tema="ios"] ul.f{{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  gap:10px;
+}}
+
 ul.f li{{
   padding:10px 14px;
   background:var(--surface);
@@ -486,9 +585,23 @@ ul.f li{{
   margin:0;
 }}
 
+[data-tema="ios"] ul.f li{{
+  background:rgba(28,28,30,0.75);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:14px;
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  color:rgba(235,235,245,0.7);
+}}
+
 ul.f li:target{{
   border-color:var(--accent);
   background:var(--surface-raised);
+}}
+
+[data-tema="ios"] ul.f li:target{{
+  border-color:#0A84FF;
+  background:rgba(10,132,255,0.15);
 }}
 
 ul.f a{{
@@ -507,6 +620,7 @@ ul.f a:hover{{
   td,th{{border-color:#999}}
   h1{{font-size:28px;color:#000}}
   h2{{color:#D71921}}
+  [data-tema="ios"] h2{{color:#0A84FF}}
   ul.f li{{background:#f9f9f9;border-color:#ddd}}
 }}
 </style>
@@ -783,6 +897,23 @@ async def leer_pegado(desde="0"):
     return f"[caracteres {i}-{min(len(txt), i + 20000)} de {len(txt)}]\n" + txt[i:i + 20000]
 
 
+async def cambiar_tema(tema=""):
+    t_str = str(tema or "").strip().lower()
+    if t_str in ("ios", "apple", "apple-design", "iphone"):
+        nuevo = "ios"
+    elif t_str in ("nothing", "nothing-design", "doto"):
+        nuevo = "nothing"
+    elif not t_str or t_str in ("cambiar", "alternar", "otro"):
+        actual = panel.S.get("tema", "nothing")
+        nuevo = "ios" if actual == "nothing" else "nothing"
+    else:
+        return "Error: el tema debe ser 'nothing' o 'ios' (o 'apple')."
+
+    res = panel.fijar_tema(nuevo)
+    nombre = "Apple / iOS (Human Interface Guidelines & Liquid Glass)" if res == "ios" else "Nothing Design System (Doto, OLED & rojo Nothing)"
+    return f"Hecho: he cambiado el diseño de DeltaOS a {nombre}."
+
+
 def _con_pegado():
     """Lo que el usuario pegó en el panel, para que los trabajos en segundo plano también lo tengan."""
     txt = panel.pegado()
@@ -940,4 +1071,8 @@ acciones.registrar([
                  {"cual": acciones._s("interfaz | mascota | todo"),
                   "donde": acciones._s("otra | arriba | abajo | izquierda | derecha | principal | ultrawide")}, req=["cual"]),
     acciones._fn("quitar_de_tira", "Quita la tarjeta (o la web, mapa o informe) de la barra de estado y la deja en pequeño."),
-], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia, reiniciar_delta, mover_a_pantalla, quitar_de_tira))
+    acciones._fn("cambiar_tema",
+                 "Cambia el estilo visual de DeltaOS entre Nothing Design System e iOS / Apple Design (Human Interface Guidelines / Liquid Glass). "
+                 "Úsalo cuando diga «pon el diseño ios», «activa el tema apple», «pon el diseño nothing», «cambia al estilo apple», «cambia de tema»…",
+                 {"tema": acciones._s("nothing | ios (o apple); vacío para alternar")}),
+], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia, reiniciar_delta, mover_a_pantalla, quitar_de_tira, cambiar_tema))

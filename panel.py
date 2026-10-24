@@ -23,8 +23,32 @@ from google.genai import types
 
 PORT = 7876
 AQUI = Path(__file__).parent
+TEMA_ARCHIVO = AQUI / "tema_elegido.txt"
+
+
+def leer_tema():
+    if TEMA_ARCHIVO.exists():
+        try:
+            t = TEMA_ARCHIVO.read_text().strip().lower()
+            if t in ("ios", "apple"):
+                return "ios"
+        except Exception:
+            pass
+    return "nothing"
+
+
+def fijar_tema(t):
+    t = "ios" if str(t).strip().lower() in ("ios", "apple") else "nothing"
+    S["tema"] = t
+    try:
+        TEMA_ARCHIVO.write_text(t)
+    except Exception:
+        pass
+    return t
+
+
 S = {"frases": [], "voz": "", "dispos": [], "impresora": None, "clima": None, "sistema": {}, "evento": None,
-     "modo": "chat", "notifs": [], "nuevas": 0, "aec": True}
+     "modo": "chat", "notifs": [], "nuevas": 0, "aec": True, "tema": leer_tema()}
 _hablando_hasta = 0.0
 GEO = AQUI / "panel" / "geo.json"  # última posición dada por el navegador (Chromium sin clave de Google: poco fiable)
 FIJA = AQUI / "ubicacion_fija.json"  # la que dice el usuario («estoy en …»): manda sobre todo
@@ -408,6 +432,13 @@ def _cmd(ST, cmd):
         acciones.dormir_ahora() if ST["activo"] else acciones.activar()
     elif cmd in ("permitir", "denegar") and ST["pending"] and not ST["pending"].done():
         ST["pending"].set_result("s" if cmd == "permitir" else "n")
+    elif cmd in ("tema_nothing", "tema_ios", "cambiar_tema"):
+        if cmd == "tema_nothing":
+            fijar_tema("nothing")
+        elif cmd == "tema_ios":
+            fijar_tema("ios")
+        else:
+            fijar_tema("ios" if S.get("tema") == "nothing" else "nothing")
 
 
 # ---- texto pegado desde el panel: contexto para Delta ----
@@ -637,7 +668,7 @@ async def _ws(request):
                     _pegar(request.app["ST"], msg["pegar"])
                 if isinstance(msg.get("encargo"), str) and msg["encargo"].strip():  # delta_pide.py (Claude Code)
                     await acciones.encargo_claude(msg["encargo"].strip()[:2000])
-                if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "quitar_tarjeta", "vista_panel", "vista_mascota", "tiempo", "reset_estable"):
+                if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "quitar_tarjeta", "vista_panel", "vista_mascota", "tiempo", "reset_estable", "tema_nothing", "tema_ios", "cambiar_tema"):
                     _cmd(request.app["ST"], msg["cmd"])
                 g = msg.get("geo")
                 if g and len(g) == 3 and all(isinstance(x, (int, float)) for x in g) and g[2] <= PRECISA:

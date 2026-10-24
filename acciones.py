@@ -982,6 +982,7 @@ ETIQUETAS = {"estado_impresora": "Miro la impresora", "historial_impresora": "Le
              "usar_skill": "Leo la skill", "mirar_detalle": "Miro la pantalla en alta resolución",
              "hablar_con_claude": "Encargo a Claude Code", "ejecutar_shell": "Comando", "recordar": "Guardo en memoria",
              "buscar_memoria": "Rebusco en la memoria",
+             "cambiar_tema": "Cambio de diseño visual",
              "consultar_clima": "Consulto el tiempo", "abrir": "Abro", "dormir": "A dormir",
              "mejorar_delta_cherry": "Anoto para Cherry", "cherry": "Anoto para Cherry"}
 MAX_PASOS = 7
@@ -1052,6 +1053,7 @@ FUSIONES = {
     "vista": ("Tu interfaz. panel / mascota / invisible: panel completo, solo el animal flotando («modo mascota»), o "
               "ni animal ni panel y solo la barra de estado en una esquina («modo invisible», «enséñame / muéstrame / pon la barra de estado», «quítate de en medio», «esconde la mascota», «quita el bicho del escritorio», «no quiero verte»). "
               "OJO: «la barra» es SIEMPRE invisible, nunca panel; panel es solo «panel completo», «abre la interfaz entera». "
+              "tema: cambia el diseño visual de DeltaOS entre Nothing y Apple/iOS, cual = nothing | ios | alternar («diseño de apple», «pon el tema de ios», «diseño de nothing», «cambia el diseño»). "
               "quitar_tarjeta: quita la tarjeta que hayas puesto (en el panel o en la barra) y lo que haya en la barra (web, mapa, informe), sin cambiar de modo («quita eso», «quita eso de la barra», «quita el informe de la barra», «ya lo he visto»). "
               "oculto: quita también la barra de estado y no deja nada en pantalla («quita la barra», «fuera todo», «no dejes nada»); sigues escuchando igual, y con invisible vuelve. "
               "elegir_mascota: cual = mapache | gato | ninguna, qué animal es la mascota del escritorio («pon el gato», «quiero el mapache»); ninguna la apaga («quita la mascota», «no quiero mascota»). OJO: ahora mismo está en ninguna, desactivada por el usuario, y volver a pedir un animal la enciende (hace falta reiniciar Delta para que salga). "
@@ -1070,7 +1072,7 @@ FUSIONES = {
               "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
               "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
               "«¿qué está comiendo RAM?»).",
-              {"cual": "fondo: auto | orbe1 | orbe2 | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
+              {"cual": "tema: nothing | ios | alternar; fondo: auto | orbe1 | orbe2 | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
                        "elegir_mascota: mapache | gato | ninguna; pantalla: interfaz | mascota | todo",
                "donde": "pantalla: otra | arriba | abajo | izquierda | derecha | principal | ultrawide",
                "texto": "tarjeta: lo que enseñar, una cosa por línea",
@@ -1079,6 +1081,7 @@ FUSIONES = {
               {"tarjeta": _r("mostrar_en_tira", {"texto": "texto", "titulo": "titulo", "imagen": "imagen"}),
                "panel": _r("cambiar_vista", fijo={"modo": "panel"}), "mascota": _r("cambiar_vista", fijo={"modo": "mascota"}),
                "invisible": _r("cambiar_vista", fijo={"modo": "invisible"}),
+               "tema": _r("cambiar_tema", {"tema": "cual"}),
                "oculto": _r("cambiar_vista", fijo={"modo": "oculto"}),
                "elegir_mascota": _r("elegir_mascota", {"cual": "cual"}),
                "pantalla": _r("mover_a_pantalla", {"cual": "cual", "donde": "donde"}),

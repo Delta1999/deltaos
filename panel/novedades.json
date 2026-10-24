@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-24",
+  "t": "Diseño dual Nothing y Apple / iOS en DeltaOS: alterna por voz o botón entre Nothing Design System (OLED, Doto, rojo Nothing) y Apple HIG / Liquid Glass (SF Pro, esquinas continuas squircle, Dynamic Island, cristales translúcidos y azul Apple), con memoria persistente",
+  "como": "«diseño de apple», «pon el tema de ios», «diseño de nothing», «cambia el diseño»"
+ },
+ {
+  "f": "2026-10-24",
   "t": "Visor y editor de apuntes PDF manos libres con Gemini Live: cuadrícula espacial, subrayado contextual por ratón, esquemas y ramas jerárquicas con Dagre.js, tarjetas en el margen, modo repaso activo y compilación vectorial ensanchada",
   "como": "«abre los apuntes», «pon la cuadrícula», «subraya esto», «haz un esquema aquí», «nota al margen», «modo repaso», «exporta el PDF»"
  },
