@@ -1,6 +1,21 @@
 [
  {
   "f": "2026-10-24",
+  "t": "Error boundary y diagnóstico de robustez en el panel: captura errores de JavaScript con overlay visual de recuperación, reporte automático al backend en panel_error.log y blindaje null-safe de la interfaz",
+  "como": "recarga automática ante fallos de render o consulta panel_error.log"
+ },
+ {
+  "f": "2026-10-24",
+  "t": "Enviar imágenes y capturas de pantalla al móvil mediante KDE Connect: fotos del disco, la imagen más reciente o una captura instantánea de la pantalla actual enviadas directamente a la galería del teléfono",
+  "como": "«mándame una captura al móvil», «envíame la última foto al móvil», «manda esta imagen al móvil»"
+ },
+ {
+  "f": "2026-10-24",
+  "t": "Herramientas de subrayado y paleta completa de 8 colores en el visor de apuntes: selección interactiva con ratón, borrador de resaltados, accesos rápidos y comandos de voz («borra el subrayado», «subraya en verde/rosa/azul/naranja/morado/rojo/turquesa»)",
+  "como": "«subraya en verde», «borra el subrayado», «subraya esto en rosa»"
+ },
+ {
+  "f": "2026-10-24",
   "t": "Diseño dual Nothing y Apple / iOS en DeltaOS: alterna por voz o botón entre Nothing Design System (OLED, Doto, rojo Nothing) y Apple HIG / Liquid Glass (SF Pro, esquinas continuas squircle, Dynamic Island, cristales translúcidos y azul Apple), con memoria persistente",
   "como": "«diseño de apple», «pon el tema de ios», «diseño de nothing», «cambia el diseño»"
  },

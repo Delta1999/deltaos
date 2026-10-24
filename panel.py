@@ -867,6 +867,25 @@ async def _procesos(request):
     return web.json_response(await asyncio.to_thread(_procesos_sync))
 
 
+async def _error_panel(request):
+    try:
+        data = await request.json()
+        msg = data.get("msg", "")
+        url = data.get("url", "")
+        line = data.get("line", "")
+        col = data.get("col", "")
+        stack = data.get("stack", "")
+        linea_log = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] ERROR JS PANEL: {msg} en {url}:{line}:{col}\n"
+        if stack:
+            linea_log += f"Stack:\n{stack}\n"
+        print(f"❌ [JS PANEL ERROR] {msg} ({url}:{line}:{col})")
+        with open(AQUI / "panel_error.log", "a", encoding="utf-8") as f:
+            f.write(linea_log)
+    except Exception as e:
+        print(f"Error procesando error de panel: {e}")
+    return web.json_response({"ok": True})
+
+
 # ---- llave inglesa: alertas que el usuario marca para que Claude las arregle cuando el PC esté desahogado ----
 ARREGLOS = AQUI / "arreglos.json"  # sobrevive a los reinicios
 CALMA = {"cpu": 45, "ram": 80}     # por debajo en dos lecturas seguidas (1 min) y sin que Delta ni Claude estén liados
@@ -942,6 +961,7 @@ async def start(ST, voz):
         app.router.add_get("/impresora/todo", _todo)
         app.router.add_get("/impresora/miniatura", _miniatura)
         app.router.add_get("/sistema/procesos", _procesos)
+        app.router.add_post("/api/error_panel", _error_panel)
         for ruta, h in RUTAS:
             app.router.add_get(ruta, h)
         runner = web.AppRunner(app, access_log=None)

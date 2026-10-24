@@ -4,6 +4,45 @@
 <meta charset="utf-8">
 <title>Delta</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+window.__reportError = function(msg, url, line, col, err) {
+  try {
+    let box = document.getElementById('panel-error-overlay');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'panel-error-overlay';
+      box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999999;background:#8b0000;color:#fff;padding:10px 16px;font-family:monospace;font-size:12px;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,0.8);border-bottom:2px solid #ff4444;display:flex;justify-content:space-between;align-items:flex-start;';
+      const txt = document.createElement('div');
+      txt.id = 'panel-error-overlay-txt';
+      box.appendChild(txt);
+      const btn = document.createElement('button');
+      btn.textContent = '✕';
+      btn.style.cssText = 'background:none;border:none;color:#fff;font-size:18px;cursor:pointer;margin-left:14px;';
+      btn.onclick = () => box.remove();
+      box.appendChild(btn);
+      (document.body || document.documentElement).appendChild(box);
+    }
+    const txtEl = document.getElementById('panel-error-overlay-txt');
+    if (txtEl) {
+      const src = url ? url.split('/').pop().split('?')[0] : 'inline';
+      txtEl.innerHTML = `<b>⚠️ ERROR DELTAOS:</b> ${msg} <span style="opacity:0.8">(${src}:${line || '?'}:${col || '?'})</span>`;
+    }
+    fetch('/api/error_panel', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({msg: String(msg), url: String(url), line, col, stack: err && err.stack ? String(err.stack) : ''})
+    }).catch(() => {});
+  } catch(e) {}
+};
+window.onerror = function(msg, url, line, col, err) {
+  window.__reportError(msg, url, line, col, err);
+  return false;
+};
+window.onunhandledrejection = function(e) {
+  const reason = e.reason || {};
+  window.__reportError(reason.message || reason || 'Promesa rechazada', reason.fileName || '', reason.lineNumber || 0, 0, reason);
+};
+</script>
 <style>
 @font-face{font-family:Doto;font-weight:400;src:url(/fonts/doto-400.ttf)}
 @font-face{font-family:Doto;font-weight:900;src:url(/fonts/doto-900.ttf)}
@@ -589,14 +628,16 @@ body.invisible #p-card{display:none!important}
   <div id="f-impresion"><canvas id="fi-cv"></canvas><div id="fi-txt"><div id="fi-pct" class="dot">--</div><div id="fi-info"></div></div><div id="fi-full"></div></div>
   <div id="f-sistema"><div id="fs-top"></div><div id="fs-pie"></div><div id="fs-tabla"></div></div>
 </div>
-<div id="p-card"><div class="tcab"><i></i><b></b><button id="p-cerrar" title="Quitar la tarjeta">×</button></div><img id="p-foto" alt=""><div class="cuerpo"></div><div class="barra"></div></div>
+<div id="p-card"><div class="tcab"><i></i><b></b><button id="p-card-cerrar" title="Quitar la tarjeta">×</button></div><img id="p-foto" alt=""><div class="cuerpo"></div><div class="barra"></div></div>
 <div id="pegar"><section class="card"><span class="lbl">Contexto para Delta · pega o escribe; lo tendrá en cuenta en lo que estéis haciendo</span>
   <textarea id="ptxt" placeholder="Pega aquí apuntes, un correo, un enunciado, un trozo de código…" spellcheck="false"></textarea>
-  <div class="pie"><span id="pinfo"></span><span><button class="btn" id="p-borrar">Olvidar</button> <button class="btn" id="p-cerrar">Cerrar</button> <button class="btn on" id="p-dar">Dárselo a Delta · Ctrl+Enter</button></span></div></section></div>
+  <div class="pie"><span id="pinfo"></span><span><button class="btn" id="p-borrar">Olvidar</button> <button class="btn" id="pegar-cerrar">Cerrar</button> <button class="btn on" id="p-dar">Dárselo a Delta · Ctrl+Enter</button></span></div></section></div>
 <div id="cel"><canvas id="cv2"></canvas><div class="dot">LISTO</div><p id="celtxt"></p></div>
 
 <script>
 const $=i=>document.getElementById(i), esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const $txt=(i,v)=>{const e=$(i);if(e)e.textContent=(v==null?'':v)};
+const $html=(i,v)=>{const e=$(i);if(e)e.innerHTML=(v==null?'':v)};
 let S={estado:'cargando',nivel:0,mic:{nivel:0},lat:null};
 const bar=(p,r)=>`<div class="bar${r?' r':''}" style="--p:${Math.max(0,Math.min(100,p))}%"></div>`;
 const mmss=s=>s==null?'—':s<90?`${Math.round(s)} s`:s<5400?`${Math.round(s/60)} min`:`${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
@@ -624,6 +665,12 @@ $('frases').addEventListener('wheel',e=>{const f=e.currentTarget;
 $('frases').addEventListener('click',e=>{const b=e.target.closest('.llave');if(b&&WS&&WS.readyState===1)WS.send(JSON.stringify({llave:+b.dataset.id}))});
 
 function pintar(d){
+  try{_pintar(d)}catch(err){
+    console.error('Error pintar:',err);
+    if(window.__reportError)window.__reportError('Error al pintar interfaz: '+err.message,'index.html',err.lineNumber||0,0,err);
+  }
+}
+function _pintar(d){
   S=d;
   const tm=d.tema||'nothing';
   document.documentElement.setAttribute('data-tema',tm);
@@ -635,122 +682,113 @@ function pintar(d){
     btm.textContent=tm==='ios'?'Diseño: iOS':'Diseño: Nothing';
     btm.title=tm==='ios'?'Diseño activo: Apple iOS (clic para cambiar a Nothing)':'Diseño activo: Nothing (clic para cambiar a Apple iOS)';
   }
-  $('hora').textContent=d.hora; $('fecha').textContent=d.fecha;
-  const c=$('conexion'); c.textContent=d.conexion.toUpperCase(); c.className=d.conexion==='conectado'?'ok':d.conexion==='en reposo'?'':'mal';c.style.color=d.conexion==='en reposo'?'var(--dim)':'';
-  $('voz').textContent=d.voz;
-  $('dispos').innerHTML=d.dispos.length?d.dispos.map(x=>{const n=esc(x.nombre.split(' ')[0]).toUpperCase(),
-    v=!x.vinculado?'sin vincular':!x.alcance?'fuera':x.carga==null?'—':x.carga+'%'+(x.cargando?'⚡':'');
-    return `<span style="color:${!x.alcance||!x.vinculado?'var(--dim)':x.carga!=null&&x.carga<=15&&!x.cargando?'var(--red)':'inherit'}">${n} ${v}</span>`}).join(' · '):'—';
-  if(d.tele!==undefined)$('dispos').innerHTML+=` · <span style="color:${d.tele&&d.tele.on?'inherit':'var(--dim)'}">TELE ${!d.tele?'fuera':d.tele.on?esc(d.tele.app).toUpperCase():'reposo'}${d.tele&&d.tele.aqui==='salon'?' · TE OIGO POR EL MANDO':''}</span>`;
-  $('memoria').textContent=`${d.memoria.n} notas`+(d.memoria.ultima?` · ${d.memoria.ultima}`:'');
-  $('ultima').textContent=d.ultima<5?'ahora':`hace ${mmss(d.ultima)}`;
-  const est=d.estado==='dormido'?'STAND-BY':d.estado.toUpperCase();$('estado').textContent=est;
-  $('estado').style.color=d.estado==='dormido'?'var(--dim)':'var(--fg)';
-  $('sub').textContent=d.confirma?`¿PERMITIR? ${d.confirma}`:d.priv?'PRIVACIDAD · el micro se ignora, ni «Delta»'
-   :d.nomol?'NO MOLESTAR · no aviso por mi cuenta; tus alarmas siguen sonando':d.herramienta?`usando: ${d.herramienta}`:d.sueno!=null?`duerme en ${d.sueno} s`:'di «Delta» o pulsa Enter';
-  $('frases').classList.toggle('alertas',d.modo==='alertas');
-  const fh=d.modo==='alertas'?alertas(d)
-   :d.frases.length?d.frases.map((f,i)=>{const ult=i===d.frases.length-1,tu=f.rol==='tú';
-     // la última se escribe a máquina: el texto va en data-t y lo revela teclear() carácter a carácter
-     return `<div class="msg ${tu?'tu':'delta'}"><small>${tu?'TÚ':'DELTA'}${f.h?' · '+f.h:''}</small>`+
-       `<div class="bub">${ult?`<span class="tw" data-t="${esc(f.t)}"></span><i class="cur"></i>`:esc(f.t)}</div></div>`}).join('')
-   :'<div class="vacio">Sin conversación todavía.</div>';
-  // Solo si cambia: si no, el scroll y los clics se pierden cada 0,4 s. Y tras repintar se baja al
-  // final, salvo que el usuario esté leyendo más arriba (entonces no se le mueve el sitio).
-  if(fh!==FH){const fe=$('frases'),y=fe.scrollTop,abajo=fe.scrollHeight-y-fe.clientHeight<48;
-    FH=fh;fe.innerHTML=fh;fe.scrollTop=abajo?fe.scrollHeight:y;  // innerHTML tira los hijos y el scroll con ellos
-    const tw=fe.querySelector('.tw');
-    // Delta transcribe por trozos: la frase crece y se repinta. Si lo nuevo empieza por lo ya
-    // teclado, se sigue desde ahí; si no (frase nueva), se empieza de cero.
-    if(tw){const t=tw.dataset.t,i=TW&&t.startsWith(TW.txt.slice(0,TW.i))?Math.min(TW.i,t.length):0;
-      TW={el:tw,txt:t,i};tw.textContent=t.slice(0,i)}else TW=null}
-  for(const k in d.salud)$('l-'+k).className='lamp '+d.salud[k];
-  $('b-priv').className='btn'+(d.priv?' on':'');$('b-priv').textContent=d.priv?'Privacidad · ON':'Privacidad';
-  $('b-modo').className='btn'+(d.modo==='alertas'?' on':'');$('b-modo').textContent=d.modo==='alertas'?'Alertas · ON':'Alertas'+(d.nuevas?` · ${d.nuevas}`:'');
-  $('b-dormir').textContent=d.estado==='dormido'?'Activar':'Dormir';
-  $('b-si').hidden=$('b-no').hidden=!d.confirma;$('b-si').title=d.confirma||'';
-  $('v0').textContent=d.mic.db==null?'—':d.mic.db+' dB';$('v1').textContent=d.estado==='hablando'?'HABLA':'—';
-  $('v2').textContent=d.lat==null?'—':(d.lat/1000).toFixed(1)+' s';
+  $txt('hora',d.hora); $txt('fecha',d.fecha);
+  const c=$('conexion');if(c){c.textContent=d.conexion.toUpperCase();c.className=d.conexion==='conectado'?'ok':d.conexion==='en reposo'?'':'mal';c.style.color=d.conexion==='en reposo'?'var(--dim)':'';}
+  $txt('voz',d.voz);
+  const elDisp=$('dispos');
+  if(elDisp){
+    elDisp.innerHTML=d.dispos.length?d.dispos.map(x=>{const n=esc(x.nombre.split(' ')[0]).toUpperCase(),
+      v=!x.vinculado?'sin vincular':!x.alcance?'fuera':x.carga==null?'—':x.carga+'%'+(x.cargando?'⚡':'');
+      return `<span style="color:${!x.alcance||!x.vinculado?'var(--dim)':x.carga!=null&&x.carga<=15&&!x.cargando?'var(--red)':'inherit'}">${n} ${v}</span>`}).join(' · '):'—';
+    if(d.tele!==undefined)elDisp.innerHTML+=` · <span style="color:${d.tele&&d.tele.on?'inherit':'var(--dim)'}">TELE ${!d.tele?'fuera':d.tele.on?esc(d.tele.app).toUpperCase():'reposo'}${d.tele&&d.tele.aqui==='salon'?' · TE OIGO POR EL MANDO':''}</span>`;
+  }
+  $txt('memoria',`${d.memoria.n} notas`+(d.memoria.ultima?` · ${d.memoria.ultima}`:''));
+  $txt('ultima',d.ultima<5?'ahora':`hace ${mmss(d.ultima)}`);
+  const est=d.estado==='dormido'?'STAND-BY':d.estado.toUpperCase(),elEst=$('estado');
+  if(elEst){elEst.textContent=est;elEst.style.color=d.estado==='dormido'?'var(--dim)':'var(--fg)';}
+  $txt('sub',d.confirma?`¿PERMITIR? ${d.confirma}`:d.priv?'PRIVACIDAD · el micro se ignora, ni «Delta»'
+   :d.nomol?'NO MOLESTAR · no aviso por mi cuenta; tus alarmas siguen sonando':d.herramienta?`usando: ${d.herramienta}`:d.sueno!=null?`duerme en ${d.sueno} s`:'di «Delta» o pulsa Enter');
+  const fe=$('frases');
+  if(fe){
+    fe.classList.toggle('alertas',d.modo==='alertas');
+    const fh=d.modo==='alertas'?alertas(d)
+     :d.frases.length?d.frases.map((f,i)=>{const ult=i===d.frases.length-1,tu=f.rol==='tú';
+       return `<div class="msg ${tu?'tu':'delta'}"><small>${tu?'TÚ':'DELTA'}${f.h?' · '+f.h:''}</small>`+
+         `<div class="bub">${ult?`<span class="tw" data-t="${esc(f.t)}"></span><i class="cur"></i>`:esc(f.t)}</div></div>`}).join('')
+     :'<div class="vacio">Sin conversación todavía.</div>';
+    if(fh!==FH){const y=fe.scrollTop,abajo=fe.scrollHeight-y-fe.clientHeight<48;
+      FH=fh;fe.innerHTML=fh;fe.scrollTop=abajo?fe.scrollHeight:y;
+      const tw=fe.querySelector('.tw');
+      if(tw){const t=(tw.dataset&&tw.dataset.t)||'',i=TW&&TW.txt&&t.startsWith(TW.txt.slice(0,TW.i))?Math.min(TW.i,t.length):0;
+        TW={el:tw,txt:t,i};tw.textContent=t.slice(0,i)}else TW=null}
+  }
+  for(const k in d.salud){const l=$('l-'+k);if(l)l.className='lamp '+d.salud[k]}
+  const bp=$('b-priv'),bm=$('b-modo'),bd=$('b-dormir'),bs=$('b-si'),bn=$('b-no');
+  if(bp){bp.className='btn'+(d.priv?' on':'');bp.textContent=d.priv?'Privacidad · ON':'Privacidad'}
+  if(bm){bm.className='btn'+(d.modo==='alertas'?' on':'');bm.textContent=d.modo==='alertas'?'Alertas · ON':'Alertas'+(d.nuevas?` · ${d.nuevas}`:'')}
+  if(bd)bd.textContent=d.estado==='dormido'?'Activar':'Dormir';
+  if(bs&&bn){bs.hidden=bn.hidden=!d.confirma;bs.title=d.confirma||''}
+  $txt('v0',d.mic.db==null?'—':d.mic.db+' dB');$txt('v1',d.estado==='hablando'?'HABLA':'—');
+  $txt('v2',d.lat==null?'—':(d.lat/1000).toFixed(1)+' s');
 
   const p=d.impresora;
-  $('impd').innerHTML=`<span class="lbl">Impresora · Klipper</span>`+(!p||!p.online?'<div class="big dot" style="color:var(--dim)">SIN CONEXIÓN</div>':
+  $html('impd',`<span class="lbl">Impresora · Klipper</span>`+(!p||!p.online?'<div class="big dot" style="color:var(--dim)">SIN CONEXIÓN</div>':
    `<div class="big dot">${p.estado==='printing'||p.estado==='paused'?p.prog+'%':p.estado.toUpperCase()}</div>`+bar(p.prog,p.estado==='printing')+
    (p.archivo?`<div class="row"><span>${esc(p.archivo)}</span></div>`+(p.quedan!=null?`<div class="row"><span>quedan ${mmss(p.quedan)}</span><span>fin ${new Date(Date.now()+p.quedan*1e3).toTimeString().slice(0,5)}</span></div>`:''):'')+
-   `<div class="row"><span>Boquilla</span><span>${p.boquilla[0]}/${p.boquilla[1]} °C</span></div><div class="row"><span>Cama</span><span>${p.cama[0]}/${p.cama[1]} °C</span></div>`);
+   `<div class="row"><span>Boquilla</span><span>${p.boquilla[0]}/${p.boquilla[1]} °C</span></div><div class="row"><span>Cama</span><span>${p.cama[0]}/${p.cama[1]} °C</span></div>`));
 
   const ahora=Date.now(),tr=Object.entries(d.trabajos).filter(([n,e])=>e==='en curso'),mv=d.movil;
   const falta=t=>{const m=Math.round((new Date(t)-ahora)/6e4);return m<1?'ya':m<60?m+' min':m<1440?Math.floor(m/60)+' h '+m%60+' min':Math.floor(m/1440)+' d'};
-  // agenda vacía (sin avisos, nada en curso, móvil sin notificaciones): se oculta y la impresora gana su sitio
   document.body.classList.toggle('sinagenda',!(d.avisos||[]).length&&!tr.length&&!(mv&&mv.length&&!d.priv));
   const grupos=mv?Object.entries(mv.reduce((o,x)=>((o[x.app]=o[x.app]||[]).push(x.quien),o),{})):[];
-  $('agenda').innerHTML=`<span class="lbl">Agenda · avisos</span>`+((d.avisos||[]).map(a=>`<div class="ag"><b class="${a.tipo==='alarma'?'r':''}">${a.t.slice(11,16)}</b><span>${a.tipo==='alarma'?'⏰ ':''}${esc(a.texto)}</span><span class="lbl">${falta(a.t)}</span></div>`).join('')||'<div class="vacio">Sin avisos ni alarmas. «Avísame en 20 min…»</div>')+
+  $html('agenda',`<span class="lbl">Agenda · avisos</span>`+((d.avisos||[]).map(a=>`<div class="ag"><b class="${a.tipo==='alarma'?'r':''}">${a.t.slice(11,16)}</b><span>${a.tipo==='alarma'?'⏰ ':''}${esc(a.texto)}</span><span class="lbl">${falta(a.t)}</span></div>`).join('')||'<div class="vacio">Sin avisos ni alarmas. «Avísame en 20 min…»</div>')+
    (tr.length?`<div class="lbl" style="margin-top:16px">En curso</div>`+tr.map(([n])=>{const g=(d.progreso||{})[n]||{};
      return `<div class="ag"><b class="r">${g.pct==null?'●':g.pct+'%'}</b><span>${esc(n)}${g.etapa?' · '+esc(g.etapa):''}</span><span class="lbl">${g.ini?mmss(ahora/1e3-g.ini):''}</span></div>`+(g.pct!=null?bar(g.pct,true):'')}).join(''):'')+
    `<div class="lbl" style="margin-top:16px">Móvil${mv?' · '+mv.length:''}</div>`+(mv==null?'<div class="vacio">No conectado.</div>':d.priv?'<div class="vacio">Oculto (privacidad).</div>':
-    grupos.slice(0,4).map(([app,q])=>`<div class="ag"><b>${q.length}</b><span>${esc(app)} · ${esc([...new Set(q)].join(', '))}</span><span></span></div>`).join('')||'<div class="vacio">Sin notificaciones.</div>');
+    grupos.slice(0,4).map(([app,q])=>`<div class="ag"><b>${q.length}</b><span>${esc(app)} · ${esc([...new Set(q)].join(', '))}</span><span></span></div>`).join('')||'<div class="vacio">Sin notificaciones.</div>'));
 
   const s=d.sistema||{};
-  $('sis').innerHTML=`<span class="lbl">Sistema</span>`+[['RAM',s.ram,'%'],['SWAP',s.swap,'%'],['CPU',s.cpu,'%'],['TEMP',s.temp,' °C']].map(([n,v,u])=>
-   `<div class="row"><span>${n}</span><span>${v==null?'—':v+u}</span></div>`+bar(n==='TEMP'?v:v,v>85)).join('');
+  $html('sis',`<span class="lbl">Sistema</span>`+[['RAM',s.ram,'%'],['SWAP',s.swap,'%'],['CPU',s.cpu,'%'],['TEMP',s.temp,' °C']].map(([n,v,u])=>
+   `<div class="row"><span>${n}</span><span>${v==null?'—':v+u}</span></div>`+bar(n==='TEMP'?v:v,v>85)).join(''));
 
   const w=d.clima;
   if(w){const n=new Date(),min=n.getHours()*60+n.getMinutes(),noche=min<w.sale||min>w.pone,k=n.getHours()+(n.getMinutes()>=30?1:0);
    const hs=w.horas.filter(x=>x.k>n.getHours()).slice(0,4),hm=m=>`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;
-   $('clima').innerHTML=`<span class="lbl">Tiempo · ${esc(w.ciudad)}</span><div class="cl" style="margin-top:10px"><canvas id="ic0"></canvas><div><div class="big dot">${w.temp}°</div><div class="row" style="margin-top:2px"><span>${esc(w.desc)}</span></div></div></div>`+
+   $html('clima',`<span class="lbl">Tiempo · ${esc(w.ciudad)}</span><div class="cl" style="margin-top:10px"><canvas id="ic0"></canvas><div><div class="big dot">${w.temp}°</div><div class="row" style="margin-top:2px"><span>${esc(w.desc)}</span></div></div></div>`+
    `<div class="row"><span>${w.min}° / ${w.max}°</span><span>Sensación ${w.sens}°</span></div>`+
    `<div class="hs">${hs.map((x,i)=>`<div><b>${String(x.k%24).padStart(2,'0')}h</b><canvas id="ih${i}"></canvas>${x.t}°</div>`).join('')}</div>`+
-   `<div class="row"><span>Viento ${w.viento} km/h ${w.dir}</span><span>Lluvia ${w.lluvia}%</span></div><div class="row"><span>Hum ${w.hum}% · UV ${w.uv}</span><span>↑ ${hm(w.sale)}  ↓ ${hm(w.pone)}</span></div>`;
-   icono($("ic0"),w.code,noche,5);hs.forEach((x,i)=>icono($('ih'+i),x.c,x.k%24*60<w.sale||x.k%24*60>w.pone,3))}
-  else $('clima').innerHTML='<span class="lbl">Tiempo</span><div class="vacio">Sin datos.</div>';
+   `<div class="row"><span>Viento ${w.viento} km/h ${w.dir}</span><span>Lluvia ${w.lluvia}%</span></div><div class="row"><span>Hum ${w.hum}% · UV ${w.uv}</span><span>↑ ${hm(w.sale)}  ↓ ${hm(w.pone)}</span></div>`);
+   const ic0=$("ic0");if(ic0)icono(ic0,w.code,noche,5);hs.forEach((x,i)=>{const ih=$('ih'+i);if(ih)icono(ih,x.c,x.k%24*60<w.sale||x.k%24*60>w.pone,3)})}
+  else $html('clima','<span class="lbl">Tiempo</span><div class="vacio">Sin datos.</div>');
 
   if(d.evento&&d.evento.id!==(window._ev||0)){window._ev=d.evento.id;celebrar(d.evento)}
 
-  // Huecos del dock. Van después de la hora porque la hora es lo que estaba aquí: el resto
-  // asoma solo si lo pides con la rueda, y cada uno repite un dato que ya está en el panel
-  // —no se inventa nada— para que en modo invisible siga habiendo de dónde leerlo.
   const av0=(d.avisos||[])[0],hueco=(v,c)=>`<div class="v dot">${v}</div><div class="c lbl">${c}</div>`;
-  $('k1').innerHTML=av0?hueco(av0.t.slice(11,16),`${esc(av0.texto).slice(0,28)} · ${falta(av0.t)}`)
-                       :hueco('—','Sin avisos ni alarmas');
-  $('k2').innerHTML=!p||!p.online?hueco('—','Impresora sin conexión')
-    :hueco(p.estado==='printing'||p.estado==='paused'?p.prog+'%':p.estado.toUpperCase(),
-           'Impresora'+(p.quedan!=null?' · quedan '+mmss(p.quedan):''));
-  $('k3').innerHTML=hueco(s.temp==null?'—':s.temp+'°',
-    `Sistema · RAM ${s.ram==null?'—':s.ram+'%'} · CPU ${s.cpu==null?'—':s.cpu+'%'}`);
-  $('k4').innerHTML=w?hueco(w.temp+'°',`${esc(w.desc)} · ${w.min}°/${w.max}° · ${esc(w.ciudad)}`)
-                     :hueco('—','Tiempo sin datos');
-  $('k5').innerHTML=mv==null?hueco('—','Móvil no conectado')
-    :d.priv?hueco('·','Móvil oculto (privacidad)')
-    :hueco(String(mv.length),'Notificaciones del móvil');
-  $('rec').className=d.vivo?'on':'';
+  $html('k1',av0?hueco(av0.t.slice(11,16),`${esc(av0.texto).slice(0,28)} · ${falta(av0.t)}`):hueco('—','Sin avisos ni alarmas'));
+  $html('k2',!p||!p.online?hueco('—','Impresora sin conexión'):hueco(p.estado==='printing'||p.estado==='paused'?p.prog+'%':p.estado.toUpperCase(),'Impresora'+(p.quedan!=null?' · quedan '+mmss(p.quedan):'')));
+  $html('k3',hueco(s.temp==null?'—':s.temp+'°',`Sistema · RAM ${s.ram==null?'—':s.ram+'%'} · CPU ${s.cpu==null?'—':s.cpu+'%'}`));
+  $html('k4',w?hueco(w.temp+'°',`${esc(w.desc)} · ${w.min}°/${w.max}° · ${esc(w.ciudad)}`):hueco('—','Tiempo sin datos'));
+  $html('k5',mv==null?hueco('—','Móvil no conectado'):d.priv?hueco('·','Móvil oculto (privacidad)'):hueco(String(mv.length),'Notificaciones del móvil'));
+  const elRec=$('rec');if(elRec)elRec.className=d.vivo?'on':'';
 
   const ps=d.pasos||[],cl=d.claude&&d.claude.estado==='trabajando'&&d.claude.pasos.length?d.claude.pasos[d.claude.pasos.length-1]:null,
    vivo=d.estado!=='dormido'||ps.some(p=>p.e==='en curso')||cl||tr.length;
-  $('pasos').className=vivo&&(ps.length||cl||tr.length)?'on':'';
-  $('pasos').innerHTML='<div class="lbl" style="margin-bottom:8px">Pasos</div>'+ps.map(p=>
-    `<div class="p ${p.e==='en curso'?'cur':p.e==='falló'?'mal':''}"><span>${p.h.slice(0,5)}</span><span>${esc(p.t)}</span><b>${p.e==='hecho'?'✓':p.e==='falló'?'✗':'●'}</b></div>`).join('')+
-    (cl?`<div class="p cur"><span>CLAUDE</span><span>${esc(cl.t)}</span><b>●</b></div>`:'')+
-    tr.map(([n])=>{const g=(d.progreso||{})[n]||{};return `<div class="p cur"><span>${g.pct==null?'···':g.pct+'%'}</span><span>${esc(n.replace(/-\d+$/,''))} · ${esc(g.etapa||'arrancando…')}</span><b>${g.ini?mmss(ahora/1e3-g.ini):'●'}</b></div>`+(g.pct!=null?bar(g.pct,true):'')}).join('');
+  const elPasos=$('pasos');
+  if(elPasos){
+    elPasos.className=vivo&&(ps.length||cl||tr.length)?'on':'';
+    elPasos.innerHTML='<div class="lbl" style="margin-bottom:8px">Pasos</div>'+ps.map(p=>
+      `<div class="p ${p.e==='en curso'?'cur':p.e==='falló'?'mal':''}"><span>${p.h.slice(0,5)}</span><span>${esc(p.t)}</span><b>${p.e==='hecho'?'✓':p.e==='falló'?'✗':'●'}</b></div>`).join('')+
+      (cl?`<div class="p cur"><span>CLAUDE</span><span>${esc(cl.t)}</span><b>●</b></div>`:'')+
+      tr.map(([n])=>{const g=(d.progreso||{})[n]||{};return `<div class="p cur"><span>${g.pct==null?'···':g.pct+'%'}</span><span>${esc(n.replace(/-\d+$/,''))} · ${esc(g.etapa||'arrancando…')}</span><b>${g.ini?mmss(ahora/1e3-g.ini):'●'}</b></div>`+(g.pct!=null?bar(g.pct,true):'')}).join('');
+  }
   const u=d.uso;
-  $('uso').innerHTML=u?`Contexto <b>${u.ctx}%</b> · <b>${u.tok>=1e6?(u.tok/1e6).toFixed(2)+'M':(u.tok/1000).toFixed(1)+'K'}</b> tokens<br>Gasto <b>0 €</b> · gratis (de pago ≈ ${u.usd.toFixed(3)} $)`:'';
+  $html('uso',u?`Contexto <b>${u.ctx}%</b> · <b>${u.tok>=1e6?(u.tok/1e6).toFixed(2)+'M':(u.tok/1000).toFixed(1)+'K'}</b> tokens<br>Gasto <b>0 €</b> · gratis (de pago ≈ ${u.usd.toFixed(3)} $)`:'');
 
-  // Modo invisible: la tira es lo único que se ve, así que lleva estado, qué está haciendo ahora mismo
-  // y un pie con lo que miraría de reojo (impresora, próximo aviso, móvil, sistema).
   const inv=(d.vista||'').startsWith('invisible');
   document.body.classList.toggle('invisible',inv);
   if(inv){
-    if(d.hora){const p=d.hora.split(':');if(p.length===2){const th=$('t-h'),tm=$('t-m');if(th&&tm){if(th.textContent!==p[0])th.textContent=p[0];if(tm.textContent!==p[1])tm.textContent=p[1]}else{$('t-hora').innerHTML=`<span id="t-h">${esc(p[0])}</span><i>:</i><span id="t-m">${esc(p[1])}</span>`}}else if($('t-hora').textContent!==d.hora){$('t-hora').textContent=d.hora}}
-    $('t-est').textContent=est;
-    $('t-est').style.color=d.estado==='dormido'?'var(--dim)':'var(--fg)';
-    $('t-sub').textContent=$('sub').textContent;
-    for(const k in d.salud)($('t-l-'+k)||{}).className='lamp '+d.salud[k];
+    if(d.hora){const p=d.hora.split(':');if(p.length===2){const th=$('t-h'),tm=$('t-m');if(th&&tm){if(th.textContent!==p[0])th.textContent=p[0];if(tm.textContent!==p[1])tm.textContent=p[1]}else{$html('t-hora',`<span id="t-h">${esc(p[0])}</span><i>:</i><span id="t-m">${esc(p[1])}</span>`)}}else if($('t-hora')&&$('t-hora').textContent!==d.hora){$txt('t-hora',d.hora)}}
+    const elTest=$('t-est');if(elTest){elTest.textContent=est;elTest.style.color=d.estado==='dormido'?'var(--dim)':'var(--fg)';}
+    $txt('t-sub',($('sub')||{}).textContent||'');
+    for(const k in d.salud){const l=$('t-l-'+k);if(l)l.className='lamp '+d.salud[k]}
     const act=ps.find(x=>x.e==='en curso')||ps[ps.length-1],
      tj=tr.length?[tr[0][0],(d.progreso||{})[tr[0][0]]||{}]:null;
-    $('t-vivo').innerHTML=tj?`<b>${tj[1].pct==null?'···':tj[1].pct+'%'}</b><span>${esc(tj[0].replace(/-\d+$/,''))} · ${esc(tj[1].etapa||'arrancando…')}</span>`+(tj[1].pct!=null?bar(tj[1].pct,true):'')
+    $html('t-vivo',tj?`<b>${tj[1].pct==null?'···':tj[1].pct+'%'}</b><span>${esc(tj[0].replace(/-\d+$/,''))} · ${esc(tj[1].etapa||'arrancando…')}</span>`+(tj[1].pct!=null?bar(tj[1].pct,true):'')
      :cl?`<b>CLAUDE</b><span>${esc(cl.t)}</span>`
      :act?`<b>${act.e==='hecho'?'✓':act.e==='falló'?'✗':'●'}</b><span>${esc(act.t)}</span><span class="lbl">${act.h.slice(0,5)}</span>`
-     :`<span class="lbl">Sin faena. Di «Delta» para hablarme.</span>`;
+     :`<span class="lbl">Sin faena. Di «Delta» para hablarme.</span>`);
     const pr=d.impresora,av=(d.avisos||[])[0],nv=mv&&!d.priv?mv.length:null;
-    $('t-pie').innerHTML=[
+    $html('t-pie',[
       pr&&pr.online?`3D <b class="${pr.estado==='printing'?'r':''}">${pr.estado==='printing'||pr.estado==='paused'?pr.prog+'%'+(pr.quedan!=null?' · '+mmss(pr.quedan):''):pr.estado}</b>`:'',
       av?`Próximo <b>${av.t.slice(11,16)}</b> ${esc(av.texto).slice(0,34)} <b>(${falta(av.t)})</b>`:'',
       nv?`Móvil <b>${nv}</b>`:'',
@@ -760,44 +798,48 @@ function pintar(d){
       d.nuevas?`Avisos <b class="r">${d.nuevas}</b>`:'',
       d.nomol?`<b class="r">No molestar</b>`:'',
       d.vivo?`<b class="r">● REC</b>`:'',
-    ].filter(Boolean).join('');
+    ].filter(Boolean).join(''));
 
-    // La tarjeta. Mismo lenguaje que el resto del panel (título rojo en versales, viñeta roja,
-    // línea tenue entre renglones): es DeltaOS creciendo, no una ventana de terminal pegada.
     const tar=d.tarjeta,card=$('t-card'),foto=$('t-foto');
-    card.className=tar?'on':'';
-    if(tar&&TJ!==JSON.stringify([tar.titulo,tar.lineas,tar.img])){TJ=JSON.stringify([tar.titulo,tar.lineas,tar.img]);  // sin «quedan», que cambia cada segundo
-      card.querySelector('.tcab b').textContent=tar.titulo||'DELTA';
-      card.querySelector('.cuerpo').innerHTML=tar.lineas.map(l=>
-        `<div><span>·</span><span>${esc(l)}</span></div>`).join('');
-      if(tar.img){foto.src=tar.img;foto.style.display='block'}
-      else{foto.removeAttribute('src');foto.style.display='none'}}
-    if(!tar){TJ=null;foto.removeAttribute('src');foto.style.display='none'}
+    if(card){
+      card.className=tar?'on':'';
+      if(tar&&TJ!==JSON.stringify([tar.titulo,tar.lineas,tar.img])){TJ=JSON.stringify([tar.titulo,tar.lineas,tar.img]);
+        const tc=card.querySelector('.tcab b'),cu=card.querySelector('.cuerpo');
+        if(tc)tc.textContent=tar.titulo||'DELTA';
+        if(cu)cu.innerHTML=tar.lineas.map(l=>`<div><span>·</span><span>${esc(l)}</span></div>`).join('');
+        if(foto){if(tar.img){foto.src=tar.img;foto.style.display='block'}else{foto.removeAttribute('src');foto.style.display='none'}}
+      }
+      if(!tar&&foto){TJ=null;foto.removeAttribute('src');foto.style.display='none'}
+    }
 
-    // El visor, en pequeño. Cede ante la tarjeta: lo que Delta acaba de poner manda sobre lo que
-    // quedó abierto. Descargar el src al cerrarlo no es manía: si no, la web sigue viva detrás.
     const vw=(!tar&&d.visor)?d.visor:null,web=$('t-web');
-    web.className=vw?'on':'';
-    if(vw&&WB!==vw.id){WB=vw.id;
-      web.querySelector('.tcab b').textContent=vw.titulo||'VISOR';
-      web.querySelector('iframe').src=vw.url;}
-    if(!vw&&WB!==null){WB=null;web.querySelector('iframe').removeAttribute('src');}
+    if(web){
+      web.className=vw?'on':'';
+      const ifr=web.querySelector('iframe'),tc=web.querySelector('.tcab b');
+      if(vw&&WB!==vw.id){WB=vw.id;
+        if(tc)tc.textContent=vw.titulo||'VISOR';
+        if(ifr)ifr.src=vw.url;}
+      if(!vw&&WB!==null){WB=null;if(ifr)ifr.removeAttribute('src');}
+    }
   }
 
-  // La tarjeta en el panel completo: la misma que crece en la tira, flotando sobre el panel.
   const pt=!inv?d.tarjeta:null,pc=$('p-card'),pf=$('p-foto');
-  pc.className=pt?'on':'';
-  if(pt&&PT!==JSON.stringify([pt.titulo,pt.lineas,pt.img])){PT=JSON.stringify([pt.titulo,pt.lineas,pt.img]);
-    pc.querySelector('.tcab b').textContent=pt.titulo||'DELTA';
-    pc.querySelector('.cuerpo').innerHTML=pt.lineas.map(l=>`<div><span>·</span><span>${esc(l)}</span></div>`).join('');
-    pc.querySelector('.cuerpo').style.display=pt.lineas.length?'':'none';
-    if(pt.img){pf.src=pt.img;pf.style.display='block'}else{pf.removeAttribute('src');pf.style.display='none'}
-    const b=pc.querySelector('.barra');b.style.animation='none';b.offsetWidth;b.style.animation='';b.style.animationDuration=(pt.quedan||40)+'s'}
-  if(!pt&&PT!==null){PT=null;pf.removeAttribute('src');pf.style.display='none'}
+  if(pc){
+    pc.className=pt?'on':'';
+    if(pt&&PT!==JSON.stringify([pt.titulo,pt.lineas,pt.img])){PT=JSON.stringify([pt.titulo,pt.lineas,pt.img]);
+      const tc=pc.querySelector('.tcab b'),cu=pc.querySelector('.cuerpo'),br=pc.querySelector('.barra');
+      if(tc)tc.textContent=pt.titulo||'DELTA';
+      if(cu){cu.innerHTML=pt.lineas.map(l=>`<div><span>·</span><span>${esc(l)}</span></div>`).join('');cu.style.display=pt.lineas.length?'':'none';}
+      if(pf){if(pt.img){pf.src=pt.img;pf.style.display='block'}else{pf.removeAttribute('src');pf.style.display='none'}}
+      if(br){br.style.animation='none';br.offsetWidth;br.style.animation='';br.style.animationDuration=(pt.quedan||40)+'s'}
+    }
+    if(!pt&&PT!==null){PT=null;if(pf){pf.removeAttribute('src');pf.style.display='none'}}
+  }
 
   const v=d.visor||null;
   if((v&&v.id)!==VID){VID=v&&v.id;v?abrirVisor(v):cerrarVisor()}
-  $('vest').textContent=d.confirma?'¿PERMITIR?':est+(d.herramienta?' · '+d.herramienta:'');$('vest').className='lbl'+(d.confirma?' mal':'');
+  const vest=$('vest');
+  if(vest){vest.textContent=d.confirma?'¿PERMITIR?':est+(d.herramienta?' · '+d.herramienta:'');vest.className='lbl'+(d.confirma?' mal':'');}
 }
 
 /* ---------- iconos del tiempo (11x11 puntos) ---------- */
@@ -835,20 +877,24 @@ function nivel(e,x,y,t){ // 0..1 por estado
   const ang=Math.atan2(dy,dx),f=((ang-t*3)%(2*Math.PI)+2*Math.PI)%(2*Math.PI); // trabajando: barrido radar
   return d<Math.min(cols,rows*1.4)*.46&&d>2?Math.pow(1-f/(2*Math.PI),3):0}
 function dibuja(t){
-  NV+=(S.nivel-NV)*.25;if(window.FONDO_ON){requestAnimationFrame(t=>dibuja(t/1000));return} // tapado: no gastar CPU
-  relojes();window.miniOrbe&&miniOrbe($('miniorbe'),S);
-  cx.clearRect(0,0,W,H);const e=S.estado,isIos=(S.tema==='ios'),col=isIos?(e==='dormido'?'255,255,255':e==='escuchando'||e==='trabajando'?'10,132,255':'255,255,255'):(e==='dormido'?'255,255,255':e==='escuchando'||e==='trabajando'?'215,25,33':'255,255,255');
-  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const v=Math.min(1,nivel(e,x,y,t)),a=.09+.91*v;
-    cx.fillStyle=`rgba(${v>.15?col:'255,255,255'},${a})`;cx.beginPath();cx.arc(x*G+G/2,y*G+G/2,G*(.12+.2*v),0,7);cx.fill()}
+  try{
+    NV+=(S.nivel-NV)*.25;if(window.FONDO_ON){requestAnimationFrame(t=>dibuja(t/1000));return} // tapado: no gastar CPU
+    relojes();const mo=$('miniorbe');if(mo&&window.miniOrbe)miniOrbe(mo,S);
+    if(cx){
+      cx.clearRect(0,0,W,H);const e=S.estado,isIos=(S.tema==='ios'),col=isIos?(e==='dormido'?'255,255,255':e==='escuchando'||e==='trabajando'?'10,132,255':'255,255,255'):(e==='dormido'?'255,255,255':e==='escuchando'||e==='trabajando'?'215,25,33':'255,255,255');
+      for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const v=Math.min(1,nivel(e,x,y,t)),a=.09+.91*v;
+        cx.fillStyle=`rgba(${v>.15?col:'255,255,255'},${a})`;cx.beginPath();cx.arc(x*G+G/2,y*G+G/2,G*(.12+.2*v),0,7);cx.fill()}
+    }
+  }catch(e){console.error('Error dibuja:',e)}
   requestAnimationFrame(t=>dibuja(t/1000))}
 
 /* ---------- junto a la hora, el orbe 2 en pequeño (blob.js, lo pinta fondo.js como window.miniOrbe) ---------- */
 
 /* ---------- relojes vintage de puntos (aguja con muelle) / arcos fluidos iOS ---------- */
 const GA=[{id:'g0',rojo:.85,t:()=>S.mic?S.mic.nivel:0},{id:'g1',rojo:2,t:()=>NV},{id:'g2',rojo:.67,t:()=>S.lat==null?0:Math.min(1,S.lat/3000)}]
- .map(o=>({...o,cv:$(o.id),a:0,v:0}));
+ .map(o=>({...o,get cv(){return $(o.id)},a:0,v:0}));
 function relojes(){const k=devicePixelRatio||1,isIos=(S.tema==='ios');
-  for(const o of GA){const c=o.cv,r=c.getBoundingClientRect();if(c.width!==Math.round(r.width*k)){c.width=Math.round(r.width*k);c.height=Math.round(r.height*k)}
+  for(const o of GA){const c=o.cv;if(!c)continue;const r=c.getBoundingClientRect();if(c.width!==Math.round(r.width*k)){c.width=Math.round(r.width*k);c.height=Math.round(r.height*k)}
     o.v=o.v*.78+(o.t()-o.a)*.14;o.a=Math.max(-.02,Math.min(1.03,o.a+o.v)); // muelle amortiguado: rebota como una aguja real
     const x=c.getContext('2d'),w=c.width,h=c.height,cx0=w/2,cy0=h*.8,R=Math.min(w*.46,h*.72),th=f=>Math.PI*(1.15-1.3*f);
     x.clearRect(0,0,w,h);
@@ -927,42 +973,42 @@ if(location.hash==='#celebra')setTimeout(()=>celebrar({archivo:'demo.gcode',tota
 /* ---------- conexión ---------- */
 function geo(w){try{navigator.geolocation.getCurrentPosition(p=>w.readyState===1&&w.send(JSON.stringify({geo:[p.coords.latitude,p.coords.longitude,p.coords.accuracy]})),()=>{},{maximumAge:36e5,timeout:20000})}catch(e){}}
 let WS=null;const cmd=c=>WS&&WS.readyState===1&&WS.send(JSON.stringify({cmd:c}));
-$('b-cerrar').addEventListener('click',cerrarVisor);
+const elBCerrar = $('b-cerrar'); if(elBCerrar) elBCerrar.addEventListener('click', cerrarVisor);
 // lápiz: pegar texto como contexto (va por el WebSocket, que solo acepta el propio panel)
-function pinfo(){const g=S.pegado;$('lapiz').classList.toggle('lleno',!!g);$('pinfo').textContent=g?`Delta tiene ${g.n.toLocaleString('es-ES')} caracteres: «${g.ini.slice(0,60)}…»`:'Delta no tiene ningún texto pegado.'}
-$('lapiz').addEventListener('click',()=>{document.body.classList.add('pegar');pinfo();$('ptxt').focus()});
-const pegarCerrar=()=>{if($('ptxt').value.trim())return dar();document.body.classList.remove('pegar')};  // cerrar con texto = dárselo
-$('p-cerrar').addEventListener('click',pegarCerrar);
-$('pegar').addEventListener('click',e=>{if(e.target.id==='pegar')pegarCerrar()});
-const dar=()=>{const t=$('ptxt').value.trim();if(!t||!WS||WS.readyState!==1)return document.body.classList.remove('pegar');WS.send(JSON.stringify({pegar:t}));$('ptxt').value='';pegarCerrar()};
-$('p-dar').addEventListener('click',dar);
-$('ptxt').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.ctrlKey)dar();if(e.key==='Escape')pegarCerrar()});
-$('p-borrar').addEventListener('click',()=>{WS&&WS.readyState===1&&WS.send(JSON.stringify({pegar:''}));$('ptxt').value='';setTimeout(pinfo,600)});
-$('hora').addEventListener('click',()=>{document.body.classList.add('chuleta');novedades()});
+function pinfo(){const g=S.pegado;const lp=$('lapiz');if(lp)lp.classList.toggle('lleno',!!g);$txt('pinfo',g?`Delta tiene ${g.n.toLocaleString('es-ES')} caracteres: «${g.ini.slice(0,60)}…»`:'Delta no tiene ningún texto pegado.')}
+const elLapiz=$('lapiz'); if(elLapiz) elLapiz.addEventListener('click',()=>{document.body.classList.add('pegar');pinfo();const pt=$('ptxt');if(pt)pt.focus()});
+const pegarCerrar=()=>{const pt=$('ptxt');if(pt&&pt.value.trim())return dar();document.body.classList.remove('pegar')};  // cerrar con texto = dárselo
+const elPegarCerrar=$('pegar-cerrar'); if(elPegarCerrar) elPegarCerrar.addEventListener('click',pegarCerrar);
+const elPegar=$('pegar'); if(elPegar) elPegar.addEventListener('click',e=>{if(e.target.id==='pegar')pegarCerrar()});
+const dar=()=>{const pt=$('ptxt'),t=pt?pt.value.trim():'';if(!t||!WS||WS.readyState!==1)return document.body.classList.remove('pegar');WS.send(JSON.stringify({pegar:t}));if(pt)pt.value='';pegarCerrar()};
+const elPDar=$('p-dar'); if(elPDar) elPDar.addEventListener('click',dar);
+const elPtxt=$('ptxt'); if(elPtxt) elPtxt.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.ctrlKey)dar();if(e.key==='Escape')pegarCerrar()});
+const elPBorrar=$('p-borrar'); if(elPBorrar) elPBorrar.addEventListener('click',()=>{WS&&WS.readyState===1&&WS.send(JSON.stringify({pegar:''}));if(elPtxt)elPtxt.value='';setTimeout(pinfo,600)});
+const elHora=$('hora'); if(elHora) elHora.addEventListener('click',()=>{document.body.classList.add('chuleta');novedades()});
 
 // La rueda sobre el dock. Hacia abajo sube el hueco siguiente desde abajo; hacia arriba se
 // vuelve. Y vuelve sola a la hora a los 12 s: un reloj que se ha movido un momento tiene que
 // volver a ser un reloj, no quedarse en el tiempo de Albacete.
 const DOCK_N=6;let DK=0,DKT=0;
-const dkpinta=()=>{$('dock-pista').style.transform=`translateY(${-DK*$('dock').clientHeight}px)`;
-  $('dock-pips').innerHTML=[...Array(DOCK_N)].map((_,i)=>`<i class="${i===DK?'a':''}"></i>`).join('')};
-$('dock').addEventListener('wheel',e=>{e.preventDefault();
+const dkpinta=()=>{const dp=$('dock-pista'),dk=$('dock'),pips=$('dock-pips');if(dp&&dk)dp.style.transform=`translateY(${-DK*dk.clientHeight}px)`;
+  if(pips)pips.innerHTML=[...Array(DOCK_N)].map((_,i)=>`<i class="${i===DK?'a':''}"></i>`).join('')};
+const elDock=$('dock'); if(elDock) elDock.addEventListener('wheel',e=>{e.preventDefault();
   const n=Math.min(DOCK_N-1,Math.max(0,DK+(e.deltaY>0?1:-1)));
   if(n===DK)return;DK=n;dkpinta();
   clearTimeout(DKT);if(DK)DKT=setTimeout(()=>{DK=0;dkpinta()},12000)},{passive:false});
 dkpinta();
 // lo implementado en las últimas 48 h (panel/novedades.json): para no olvidar qué se ha añadido
 function novedades(){fetch('/novedades.json',{cache:'no-store'}).then(r=>r.json()).then(l=>{const lim=new Date(Date.now()-48*36e5).toISOString().slice(0,10),
-  n=l.filter(x=>x.f>=lim);$('nov').innerHTML=n.length?'<span class="lbl">Novedades · últimas 48 h</span><ul>'+n.map(x=>`<li><b>${x.f.slice(8)}/${x.f.slice(5,7)}</b>${esc(x.t)}${x.como?` <i>${esc(x.como)}</i>`:''}</li>`).join('')+'</ul>':''}).catch(()=>{})}
-$('chuleta').addEventListener('click',()=>document.body.classList.remove('chuleta'));
-$('reset').addEventListener('click',e=>{e.stopPropagation();if(confirm('¿Volver DeltaOS a la v4 y reiniciarlo?\n\nLo que se haya cambiado después queda guardado en git.'))cmd('reset_estable')});
-$('imp').addEventListener('click',()=>window.pantallaCompleta&&window.pantallaCompleta('impresora'));
-$('sis').addEventListener('click',()=>window.pantallaCompleta&&window.pantallaCompleta('sistema'));
-$('clima').style.cursor='pointer';$('clima').title='Abrir Nothing Weather';$('clima').addEventListener('click',()=>cmd('tiempo'));
-[['p-cerrar','quitar_tarjeta'],['b-cerrar','cerrar_visor'],['b-priv','privacidad'],['b-modo','modo'],['b-tema','cambiar_tema'],['b-dormir','dormir'],['b-si','permitir'],['b-no','denegar']].forEach(([i,c])=>$(i).addEventListener('click',()=>cmd(c)));
+  n=l.filter(x=>x.f>=lim);$html('nov',n.length?'<span class="lbl">Novedades · últimas 48 h</span><ul>'+n.map(x=>`<li><b>${x.f.slice(8)}/${x.f.slice(5,7)}</b>${esc(x.t)}${x.como?` <i>${esc(x.como)}</i>`:''}</li>`).join('')+'</ul>':'')}).catch(()=>{})}
+const elChuleta=$('chuleta'); if(elChuleta) elChuleta.addEventListener('click',()=>document.body.classList.remove('chuleta'));
+const elReset=$('reset'); if(elReset) elReset.addEventListener('click',e=>{e.stopPropagation();if(confirm('¿Volver DeltaOS a la v4 y reiniciarlo?\n\nLo que se haya cambiado después queda guardado en git.'))cmd('reset_estable')});
+const elImp=$('imp'); if(elImp) elImp.addEventListener('click',()=>window.pantallaCompleta&&window.pantallaCompleta('impresora'));
+const elSis=$('sis'); if(elSis) elSis.addEventListener('click',()=>window.pantallaCompleta&&window.pantallaCompleta('sistema'));
+const elClima=$('clima'); if(elClima){elClima.style.cursor='pointer';elClima.title='Abrir Nothing Weather';elClima.addEventListener('click',()=>cmd('tiempo'))};
+[['p-card-cerrar','quitar_tarjeta'],['b-cerrar','cerrar_visor'],['b-priv','privacidad'],['b-modo','modo'],['b-tema','cambiar_tema'],['b-dormir','dormir'],['b-si','permitir'],['b-no','denegar']].forEach(([i,c])=>{const el=$(i);if(el)el.addEventListener('click',()=>cmd(c))});
 function ws(){const w=WS=new WebSocket(`ws://${location.host}/ws`);w.onopen=()=>geo(w);
-  w.onmessage=m=>{const d=JSON.parse(m.data);if(d.v){if(window._v===undefined){window._v=d.v}else if(d.v!==window._v){window._v=d.v;location.reload();return}}pintar(d);$('lapiz').classList.toggle('lleno',!!d.pegado);window.fondoEspera&&window.fondoEspera(d)};
-  w.onclose=()=>{$('conexion').textContent='PANEL SIN ENLACE';$('conexion').className='mal';setTimeout(ws,2000)}}
+  w.onmessage=m=>{try{const d=JSON.parse(m.data);if(d.v){if(window._v===undefined){window._v=d.v}else if(d.v!==window._v){window._v=d.v;location.reload();return}}pintar(d);const lp=$('lapiz');if(lp)lp.classList.toggle('lleno',!!d.pegado);window.fondoEspera&&window.fondoEspera(d)}catch(err){console.error('Error ws onmessage:',err);if(window.__reportError)window.__reportError(err.message,'index.html',err.lineNumber||0,0,err)}};
+  w.onclose=()=>{const cx=$('conexion');if(cx){cx.textContent='PANEL SIN ENLACE';cx.className='mal'};setTimeout(ws,2000)}}
 fit();ws();requestAnimationFrame(t=>dibuja(t/1000));
 </script>
 <script type="module" src="/fondo.js"></script>
