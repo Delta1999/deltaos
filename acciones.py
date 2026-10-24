@@ -1114,6 +1114,46 @@ FUSIONES = {
     "movil": ("El móvil del usuario. notificaciones: lee las que tiene (WhatsApp, Telegram, correo, llamadas…). sonar: lo "
               "hace sonar a todo volumen para encontrarlo. Para contestar usa responder_notificacion o enviar_sms.",
               {}, {"notificaciones": _r("notificaciones_movil"), "sonar": _r("sonar_movil")}),
+    "apuntes": ("Visor y editor de apuntes PDF manos libres (para estudiar temarios y oposiciones en http://127.0.0.1:8766). "
+                "abrir: abre el visor en el navegador (opcional documento o tema). "
+                "cuadricula: muestra u oculta la cuadrícula de coordenadas espaciales (A1, B2...) para situar cosas con precisión. "
+                "subrayar: resalta un texto o pasaje en amarillo (#fef08a), naranja, verde o azul; si no se dice texto o dice «esto» o «aquí», subraya automáticamente donde esté señalando el ratón. "
+                "esquema: crea un esquema o mapa conceptual en el margen lateral derecho mediante Dagre.js sin colisiones; si dice «aquí» o no se indica celda, se ancla a la celda del ratón; incluye título, nodos y conexiones. "
+                "rama: añade un nuevo nodo conectado a un esquema existente. "
+                "nota: añade una tarjeta o aviso (tipo aviso ⚠️, clave 💡 o nota 📌) en el margen lateral a la altura de una celda o del ratón. "
+                "repaso: activa o desactiva el modo de repaso activo (active recall, oculta/desenfoca definiciones y nodos secundarios para autoevaluarse). "
+                "deshacer: deshace la última intervención realizada sobre el visor. "
+                "pagina: salta o se desplaza a una página concreta del documento. "
+                "exportar: compila y genera el PDF vectorial permanente con el margen ensanchado de 400 pt y todas las notas y esquemas. "
+                "cursor: consulta qué texto o celda tiene el usuario ahora mismo bajo el ratón. "
+                "clase: transcribe una clase grabada y la pasa a tema PDF anotado en segundo plano.",
+                {"documento": "abrir/exportar: nombre del PDF (ej. sample.pdf) o tema",
+                 "texto": "subrayar: texto a resaltar; nota: texto del aviso o nota al margen",
+                 "color": "subrayar: amarillo | naranja | verde | azul | rosa (por defecto amarillo)",
+                 "celda": "esquema/nota: celda alfanumérica donde anclar (ej. E1, F4, G10); omitir para usar la posición del ratón",
+                 "tipo": "nota: aviso (warning) | clave (tip) | nota (info); cuadricula: ver | ocultar; repaso: activar | desactivar",
+                 "titulo": "esquema: título principal o concepto raíz",
+                 "nodos": "esquema: lista de nodos o conceptos clave",
+                 "conexiones": "esquema: relaciones o flechas origen->destino",
+                 "nodo_padre": "rama: id o nombre del nodo padre al que conectar",
+                 "nuevo_nodo": "rama: texto o etiqueta del nuevo concepto",
+                 "pagina_num": "pagina/subrayar/esquema/nota: número de página (1-based); si se omite, la activa",
+                 "tema": "clase: número de tema (1-23); abrir: número de tema",
+                 "url": "clase: dirección web de la clase en vídeo",
+                 "audio": "clase: ruta de audio ya descargado",
+                 "profe": "clase: nombre del profesor"},
+                {"abrir": _r("apuntes_abrir", {"documento": "documento", "tema": "tema"}),
+                 "cuadricula": _r("apuntes_cuadricula", {"estado": "tipo"}),
+                 "subrayar": _r("apuntes_subrayar", {"texto": "texto", "color": "color", "pagina": "pagina_num"}),
+                 "esquema": _r("apuntes_esquema", {"titulo": "titulo", "celda": "celda", "nodos": "nodos", "conexiones": "conexiones", "pagina": "pagina_num"}),
+                 "rama": _r("apuntes_rama", {"nodo_padre": "nodo_padre", "nuevo_nodo": "nuevo_nodo", "pagina": "pagina_num"}),
+                 "nota": _r("apuntes_nota", {"texto": "texto", "celda": "celda", "tipo": "tipo", "pagina": "pagina_num"}),
+                 "repaso": _r("apuntes_repaso", {"estado": "tipo"}),
+                 "deshacer": _r("apuntes_deshacer"),
+                 "pagina": _r("apuntes_pagina", {"numero": "pagina_num"}),
+                 "exportar": _r("apuntes_exportar", {"documento": "documento"}),
+                 "cursor": _r("apuntes_cursor"),
+                 "clase": _r("clase_a_apuntes", {"tema": "tema", "url": "url", "audio": "audio", "profe": "profe"})}),
 }
 
 

@@ -1,0 +1,150 @@
+{
+  "document_id": "sample.pdf",
+  "version": 1,
+  "pages": {
+    "1": {
+      "highlights": [
+        {
+          "id": "hl_procedimiento",
+          "text": "procedimiento administrativo",
+          "color": "#fef08a",
+          "rects": [
+            [
+              50,
+              50,
+              310,
+              65
+            ]
+          ]
+        },
+        {
+          "id": "hl_silencio",
+          "text": "silencio administrativo",
+          "color": "#fed7aa",
+          "rects": [
+            [
+              50,
+              275,
+              230,
+              290
+            ]
+          ]
+        }
+      ],
+      "annotations": [
+        {
+          "id": "note_prescripcion",
+          "cell": "F4",
+          "type": "warning",
+          "text": "Plazo general prescripción: 4 años (Art. 66 LGT)",
+          "x": 610,
+          "y": 240,
+          "width": 250,
+          "height": 62
+        },
+        {
+          "id": "note_silencio",
+          "cell": "F6",
+          "type": "tip",
+          "text": "Regla general: Estimatorio salvo norma legal o UE",
+          "x": 610,
+          "y": 320,
+          "width": 250,
+          "height": 62
+        }
+      ],
+      "brackets": [
+        {
+          "id": "br_fases",
+          "start_cell": "A6",
+          "end_cell": "A10",
+          "y_start": 120,
+          "y_end": 260,
+          "x": 582,
+          "label": "Fases Art. 53-86"
+        }
+      ],
+      "stamps": [
+        {
+          "id": "stamp_examen_1",
+          "cell": "A2",
+          "x": 42,
+          "y": 48,
+          "symbol": "👁️",
+          "label": "TEST"
+        },
+        {
+          "id": "stamp_clave_1",
+          "cell": "A6",
+          "x": 42,
+          "y": 120,
+          "symbol": "⭐",
+          "label": "CLAVE"
+        }
+      ],
+      "schemas": [
+        {
+          "id": "schema_fases",
+          "anchor_cell": "E1",
+          "orientation": "TB",
+          "nodes": [
+            {
+              "id": "fases",
+              "label": "Fases Proc. Admin.",
+              "details": [
+                "Ley 39/2015",
+                "4 fases clave"
+              ]
+            },
+            {
+              "id": "iniciacion",
+              "label": "1. Iniciación",
+              "details": [
+                "De oficio / A solicitud"
+              ]
+            },
+            {
+              "id": "ordenacion",
+              "label": "2. Ordenación",
+              "details": [
+                "Celeridad e impulso"
+              ]
+            },
+            {
+              "id": "instruccion",
+              "label": "3. Instrucción",
+              "details": [
+                "Alegaciones, prueba"
+              ]
+            },
+            {
+              "id": "finalizacion",
+              "label": "4. Finalización",
+              "details": [
+                "Resolución, desistimiento"
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "from": "fases",
+              "to": "iniciacion"
+            },
+            {
+              "from": "fases",
+              "to": "ordenacion"
+            },
+            {
+              "from": "fases",
+              "to": "instruccion"
+            },
+            {
+              "from": "fases",
+              "to": "finalizacion"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

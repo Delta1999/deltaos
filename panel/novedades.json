@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-24",
+  "t": "Visor y editor de apuntes PDF manos libres con Gemini Live: cuadrícula espacial, subrayado contextual por ratón, esquemas y ramas jerárquicas con Dagre.js, tarjetas en el margen, modo repaso activo y compilación vectorial ensanchada",
+  "como": "«abre los apuntes», «pon la cuadrícula», «subraya esto», «haz un esquema aquí», «nota al margen», «modo repaso», «exporta el PDF»"
+ },
+ {
+  "f": "2026-10-24",
   "t": "Reloj de la barra de estado en modo invisible: los dos puntos parpadean lentamente en rojo con efecto latido",
   "como": "«modo invisible»"
  },

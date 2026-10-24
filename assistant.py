@@ -33,6 +33,7 @@ import movil  # noqa: F401
 import deltaos  # noqa: F401  (visor del panel, investigación y skills)
 import secretario  # noqa: F401  (documentos PDF/Word/texto)
 import estudio  # noqa: F401  (modo estudiante: clase → tema anotado)
+import visor_delta  # noqa: F401  (visor y editor de apuntes manos libres)
 import mcp_puente  # noqa: F401  (conectores MCP: mcp.json → herramienta «conectores»)
 import firetv  # tele del salón (Fire TV por ADB): herramienta tele_salon y estado en el panel
 import proactivo  # noqa: F401  (habla por su cuenta, y sabe cuándo callarse)

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visor y Editor de Apuntes Manos Libres - DeltaOS</title>
+  
+  <!-- PDF.js y TextLayer CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
+  
+  <!-- Fuentes tipográficas técnicas y legibles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="theme-light">
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand">
+        <span class="brand-icon">⚡</span>
+        <span class="brand-title">Visor Apuntes AI</span>
+      </div>
+      <div class="doc-selector-wrap">
+        <label for="doc-select">Documento:</label>
+        <select id="doc-select">
+          <option value="sample.pdf">sample.pdf (Ley 39/2015 / Cortes)</option>
+        </select>
+        <button id="btn-upload-doc" class="btn btn-icon" title="Subir otro PDF para estudiar">📁</button>
+        <input type="file" id="doc-upload-input" accept="application/pdf" style="display: none;">
+      </div>
+    </div>
+
+    <!-- HUD Contextual del Cursor en tiempo real -->
+    <div class="header-center">
+      <div class="context-hud" id="context-hud">
+        <span class="hud-item" id="hud-page">Pág: <strong>1</strong></span>
+        <span class="hud-item" id="hud-cell">Celda: <strong class="badge-cell">A1</strong></span>
+        <span class="hud-item hud-coords" id="hud-coords">(0, 0)</span>
+        <span class="hud-item hud-text" id="hud-text" title="Texto más cercano">Texto: <em>ninguno</em></span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="control-group">
+        <button id="btn-toggle-grid" class="btn btn-secondary active" title="Alternar cuadrícula alfanumérica (G)">
+          <span class="icon">⊞</span> Cuadrícula
+        </button>
+        <button id="btn-toggle-recall" class="btn btn-secondary" title="Alternar modo repaso activo (R)">
+          <span class="icon">🧠</span> Repaso Activo
+        </button>
+      </div>
+
+      <div class="zoom-controls">
+        <button id="btn-zoom-out" class="btn btn-icon" title="Alejar (-)">−</button>
+        <span id="zoom-label">120%</span>
+        <button id="btn-zoom-in" class="btn btn-icon" title="Acercar (+)">+</button>
+      </div>
+
+      <div class="action-buttons">
+        <button id="btn-undo" class="btn btn-icon" title="Deshacer última acción (Ctrl+Z)">↩</button>
+        <button id="btn-save" class="btn btn-primary" title="Guardar notas">💾 Guardar</button>
+        <button id="btn-export" class="btn btn-accent" title="Compilar y descargar PDF vectorial con margen">📤 Exportar PDF</button>
+      </div>
+
+      <div class="ws-status" id="ws-status" title="Estado de conexión con el Asistente de Voz">
+        <span class="status-dot"></span>
+        <span class="status-text">WS</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Simulador de Comandos de Voz para Pruebas Rápidas -->
+  <aside class="voice-simulator" id="voice-simulator">
+    <div class="sim-header">
+      <span class="sim-title">🎙️ Simulador de Comandos de Voz (Gemini Live)</span>
+      <button id="btn-toggle-sim" class="btn-toggle-sim" title="Minimizar panel">▲</button>
+    </div>
+    <div class="sim-body" id="sim-body">
+      <div class="quick-chips">
+        <button class="chip" data-cmd="schema_procedimiento">🌳 Esquema Fases (E1)</button>
+        <button class="chip" data-cmd="add_branch_recurso">➕ Añadir Rama "Recursos"</button>
+        <button class="chip" data-cmd="highlight_silencio">🖍️ Subrayar "silencio administrativo"</button>
+        <button class="chip" data-cmd="note_prescripcion">📌 Nota Margen "Plazo 4 años" (F4)</button>
+        <button class="chip" data-cmd="bracket_fases">🎯 Llave { "Fases Art. 53-86" (A6 a A10)</button>
+        <button class="chip" data-cmd="stamp_examen">👁️ Sello Examen (A2)</button>
+        <button class="chip" data-cmd="stamp_estrella">⭐ Sello Estrella (B4)</button>
+        <button class="chip" data-cmd="toggle_grid">⊞ Cuadrícula On/Off</button>
+        <button class="chip" data-cmd="toggle_recall">🧠 Repaso On/Off</button>
+        <button class="chip" data-cmd="undo">↩️ Deshacer</button>
+      </div>
+      <div class="sim-custom">
+        <input type="text" id="sim-input" placeholder='Ej: {"command": "highlight_passage", "args": {"target_text": "iniciarse de oficio", "color": "#fef08a"}}' />
+        <button id="btn-send-sim" class="btn btn-sm btn-primary">Enviar</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Contenedor Principal del Documento -->
+  <main class="main-viewport" id="main-viewport">
+    <div id="pdf-container" class="pdf-container">
+      <!-- Las páginas se renderizan dinámicamente aquí -->
+    </div>
+  </main>
+
+  <!-- Dependencias Open Source -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
