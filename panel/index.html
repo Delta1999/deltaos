@@ -557,6 +557,66 @@ body.invisible #p-card{display:none!important}
 [data-tema="ios"] .p{font-family:var(--sans)}
 [data-tema="ios"] .p span:first-child{font-family:var(--mono)}
 [data-tema="ios"] .p.cur b{color:var(--accent)}
+
+/* Salvapantallas iOS: fondo claro, contenido limpio y cristal solo en capas funcionales. */
+[data-tema="ios"] #fondo{
+  --ios-bg:#f2f2f7;
+  --ios-elevated:#ffffff;
+  --ios-label:#1c1c1e;
+  --ios-secondary:#636366;
+  --ios-tertiary:#8e8e93;
+  --ios-line:rgba(60,60,67,.18);
+  --ios-fill:rgba(120,120,128,.16);
+  --ios-blue:#007aff;
+  --ios-red:#ff3b30;
+  --ios-green:#34c759;
+  background:var(--ios-bg);
+  color:var(--ios-label);
+  filter:none;
+}
+[data-tema="ios"] #fondo.noche{filter:brightness(.86)}
+[data-tema="ios"] #fondo>div{animation:none}
+[data-tema="ios"] #f-reloj{background:linear-gradient(145deg,#ffffff 0%,#f2f2f7 58%,#e8e8ed 100%)}
+[data-tema="ios"] #fr-hora{
+  font-family:var(--sans);font-weight:200;letter-spacing:-.065em;color:var(--ios-label);
+  text-shadow:0 1px 0 rgba(255,255,255,.8)
+}
+[data-tema="ios"] #fr-fecha{font-family:var(--sans);font-weight:600;color:var(--ios-secondary)}
+[data-tema="ios"] #fr-pie{font-family:var(--sans);font-size:14px;letter-spacing:normal;color:var(--ios-tertiary)}
+[data-tema="ios"] #f-blob{background:radial-gradient(circle at 50% 28%,#fff 0%,#f2f2f7 48%,#e5e5ea 100%)}
+[data-tema="ios"] #fb-hora{font-family:var(--sans);font-weight:300;letter-spacing:.16em;color:rgba(28,28,30,.82)}
+[data-tema="ios"] #fb-hora i{color:var(--ios-blue)}
+[data-tema="ios"] #fb-chat{mask-image:linear-gradient(to bottom,transparent,#000 14%);-webkit-mask-image:linear-gradient(to bottom,transparent,#000 14%)}
+[data-tema="ios"] #fb-chat .msg.tu .bub{background:var(--ios-blue);border-color:rgba(0,122,255,.3);box-shadow:0 2px 8px rgba(0,122,255,.2)}
+[data-tema="ios"] #fb-chat .msg:not(.tu) .bub{background:rgba(255,255,255,.82);border-color:rgba(60,60,67,.16);color:var(--ios-label);box-shadow:0 2px 8px rgba(0,0,0,.08);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+[data-tema="ios"] #fb-chat .msg small{font-family:var(--sans);color:var(--ios-secondary)}
+[data-tema="ios"] #fb-chat .msg:not(.tu) small{color:var(--ios-blue)}
+[data-tema="ios"] #f-tiempo{background:linear-gradient(160deg,#f2f2f7,#e8e8ed)}
+[data-tema="ios"] #ft-desc,[data-tema="ios"] #ft-pie,[data-tema="ios"] #ft-datos span,[data-tema="ios"] #ft-dias span{font-family:var(--sans);letter-spacing:normal;color:var(--ios-secondary)}
+[data-tema="ios"] #ft-temp,[data-tema="ios"] #ft-datos b,[data-tema="ios"] #ft-dias b{font-family:var(--sans);font-weight:700;letter-spacing:-.04em;color:var(--ios-label)}
+[data-tema="ios"] #ft-datos div,[data-tema="ios"] #ft-dias div,[data-tema="ios"] #ft-pie{border-color:var(--ios-line)}
+[data-tema="ios"] #ft-datos b i,[data-tema="ios"] #ft-dias b i{font-family:var(--sans);color:var(--ios-tertiary)}
+[data-tema="ios"] #f-sistema{background:linear-gradient(160deg,#f2f2f7,#e8e8ed)}
+[data-tema="ios"] #fs-top b{font-family:var(--sans);font-weight:700;color:var(--ios-label)}
+[data-tema="ios"] #fs-top b.r{color:var(--ios-red)}
+[data-tema="ios"] #fs-pie,[data-tema="ios"] #fs-tabla .h{font-family:var(--sans);letter-spacing:normal;color:var(--ios-secondary)}
+[data-tema="ios"] #fs-tabla{font-family:var(--sans);color:var(--ios-label)}
+[data-tema="ios"] #fs-tabla .no{color:var(--ios-secondary)}
+[data-tema="ios"] #fs-tabla .si{color:var(--ios-blue)}
+[data-tema="ios"] #fs-tabla .bar{background:var(--ios-fill)}
+[data-tema="ios"] #fs-tabla .bar::before{background:var(--ios-blue)}
+[data-tema="ios"] #fi-txt,[data-tema="ios"] #fi-full{color:var(--ios-label)}
+[data-tema="ios"] #fi-info,[data-tema="ios"] #fi-full .row span:first-child{color:var(--ios-secondary)}
+[data-tema="ios"] #fi-full section{border-color:var(--ios-line)}
+[data-tema="ios"] #fi-full .lbl{color:var(--ios-blue)}
+[data-tema="ios"] .btn:focus-visible,[data-tema="ios"] #miniorbe:focus-visible,[data-tema="ios"] #hora:focus-visible{outline:3px solid rgba(0,122,255,.65);outline-offset:3px}
+@media (prefers-reduced-motion: reduce){
+  [data-tema="ios"] #fondo *,[data-tema="ios"] #fondo *::before,[data-tema="ios"] #fondo *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+@media (prefers-reduced-transparency: reduce),(prefers-contrast: more){
+  [data-tema="ios"] .card,[data-tema="ios"] .btn,[data-tema="ios"] #pasos,[data-tema="ios"] #fb-chat .msg:not(.tu) .bub{backdrop-filter:none;-webkit-backdrop-filter:none;background:#fff;border-color:rgba(28,28,30,.35)}
+  [data-tema="ios"] #fb-chat .msg.tu .bub{background:#005fcc}
+}
 </style>
 </head>
 <body>

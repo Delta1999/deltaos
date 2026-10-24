@@ -85,6 +85,20 @@ def test_required_dom_ids():
     print(f"✓ panel/index.html: Todos los IDs críticos ({len(critical_ids)}) existen en el DOM")
 
 
+def test_ios_screensaver_styles_are_scoped():
+    html = HTML_PATH.read_text(encoding="utf-8")
+    assert '[data-tema="ios"] #fondo' in html
+    assert '[data-tema="ios"] #f-reloj' in html
+    assert '[data-tema="ios"] #f-blob' in html
+    assert '[data-tema="ios"] #f-tiempo' in html
+    assert '[data-tema="ios"] #f-sistema' in html
+    assert 'prefers-reduced-motion' in html
+    assert 'prefers-reduced-transparency' in html
+    assert 'prefers-contrast: more' in html
+    assert 'background:var(--ios-bg)' in html
+    print("✓ iOS: estilos de salvapantallas acotados y fondo claro con fallbacks de accesibilidad")
+
+
 def test_render_headless():
     """Ejecuta pintar(d) en Node.js con un DOM mockeado para asegurar que no lanza excepciones."""
     import acciones
@@ -240,5 +254,6 @@ if __name__ == "__main__":
     test_error_boundary_present()
     test_js_syntax()
     test_required_dom_ids()
+    test_ios_screensaver_styles_are_scoped()
     test_render_headless()
     print("🎉 TODAS LAS PRUEBAS DE FRONTEND SUPERADAS CORRECTAMENTE.")

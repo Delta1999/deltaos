@@ -13,6 +13,8 @@
 // que si no son ~1.600 strokes por fotograma.
 
 const FG = '242,242,242', ROJO = '215,25,33';
+const IOS = {fg: '28,28,30', dim: '99,99,102', blue: '0,122,255', red: '255,59,48'};
+const esIos = () => document.documentElement.dataset.tema === 'ios';
 const PAR = 15, SEG = 72, MER = 12, MSEG = 60;   // paralelos y meridianos, y en cuántos tramos va cada uno
 const TILT = .40, DIST = 3.6;                    // inclinación del eje y distancia de la cámara (perspectiva)
 const NIV = 5;                                   // niveles de opacidad (profundidad): un trazo por nivel
@@ -47,7 +49,8 @@ export function pintar(cv, d) {
   // los niveles se persiguen en vez de saltar: el valor llega cada 0,4 s por el WebSocket
   NV += ((d.nivel || 0) - NV) * .25;
   MV += (((d.mic || {}).nivel || 0) - MV) * .25;
-  const est = d.estado || 'dormido', hablando = est === 'hablando';
+  const est = d.estado || 'dormido', hablando = est === 'hablando', ios = esIos();
+  const colores = ios ? IOS : {fg: FG, dim: '242,242,242', blue: ROJO, red: ROJO};
   const voz = hablando ? NV : est === 'escuchando' ? MV * .7 : 0;
   // el giro se acumula con el tiempo real: así puede cambiar de velocidad sin dar un salto
   const dt = ult ? Math.min(.1, (ms - ult) / 1000) : 0; ult = ms;
@@ -82,8 +85,8 @@ export function pintar(cv, d) {
       p = q;
     }
   }
-  trazar(x, mer, FG, .26 * nac, k * .55);
-  trazar(x, pal, FG, .92 * nac, k * .85);
+  trazar(x, mer, colores.fg, .26 * nac, k * .55);
+  trazar(x, pal, colores.fg, .92 * nac, k * .85);
 
   // ---- el anillo rojo: el único acento. Sube y baja despacio, y marca el nivel de voz. ----
   if (nac > .8) {
@@ -95,7 +98,7 @@ export function pintar(cv, d) {
       tramo(ani, p, q);
       p = q;
     }
-    trazar(x, ani, ROJO, a, k * (1 + Math.min(1, voz * 2)));
+    trazar(x, ani, colores.red, a, k * (1 + Math.min(1, voz * 2)));
   }
 
   if (nac < 1) return;
@@ -132,18 +135,19 @@ function trazar(x, paths, color, base, ancho) {
 // grabación. Antes era todo «DELTAOS» seguido y en mayúsculas y no se entendía el concepto.
 function nombre(x, W, y, tam, t) {
   x.save();
-  x.font = `900 ${tam}px Doto, monospace`;
+  x.font = esIos() ? `700 ${tam}px -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif` : `900 ${tam}px Doto, monospace`;
   x.textAlign = 'left'; x.textBaseline = 'top';
   x.letterSpacing = `${tam * .10}px`;
   const an = v => x.measureText(v).width;
   const wD = an('Delta'), wP = an('.'), wO = an('O');
   let px = W / 2 - (wD + wP + an('OS')) / 2;
-  x.fillStyle = `rgba(${FG},.92)`; x.fillText('Delta', px, y); px += wD;
-  x.fillStyle = `rgba(${ROJO},.95)`; x.fillText('.', px, y); px += wP;
-  x.fillStyle = `rgba(${FG},.92)`; x.fillText('OS', px, y);
+  const ios = esIos(), fg = ios ? IOS.fg : FG, accent = ios ? IOS.blue : ROJO;
+  x.fillStyle = `rgba(${fg},.92)`; x.fillText('Delta', px, y); px += wD;
+  x.fillStyle = `rgba(${accent},.95)`; x.fillText('.', px, y); px += wP;
+  x.fillStyle = `rgba(${fg},.92)`; x.fillText('OS', px, y);
   // los cuatro puntos del hueco de la O: mismo paso y mismo tamaño que los de la tipografía
   const paso = tam * .135, r = tam * .045, cx = px + wO / 2 - tam * .115, cy = y + tam * .44;
-  x.fillStyle = `rgba(${ROJO},${.22 + .78 * (Math.sin(t * 3.2) > -.2 ? 1 : 0)})`;
+  x.fillStyle = `rgba(${accent},${.22 + .78 * (Math.sin(t * 3.2) > -.2 ? 1 : 0)})`;
   for (const dx of [-1, 1]) for (const dy of [-1, 1]) {
     x.beginPath(); x.arc(cx + dx * paso / 2, cy + dy * paso / 2, r, 0, 7); x.fill();
   }
@@ -160,14 +164,15 @@ function estado(x, W, y, d, t, k) {
     s.temp != null ? `${s.temp}°` : null, `MIC ${m.estado === 'off' ? 'OFF' : (m.db ?? '--') + ' dB'}`,
     d.conexion === 'conectado' ? 'ENLACE OK' : 'RECONECTANDO'].filter(Boolean);
   x.save();
-  x.font = `500 ${13 * k}px "IBM Plex Mono", monospace`;
+  x.font = esIos() ? `500 ${13 * k}px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif` : `500 ${13 * k}px "IBM Plex Mono", monospace`;
   x.textAlign = 'left'; x.textBaseline = 'middle';
   x.letterSpacing = `${2.4 * k}px`;
   const txt = campos.join('   ·   '), an = x.measureText(txt).width, px = W / 2 - an / 2;
   // el testigo rojo parpadea: es el latido del sistema
-  x.fillStyle = `rgba(${ROJO},${Math.sin(t * 3.4) > -.3 ? 1 : .12})`;
+  const ios = esIos(), accent = ios ? IOS.blue : ROJO, fg = ios ? IOS.dim : FG;
+  x.fillStyle = `rgba(${accent},${Math.sin(t * 3.4) > -.3 ? 1 : .12})`;
   x.beginPath(); x.arc(px - 16 * k, y, 4 * k, 0, 7); x.fill();
-  x.fillStyle = `rgba(${FG},.62)`;
+  x.fillStyle = `rgba(${fg},.62)`;
   x.fillText(txt, px, y);
   x.restore();
 }

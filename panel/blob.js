@@ -187,7 +187,7 @@ function montar(cv, dirR, seg) {
 
   const cam = new THREE.PerspectiveCamera(30, 1, .1, 50);
   cam.position.set(0, 0, 6.6);
-  return {ren, escena, cam, malla, u};
+  return {ren, escena, cam, malla, u, mat, contra};
 }
 
 export const pintar = (cv, d) => dibujar(cv, d, false);
@@ -198,7 +198,10 @@ function dibujar(cv, d, peque) {
   if (!w || !h) return;
   const g = de(cv);
   if (!g.r3) g.r3 = montar(cv, g.dirR, peque ? 64 : SEG);
-  const {ren, escena, cam, malla, u} = g.r3;
+  const {ren, escena, cam, malla, u, mat, contra} = g.r3;
+  const ios = document.documentElement.dataset.tema === 'ios';
+  mat.sheenColor.set(ios ? 0xdde8ff : 0xffd9d4);
+  contra.color.set(ios ? 0x007aff : 0xd71921);
   if (cv.width !== Math.round(w * ren.getPixelRatio()) || cv.height !== Math.round(h * ren.getPixelRatio())) {
     ren.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
   }

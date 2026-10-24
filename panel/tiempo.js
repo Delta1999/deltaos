@@ -13,6 +13,8 @@
 // fotograma, y los textos van en HTML porque así escalan con vh/vw sin recalcular nada.
 
 const FG = '242,242,242', ROJO = '215,25,33', DIM = '110,110,110';
+const IOS = {fg: '28,28,30', red: '255,59,48', dim: '99,99,102', blue: '0,122,255'};
+const paleta = () => document.documentElement.dataset.tema === 'ios' ? IOS : {fg: FG, red: ROJO, dim: DIM, blue: ROJO};
 const $ = i => document.getElementById(i);
 const hm = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
 const SEM = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
@@ -56,7 +58,7 @@ function grafica(cv, w, t) {
   const k = Math.min(devicePixelRatio || 1, 2), cw = cv.clientWidth, ch = cv.clientHeight;
   if (!cw || !ch) return;
   if (cv.width !== Math.round(cw * k) || cv.height !== Math.round(ch * k)) { cv.width = cw * k; cv.height = ch * k; }
-  const x = cv.getContext('2d'), W = cv.width, H = cv.height;
+  const x = cv.getContext('2d'), W = cv.width, H = cv.height, P = paleta();
   x.clearRect(0, 0, W, H);
 
   const n = new Date(), ahora = n.getHours() + n.getMinutes() / 60;
@@ -82,7 +84,7 @@ function grafica(cv, w, t) {
   hs.forEach((h, i) => {
     const alto = (h.ll / 100) * (SUELO - BOT - 6 * k) * (1 + .07 * Math.sin(t * 1.1 + i * .9));
     if (h.ll < 3) return;
-    x.fillStyle = `rgba(${ROJO},${.16 + .34 * h.ll / 100})`;
+    x.fillStyle = `rgba(${P.blue},${.16 + .34 * h.ll / 100})`;
     x.fillRect(px(i) - an / 2, SUELO - alto, an, alto);
   });
 
@@ -94,23 +96,23 @@ function grafica(cv, w, t) {
     for (let q = 0; q < largo; q += PASO) {
       const u = q / largo, cxp = x0 + q, cyp = y0 + (y1 - y0) * u;
       const s = (i + u) / (hs.length - 1), cerca = Math.max(0, 1 - Math.abs(s - dest) * 9);
-      x.fillStyle = `rgba(${FG},${.30 + .55 * cerca})`;
+      x.fillStyle = `rgba(${P.fg},${.30 + .55 * cerca})`;
       x.beginPath(); x.arc(cxp, cyp, k * (1.1 + 1.1 * cerca), 0, 7); x.fill();
     }
   }
   // cada tramo de 3 h: su punto, su temperatura y su hora; la lluvia solo si la hay
   x.textAlign = 'center';
   hs.forEach((h, i) => {
-    x.fillStyle = `rgba(${FG},.9)`;
+    x.fillStyle = `rgba(${P.fg},.9)`;
     x.beginPath(); x.arc(px(i), py(h.t), 2.3 * k, 0, 7); x.fill();
     x.font = `900 ${15 * k}px Doto, monospace`; x.textBaseline = 'bottom';
     x.fillText(h.t + '°', px(i), py(h.t) - 8 * k);
     x.font = `500 ${11 * k}px "IBM Plex Mono", monospace`; x.textBaseline = 'top';
-    x.fillStyle = `rgba(${DIM},.95)`;
+    x.fillStyle = `rgba(${P.dim},.95)`;
     x.fillText(String(h.k % 24).padStart(2, '0') + 'h', px(i), SUELO + 7 * k);
-    x.fillStyle = `rgba(${h.ll >= 30 ? ROJO : DIM},.8)`;
+    x.fillStyle = `rgba(${h.ll >= 30 ? P.blue : P.dim},.8)`;
     x.fillText(h.ll ? h.ll + '%' : '·', px(i), SUELO + 22 * k);
-    x.fillStyle = `rgba(${DIM},.7)`;
+    x.fillStyle = `rgba(${P.dim},.7)`;
     x.fillText(h.v + ' km/h', px(i), SUELO + 37 * k);
   });
 
@@ -121,9 +123,9 @@ function grafica(cv, w, t) {
       const h = m / 60 + d;
       if (h < hs[0].k || h > hs[hs.length - 1].k) continue;
       const p = pk(h);
-      x.strokeStyle = `rgba(${FG},.16)`; x.lineWidth = k; x.setLineDash([2 * k, 4 * k]);
+      x.strokeStyle = `rgba(${P.fg},.16)`; x.lineWidth = k; x.setLineDash([2 * k, 4 * k]);
       x.beginPath(); x.moveTo(p, TOP - 18 * k); x.lineTo(p, SUELO); x.stroke(); x.setLineDash([]);
-      x.fillStyle = `rgba(${FG},.45)`; x.fillText(et + ' ' + hm(m), p, TOP - 22 * k);
+      x.fillStyle = `rgba(${P.fg},.45)`; x.fillText(et + ' ' + hm(m), p, TOP - 22 * k);
     }
   }
 
@@ -131,9 +133,9 @@ function grafica(cv, w, t) {
   const p = pk(ahora), i0 = Math.max(0, Math.min(hs.length - 2, hs.findIndex(h => h.k > ahora) - 1));
   const u = (ahora - hs[i0].k) / 3, ty = py(hs[i0].t + (hs[i0 + 1].t - hs[i0].t) * Math.max(0, Math.min(1, u)));
   const lat = .55 + .45 * Math.sin(t * 2.2);
-  x.strokeStyle = `rgba(${ROJO},${.22 + .2 * lat})`; x.lineWidth = 1.4 * k;
+  x.strokeStyle = `rgba(${P.red},${.22 + .2 * lat})`; x.lineWidth = 1.4 * k;
   x.beginPath(); x.moveTo(p, TOP - 18 * k); x.lineTo(p, SUELO); x.stroke();
-  x.fillStyle = `rgba(${ROJO},1)`;
+  x.fillStyle = `rgba(${P.red},1)`;
   x.beginPath(); x.arc(p, ty, k * (3 + 1.6 * lat), 0, 7); x.fill();
 }
 

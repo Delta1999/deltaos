@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-24",
+  "t": "Salvapantallas iOS luminosos para DeltaOS: reloj tipo StandBy, gota tipo Mensajes, tiempo y sistema sobre fondo claro, con paleta Apple en los orbes y rótulos Delta.OS",
+  "como": "«pon el tema de iOS» y «pon el reloj / la gota / el tiempo / el sistema»"
+ },
+ {
+  "f": "2026-10-24",
   "t": "Visión ultra nítida y lectura directa en el visor de apuntes: capturas con filtro Lanczos en alta fidelidad y foco en ventana activa, renderizado vectorial a 150 DPI y lectura estructurada del texto de las páginas del PDF",
   "como": "«lee la página actual de apuntes», «mira esta página en detalle», «mira mis apuntes»"
  },

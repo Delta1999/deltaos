@@ -17,11 +17,11 @@ panel.VISTA = Path(tempfile.mkdtemp()) / "delta-vista"  # fondo() escribe la vis
 AQUI = Path(__file__).parent
 
 # La escena entra por la misma puerta que las demás: la fusión «vista», acción fondo.
-assert "orbe" in deltaos.ESCENAS
+assert "orbe1" in deltaos.ESCENAS and "orbe2" in deltaos.ESCENAS
 assert "delta" not in deltaos.ESCENAS, "el escudo se quitó: que no quede una escena que pinta un lienzo que ya no existe"
 real, args = acciones._real("vista", {"accion": "fondo", "cual": "orbe"})
 assert (real, args) == ("fondo", {"escena": "orbe"}), (real, args)
-assert asyncio.run(acciones.HANDLERS[real](**args)).startswith("Hecho: orbe a pantalla completa")
+assert asyncio.run(acciones.HANDLERS[real](**args)).startswith("Hecho: el orbe 1 a pantalla completa")
 assert panel.S["fondo"]["escena"] == "orbe"
 # Sin la palabra en la fusión, Delta se lo toma por una mejora pendiente y dice que no existe (pasó con el escudo).
 acciones.fusionar()
@@ -44,6 +44,9 @@ assert not (AQUI / "panel" / "delta.js").exists()
 # La esfera reacciona a la voz: el nivel de Delta cuando habla y el del micro cuando escucha.
 ojs = (AQUI / "panel" / "orbe.js").read_text()
 assert "d.nivel" in ojs and "d.mic" in ojs and "hablando" in ojs
+assert "esIos" in ojs and "IOS" in ojs and "Doto" in ojs
+bjs = (AQUI / "panel" / "blob.js").read_text()
+assert "dataset.tema" in bjs and "0x007aff" in bjs and "0xd71921" in bjs
 
 
 # El menú de la hora filtra por la clave «f»: una entrada con otras claves no sale y nadie se
