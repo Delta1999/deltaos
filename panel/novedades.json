@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-24",
+  "t": "Interfaz principal iOS luminosa: panel, tarjetas, conversación, consola y visor con fondo claro, superficies Apple y azul semántico sin tocar el diseño Nothing",
+  "como": "«pon el tema de iOS» para aplicar el diseño claro también al panel principal"
+ },
+ {
+  "f": "2026-10-24",
   "t": "Salvapantallas iOS luminosos para DeltaOS: reloj tipo StandBy, gota tipo Mensajes, tiempo y sistema sobre fondo claro, con paleta Apple en los orbes y rótulos Delta.OS",
   "como": "«pon el tema de iOS» y «pon el reloj / la gota / el tiempo / el sistema»"
  },

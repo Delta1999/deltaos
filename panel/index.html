@@ -558,6 +558,75 @@ body.invisible #p-card{display:none!important}
 [data-tema="ios"] .p span:first-child{font-family:var(--mono)}
 [data-tema="ios"] .p.cur b{color:var(--accent)}
 
+/* Interfaz principal iOS: superficie clara; el cristal queda reservado a tarjetas y overlays. */
+[data-tema="ios"]{
+  --bg:#f2f2f7;
+  --black:#f2f2f7;
+  --surface:rgba(255,255,255,.82);
+  --surface-raised:#ffffff;
+  --text-display:#1c1c1e;
+  --text-primary:#1c1c1e;
+  --text-secondary:#636366;
+  --text-disabled:#8e8e93;
+  --accent:#007aff;
+  --border:rgba(60,60,67,.18);
+  --border-visible:rgba(60,60,67,.28);
+  --interactive:#007aff;
+  --fg:#1c1c1e;
+  --dim:#636366;
+  --faint:rgba(120,120,128,.16);
+  --red:#ff3b30;
+  --line:rgba(60,60,67,.18);
+  background:var(--bg);
+  color:var(--text-primary)
+}
+[data-tema="ios"] body{background:var(--bg)}
+[data-tema="ios"] header{background:rgba(255,255,255,.62);border:1px solid rgba(60,60,67,.12);border-radius:22px;padding:16px 20px;box-shadow:0 4px 18px rgba(0,0,0,.06)}
+[data-tema="ios"] #dock-pips i{background:rgba(60,60,67,.22)}
+[data-tema="ios"] #dock-pips i.a{background:var(--accent)}
+[data-tema="ios"] #rec{color:var(--red)}
+[data-tema="ios"] #rec i{background:var(--red)}
+[data-tema="ios"] .card,[data-tema="ios"] #visor{
+  background:var(--surface);border-color:rgba(60,60,67,.16);box-shadow:0 8px 28px rgba(0,0,0,.07),inset 0 1px 0 rgba(255,255,255,.9)
+}
+[data-tema="ios"] #hero{background:linear-gradient(145deg,#fff 0%,rgba(255,255,255,.78) 62%,#eef0f5 100%)}
+[data-tema="ios"] .meta b,[data-tema="ios"] .row span:last-child,[data-tema="ios"] .ag b,[data-tema="ios"] .g b{color:var(--text-primary)}
+[data-tema="ios"] .ok,[data-tema="ios"] .lamp.ok{color:#248a3d}
+[data-tema="ios"] .mal,[data-tema="ios"] .lamp.mal{color:var(--red)}
+[data-tema="ios"] .lamp.ok i{background:#34c759;border-color:#34c759}
+[data-tema="ios"] .lamp.act i{background:var(--accent);border-color:var(--accent)}
+[data-tema="ios"] .lamp.mal i{background:var(--red);border-color:var(--red)}
+[data-tema="ios"] .mando{border-color:var(--border)}
+[data-tema="ios"] .fr{color:var(--text-secondary)}
+[data-tema="ios"] .fr:last-child{color:var(--text-primary)}
+[data-tema="ios"] .msg.tu .bub{background:var(--accent);border-color:rgba(0,122,255,.28);color:#fff;box-shadow:0 2px 8px rgba(0,122,255,.2)}
+[data-tema="ios"] .msg:not(.tu) .bub{background:rgba(255,255,255,.9);border-color:rgba(60,60,67,.16);color:var(--text-primary);box-shadow:0 2px 8px rgba(0,0,0,.07);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+[data-tema="ios"] .msg small{color:var(--accent)}
+[data-tema="ios"] .msg.tu small{color:var(--text-secondary)}
+[data-tema="ios"] .bar{background:rgba(120,120,128,.16)}
+[data-tema="ios"] .bar::before{background:var(--accent);box-shadow:none}
+[data-tema="ios"] .bar.r::before{background:var(--red);box-shadow:none}
+[data-tema="ios"] #pasos{background:rgba(255,255,255,.94);border-color:var(--border-visible);box-shadow:0 10px 30px rgba(0,0,0,.12)}
+[data-tema="ios"] #visor{background:#fff}
+[data-tema="ios"] .vbar{border-color:var(--border)}
+[data-tema="ios"] #vest{color:var(--text-primary)}
+[data-tema="ios"] #chuleta{background:rgba(242,242,247,.96);color:var(--text-primary)}
+[data-tema="ios"] #chuleta h2{color:var(--text-primary)}
+[data-tema="ios"] #chuleta section{border-color:var(--border)}
+[data-tema="ios"] #chuleta li{color:var(--text-primary)}
+[data-tema="ios"] #chuleta li i{color:var(--text-secondary)}
+[data-tema="ios"] #reset{color:var(--text-primary);border-color:var(--border-visible)}
+[data-tema="ios"] #pegar{background:rgba(28,28,30,.28)}
+[data-tema="ios"] #pegar .card,[data-tema="ios"] #p-card{background:rgba(255,255,255,.94);border-color:var(--border-visible);box-shadow:0 16px 42px rgba(0,0,0,.16)}
+[data-tema="ios"] #ptxt{background:#f2f2f7;color:var(--text-primary);border-color:var(--border-visible)}
+[data-tema="ios"] #pinfo{color:var(--text-secondary)}
+[data-tema="ios"] #tira{color:var(--text-primary)}
+[data-tema="ios"] :is(.btn,#lapiz,#miniorbe,#p-card-cerrar,#reset):focus-visible{outline:3px solid rgba(0,122,255,.45);outline-offset:3px}
+@media (prefers-reduced-transparency: reduce),(prefers-contrast: more){
+  [data-tema="ios"] header,[data-tema="ios"] .card,[data-tema="ios"] #visor,[data-tema="ios"] #p-card,[data-tema="ios"] #pegar .card,[data-tema="ios"] #pasos{backdrop-filter:none;-webkit-backdrop-filter:none;background:#fff}
+  [data-tema="ios"] #pegar{background:rgba(28,28,30,.5)}
+}
+
 /* Salvapantallas iOS: fondo claro, contenido limpio y cristal solo en capas funcionales. */
 [data-tema="ios"] #fondo{
   --ios-bg:#f2f2f7;

@@ -96,7 +96,11 @@ def test_ios_screensaver_styles_are_scoped():
     assert 'prefers-reduced-transparency' in html
     assert 'prefers-contrast: more' in html
     assert 'background:var(--ios-bg)' in html
-    print("✓ iOS: estilos de salvapantallas acotados y fondo claro con fallbacks de accesibilidad")
+    for selector in ('[data-tema="ios"] body', '[data-tema="ios"] header', '[data-tema="ios"] .card',
+                     '[data-tema="ios"] #visor', '[data-tema="ios"] #chuleta', '[data-tema="ios"] #pegar'):
+        assert selector in html, f"Falta el ámbito iOS de la interfaz principal: {selector}"
+    assert '--text-display:#1c1c1e' in html and '--accent:#007aff' in html
+    print("✓ iOS: interfaz principal y salvapantallas acotados con fondo claro y fallbacks de accesibilidad")
 
 
 def test_render_headless():
