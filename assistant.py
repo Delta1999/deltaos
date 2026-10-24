@@ -134,24 +134,26 @@ def wake_heard(rec, data) -> bool:
         return any(w.get("word") == WAKE_WORD and w.get("conf", 0) >= UMBRAL_VOSK for w in json.loads(rec.Result()).get("result", []))
     return False
 
-def capture_screen_wayland(max_size=(1024, 1024), quality=60):
+def capture_screen_wayland(max_size=(1920, 1080), quality=80, ventana_activa=False):
     """
-    Captura la pantalla en Wayland usando spectacle con la opción -m (monitor activo).
+    Captura la pantalla en Wayland usando spectacle con la opción -m (monitor activo) o -a (ventana activa) y puntero (-p).
     En Wayland, librerías como MSS solo ven un buffer negro debido al aislamiento de seguridad.
     Spectacle es el estándar oficial de KDE Plasma Wayland.
     """
     tmp_path = "/tmp/gemini_wayland_capture.png"
     try:
-        res = subprocess.run(
-            ["spectacle", "-b", "-n", "-m", "-o", tmp_path],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=8.0
-        )
-        if res.returncode == 0 and os.path.exists(tmp_path):
+        # Si se solicita ventana activa (ej. visor de apuntes), intentar -a primero; si falla, fallback a -m
+        cmd = ["spectacle", "-b", "-n", "-p", "-a", "-o", tmp_path] if ventana_activa else ["spectacle", "-b", "-n", "-p", "-m", "-o", tmp_path]
+        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8.0)
+        if res.returncode != 0 or not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
+            # Fallback a monitor completo
+            cmd = ["spectacle", "-b", "-n", "-p", "-m", "-o", tmp_path]
+            res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8.0)
+
+        if res.returncode == 0 and os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
             with Image.open(tmp_path) as img:
                 img = img.convert("RGB")
-                img.thumbnail(max_size, Image.Resampling.BILINEAR)
+                img.thumbnail(max_size, Image.Resampling.LANCZOS)
                 buf = io.BytesIO()
                 img.save(buf, format="JPEG", quality=quality)
                 return buf.getvalue(), img.convert("L").resize((64, 36)).tobytes()
@@ -166,8 +168,8 @@ def capture_screen_wayland(max_size=(1024, 1024), quality=60):
     return None, None
 
 async def mirar_detalle():
-    """La pantalla en vivo va a 1024 px y solo si cambia; esto manda una captura nítida bajo demanda."""
-    jpeg, _ = await asyncio.to_thread(capture_screen_wayland, (2560, 2560), 85)
+    """La pantalla en vivo va a alta resolución (1920 px) y solo si cambia; esto manda una captura ultra nítida bajo demanda."""
+    jpeg, _ = await asyncio.to_thread(capture_screen_wayland, (2560, 2560), 90, True)
     if not jpeg or not acciones.ST["session"]:
         return "Error: no pude capturar la pantalla."
     await acciones.ST["session"].send_realtime_input(video=types.Blob(data=jpeg, mime_type="image/jpeg"))
@@ -313,11 +315,27 @@ async def screen_capture_loop(session, interval=8.0):
                 firma = None
                 await asyncio.sleep(0.3)
                 continue
-            jpeg_bytes, nueva = await asyncio.to_thread(capture_screen_wayland)
-            if jpeg_bytes and (firma is None or cambio(firma, nueva) > (VIVO_UMBRAL if vivo else UMBRAL_CAMBIO)):
+            en_apuntes = False
+            try:
+                import visor_delta
+                en_apuntes = visor_delta.apuntes_activo()
+            except Exception:
+                pass
+
+            if en_apuntes:
+                # En modo apuntes: captura nítida con prioridad a la ventana activa, ritmo ágil y umbral fino
+                jpeg_bytes, nueva = await asyncio.to_thread(capture_screen_wayland, (1920, 1080), 85, True)
+                umbral = 0.5
+                ritmo = min(3.0, VIVO_RITMO if vivo else interval)
+            else:
+                jpeg_bytes, nueva = await asyncio.to_thread(capture_screen_wayland, (1920, 1080), 80, False)
+                umbral = VIVO_UMBRAL if vivo else UMBRAL_CAMBIO
+                ritmo = VIVO_RITMO if vivo else interval
+
+            if jpeg_bytes and (firma is None or cambio(firma, nueva) > umbral):
                 firma = nueva
                 await session.send_realtime_input(video=types.Blob(data=jpeg_bytes, mime_type="image/jpeg"))
-            await asyncio.sleep(VIVO_RITMO if vivo else interval)
+            await asyncio.sleep(ritmo)
     except asyncio.CancelledError:
         pass
     except Exception as e:

@@ -11,11 +11,12 @@ Gestiona:
 import asyncio
 import json
 import logging
+import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pymupdf
-from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, HTTPException, Response, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -30,7 +31,8 @@ STORAGE_DIR = BASE_DIR / "storage"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
-MARGIN_EXTEND_PT = 380.0  # Puntos añadidos a la derecha del PDF para el margen extendido
+MARGIN_LEFT_PT = 220.0   # Puntos añadidos a la izquierda del PDF (sellos, marcas, llaves)
+MARGIN_RIGHT_PT = 380.0  # Puntos añadidos a la derecha del PDF para el margen extendido (notas, esquemas)
 
 EMOJI_FALLBACK = {
     "⚠️": "[!]",
@@ -68,8 +70,19 @@ class ConnectionManager:
             "nearest_cell": "A1",
             "mouse_pos": [0, 0],
             "nearest_text": "",
+            "doc_id": "sample.pdf",
             "timestamp": 0,
         }
+
+    def is_active(self) -> bool:
+        """Indica si el visor de apuntes está en uso (conexión WS activa o interacción en los últimos 2 min)."""
+        import time
+        if len(self.active_connections) > 0:
+            return True
+        ts = self.latest_mouse_context.get("timestamp", 0)
+        # timestamp en milisegundos o segundos
+        ts_sec = ts / 1000.0 if ts > 1e11 else ts
+        return (time.time() - ts_sec) < 120.0
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -129,21 +142,38 @@ async def list_documents():
 
 @app.post("/api/upload")
 async def upload_pdf(file: UploadFile = File(...)):
-    """Permite subir un nuevo archivo PDF para estudio."""
-    if not file.filename.lower().endswith(".pdf"):
+    """Permite subir un nuevo archivo PDF para estudio con validación de integridad."""
+    raw_name = file.filename or ""
+    if not raw_name.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Solo se permiten archivos en formato PDF.")
 
-    target_path = STORAGE_DIR / file.filename
+    safe_filename = Path(raw_name).name
+    if not safe_filename:
+        raise HTTPException(status_code=400, detail="Nombre de archivo PDF no válido.")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="El archivo PDF subido está vacío.")
+
+    try:
+        test_doc = pymupdf.open(stream=content, filetype="pdf")
+        if len(test_doc) == 0:
+            test_doc.close()
+            raise HTTPException(status_code=400, detail="El archivo PDF no contiene ninguna página legible.")
+        test_doc.close()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"El archivo no es un PDF válido o está dañado: {e}")
+
+    target_path = STORAGE_DIR / safe_filename
     with open(target_path, "wb") as buffer:
-        content = await file.read()
         buffer.write(content)
 
-    notes_file = _notes_path(file.filename)
+    notes_file = _notes_path(safe_filename)
     if not notes_file.exists():
-        initial_notes = {"document_id": file.filename, "version": 1, "pages": {}}
+        initial_notes = {"document_id": safe_filename, "version": 1, "pages": {}}
         notes_file.write_text(json.dumps(initial_notes, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    return {"status": "uploaded", "filename": file.filename}
+    return {"status": "uploaded", "filename": safe_filename}
 
 
 @app.get("/api/pdf/{doc_id}")
@@ -191,6 +221,97 @@ async def save_notes(doc_id: str, notes: Dict[str, Any]):
 async def get_context():
     """Devuelve el estado contextual actual del cursor para el orquestador de voz."""
     return manager.latest_mouse_context
+
+
+@app.get("/api/status")
+async def get_status():
+    """Devuelve si el visor de apuntes está activo y el contexto actual."""
+    return {
+        "active": manager.is_active(),
+        "connections": len(manager.active_connections),
+        "context": manager.latest_mouse_context
+    }
+
+
+@app.get("/api/page_text/{doc_id}/{page_num}")
+async def get_page_text(doc_id: str, page_num: int):
+    """Extrae el texto completo estructurado de una página del PDF y sus notas asociadas."""
+    actual_doc = doc_id
+    if actual_doc in ("", "current", "actual", "default"):
+        actual_doc = manager.latest_mouse_context.get("doc_id", "sample.pdf")
+
+    pdf_path = STORAGE_DIR / actual_doc
+    if not pdf_path.exists():
+        matches = list(STORAGE_DIR.glob(f"*{actual_doc}*.pdf"))
+        if matches:
+            pdf_path = matches[0]
+            actual_doc = pdf_path.name
+        else:
+            raise HTTPException(status_code=404, detail=f"Documento '{actual_doc}' no encontrado.")
+
+    try:
+        doc = pymupdf.open(str(pdf_path))
+        if page_num < 1 or page_num > len(doc):
+            doc.close()
+            raise HTTPException(status_code=400, detail=f"Página {page_num} fuera de rango (1-{len(doc)}).")
+        page = doc[page_num - 1]
+        text = page.get_text("text").strip()
+        doc.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error extrayendo texto del PDF: {e}")
+
+    # Cargar notas asociadas a esta página si existen
+    notes_path = _notes_path(actual_doc)
+    page_notes = {}
+    if notes_path.exists():
+        try:
+            with open(notes_path, "r", encoding="utf-8") as f:
+                all_notes = json.load(f)
+                page_notes = all_notes.get("pages", {}).get(str(page_num), {})
+        except Exception as e:
+            logger.warning(f"Error cargando notas de {actual_doc}: {e}")
+
+    return {
+        "doc_id": actual_doc,
+        "page": page_num,
+        "text": text,
+        "notes": page_notes
+    }
+
+
+@app.get("/api/render/{doc_id}/{page_num}")
+async def render_page_image(doc_id: str, page_num: int, dpi: int = 150):
+    """Renderiza la página del PDF a imagen JPEG nítida a alta resolución para visión multimodal."""
+    actual_doc = doc_id
+    if actual_doc in ("", "current", "actual", "default"):
+        actual_doc = manager.latest_mouse_context.get("doc_id", "sample.pdf")
+
+    pdf_path = STORAGE_DIR / actual_doc
+    if not pdf_path.exists():
+        matches = list(STORAGE_DIR.glob(f"*{actual_doc}*.pdf"))
+        if matches:
+            pdf_path = matches[0]
+            actual_doc = pdf_path.name
+        else:
+            raise HTTPException(status_code=404, detail=f"Documento '{actual_doc}' no encontrado.")
+
+    try:
+        doc = pymupdf.open(str(pdf_path))
+        if page_num < 1 or page_num > len(doc):
+            doc.close()
+            raise HTTPException(status_code=400, detail=f"Página {page_num} fuera de rango (1-{len(doc)}).")
+        page = doc[page_num - 1]
+        target_dpi = max(72, min(300, dpi))
+        pix = page.get_pixmap(dpi=target_dpi)
+        img_bytes = pix.tobytes("jpeg")
+        doc.close()
+        return Response(content=img_bytes, media_type="image/jpeg")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error renderizando página: {e}")
 
 
 @app.get("/api/tools")
@@ -259,7 +380,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.post("/api/export/{doc_id}")
 async def export_pdf(doc_id: str):
-    """Compila las anotaciones vectoriales, esquemas, llaves y notas en un PDF físico ensanchado."""
+    """Compila las anotaciones vectoriales, esquemas, llaves y notas en un PDF físico ensanchado con doble margen."""
     pdf_path = STORAGE_DIR / doc_id
     if not pdf_path.exists():
         raise HTTPException(status_code=404, detail="PDF original no encontrado.")
@@ -277,34 +398,51 @@ async def export_pdf(doc_id: str):
     output_path = STORAGE_DIR / output_filename
 
     try:
-        doc = pymupdf.open(str(pdf_path))
+        src_doc = pymupdf.open(str(pdf_path))
+        new_doc = pymupdf.open()
         pages_notes = notes_data.get("pages", {})
 
-        for page_idx in range(len(doc)):
+        for page_idx in range(len(src_doc)):
             page_key = str(page_idx + 1)
             pdata = pages_notes.get(page_key, {})
-            page = doc[page_idx]
+            src_page = src_doc[page_idx]
 
-            # 1. Ampliar MediaBox y CropBox hacia la derecha para el margen virtual
-            mb = page.mediabox
-            ancho_orig = mb.width
-            nuevo_ancho = ancho_orig + MARGIN_EXTEND_PT
-            extended_rect = pymupdf.Rect(mb.x0, mb.y0, nuevo_ancho, mb.y1)
-            page.set_mediabox(extended_rect)
-            page.set_cropbox(extended_rect)
+            orig_w = src_page.rect.width
+            orig_h = src_page.rect.height
+            total_w = orig_w + MARGIN_LEFT_PT + MARGIN_RIGHT_PT
+            right_margin_x = MARGIN_LEFT_PT + orig_w
 
-            # Dibujar línea sutil divisoria del margen extendido
-            page.draw_line(
-                pymupdf.Point(ancho_orig, mb.y0),
-                pymupdf.Point(ancho_orig, mb.y1),
+            # 1. Crear página nueva ensanchada y estampar el PDF original en el centro
+            new_page = new_doc.new_page(width=total_w, height=orig_h)
+            target_rect = pymupdf.Rect(MARGIN_LEFT_PT, 0, right_margin_x, orig_h)
+            new_page.show_pdf_page(target_rect, src_doc, page_idx)
+
+            # Dibujar línea sutil divisoria izquierda (Margen Izq <-> PDF)
+            new_page.draw_line(
+                pymupdf.Point(MARGIN_LEFT_PT, 0),
+                pymupdf.Point(MARGIN_LEFT_PT, orig_h),
                 color=(0.80, 0.83, 0.88),
                 width=0.75,
                 dashes="[3 3] 0"
             )
+            new_page.insert_textbox(
+                pymupdf.Rect(10, 10, MARGIN_LEFT_PT - 10, 24),
+                "MARGEN IZQUIERDO (NOTAS / SELLOS)",
+                fontsize=7.0,
+                fontname="helv",
+                color=(0.60, 0.65, 0.72)
+            )
 
-            # Rótulo tenue "MARGEN EXTENDIDO"
-            page.insert_textbox(
-                pymupdf.Rect(ancho_orig + 10, mb.y0 + 10, ancho_orig + 180, mb.y0 + 24),
+            # Dibujar línea sutil divisoria derecha (PDF <-> Margen Derecho)
+            new_page.draw_line(
+                pymupdf.Point(right_margin_x, 0),
+                pymupdf.Point(right_margin_x, orig_h),
+                color=(0.80, 0.83, 0.88),
+                width=0.75,
+                dashes="[3 3] 0"
+            )
+            new_page.insert_textbox(
+                pymupdf.Rect(right_margin_x + 10, 10, right_margin_x + 220, 24),
                 "MARGEN EXTENDIDO (ESTUDIO)",
                 fontsize=7.5,
                 fontname="helv",
@@ -322,7 +460,7 @@ async def export_pdf(doc_id: str):
                 for r_box in hl.get("rects", []):
                     if len(r_box) >= 4:
                         rect = pymupdf.Rect(r_box[0], r_box[1], r_box[2], r_box[3])
-                        annot = page.add_highlight_annot(quads=[rect.quad])
+                        annot = new_page.add_highlight_annot(quads=[rect.quad])
                         annot.set_colors(stroke=(r, g, b))
                         annot.set_info(content=clean_pdf_text(hl.get("text", "")), title="Visor Apuntes AI")
                         annot.update()
@@ -332,43 +470,43 @@ async def export_pdf(doc_id: str):
                 y_start = float(br.get("y_start", 100))
                 y_end = float(br.get("y_end", 250))
                 y_mid = (y_start + y_end) / 2
-                bx = float(br.get("x", ancho_orig - 12))
+                bx = float(br.get("x", right_margin_x - 12))
                 bw = 10.0
                 r_arc = 8.0
 
                 # Trazado de la llave vertical { apuntando hacia el margen
-                page.draw_bezier(
+                new_page.draw_bezier(
                     pymupdf.Point(bx, y_start),
                     pymupdf.Point(bx + bw, y_start),
                     pymupdf.Point(bx + bw, y_start),
                     pymupdf.Point(bx + bw, y_start + r_arc),
                     color=(0.25, 0.45, 0.75), width=1.4
                 )
-                page.draw_line(
+                new_page.draw_line(
                     pymupdf.Point(bx + bw, y_start + r_arc),
                     pymupdf.Point(bx + bw, y_mid - r_arc),
                     color=(0.25, 0.45, 0.75), width=1.4
                 )
-                page.draw_bezier(
+                new_page.draw_bezier(
                     pymupdf.Point(bx + bw, y_mid - r_arc),
                     pymupdf.Point(bx + bw, y_mid),
                     pymupdf.Point(bx + 2 * bw, y_mid),
                     pymupdf.Point(bx + 2 * bw, y_mid),
                     color=(0.25, 0.45, 0.75), width=1.4
                 )
-                page.draw_bezier(
+                new_page.draw_bezier(
                     pymupdf.Point(bx + 2 * bw, y_mid),
                     pymupdf.Point(bx + 2 * bw, y_mid),
                     pymupdf.Point(bx + bw, y_mid),
                     pymupdf.Point(bx + bw, y_mid + r_arc),
                     color=(0.25, 0.45, 0.75), width=1.4
                 )
-                page.draw_line(
+                new_page.draw_line(
                     pymupdf.Point(bx + bw, y_mid + r_arc),
                     pymupdf.Point(bx + bw, y_end - r_arc),
                     color=(0.25, 0.45, 0.75), width=1.4
                 )
-                page.draw_bezier(
+                new_page.draw_bezier(
                     pymupdf.Point(bx + bw, y_end - r_arc),
                     pymupdf.Point(bx + bw, y_end),
                     pymupdf.Point(bx, y_end),
@@ -379,8 +517,8 @@ async def export_pdf(doc_id: str):
                 lbl_text = clean_pdf_text(br.get("label", ""))
                 if lbl_text:
                     lbl_rect = pymupdf.Rect(bx + 2 * bw + 6, y_mid - 11, bx + 2 * bw + 180, y_mid + 11)
-                    page.draw_rect(lbl_rect, color=(0.25, 0.45, 0.75), fill=(0.92, 0.96, 1.0), radius=0.2, width=1.0)
-                    page.insert_textbox(
+                    new_page.draw_rect(lbl_rect, color=(0.25, 0.45, 0.75), fill=(0.92, 0.96, 1.0), radius=0.2, width=1.0)
+                    new_page.insert_textbox(
                         pymupdf.Rect(lbl_rect.x0 + 4, lbl_rect.y0 + 2, lbl_rect.x1 - 4, lbl_rect.y1 - 2),
                         lbl_text,
                         fontsize=8.5,
@@ -395,14 +533,14 @@ async def export_pdf(doc_id: str):
                 symbol_raw = st.get("symbol", "⚠️")
                 sym_clean = clean_pdf_text(symbol_raw)
                 stamp_rect = pymupdf.Rect(sx, sy, sx + 28, sy + 22)
-                page.draw_rect(stamp_rect, color=(0.85, 0.50, 0.15), fill=(1.0, 0.97, 0.92), radius=0.25, width=1.0)
-                page.insert_textbox(stamp_rect, sym_clean, fontsize=7.5, fontname="helv", color=(0.8, 0.3, 0.1))
+                new_page.draw_rect(stamp_rect, color=(0.85, 0.50, 0.15), fill=(1.0, 0.97, 0.92), radius=0.25, width=1.0)
+                new_page.insert_textbox(stamp_rect, sym_clean, fontsize=7.5, fontname="helv", color=(0.8, 0.3, 0.1))
 
             # 5. Notas en el margen (Margin Notes)
             for note in pdata.get("annotations", []):
                 raw_x = float(note.get("x", 0))
-                if raw_x < ancho_orig:
-                    x = ancho_orig + float(note.get("rel_x", 15))
+                if raw_x < right_margin_x and raw_x > MARGIN_LEFT_PT:
+                    x = right_margin_x + float(note.get("rel_x", 15))
                 else:
                     x = raw_x
                 y = float(note.get("y", 60))
@@ -428,12 +566,12 @@ async def export_pdf(doc_id: str):
                     color_stroke = (0.96, 0.62, 0.04)
                     prefix = "[ATENCIÓN] "
 
-                page.draw_rect(box_rect, color=color_stroke, fill=color_bg, width=1.1, radius=0.08)
+                new_page.draw_rect(box_rect, color=color_stroke, fill=color_bg, width=1.1, radius=0.08)
 
                 text_rect = pymupdf.Rect(x + 8, y + 6, x + w - 8, y + h - 6)
                 note_body = clean_pdf_text(note.get("text", ""))
                 full_text = f"{prefix}\n{note_body}"
-                page.insert_textbox(text_rect, full_text, fontsize=8.5, fontname="helv", color=(0.15, 0.20, 0.25))
+                new_page.insert_textbox(text_rect, full_text, fontsize=8.5, fontname="helv", color=(0.15, 0.20, 0.25))
 
             # 6. Esquemas vectoriales (Dagre layouts procesados o fallback automático)
             for schema in pdata.get("schemas", []):
@@ -450,7 +588,7 @@ async def export_pdf(doc_id: str):
                             "label": n.get("label"),
                             "details": n.get("details", []),
                             "isRoot": (idx == 0),
-                            "x": ancho_orig + 20,
+                            "x": right_margin_x + 20,
                             "y": anchor_y + (idx * 60),
                             "width": 180,
                             "height": 45
@@ -459,7 +597,7 @@ async def export_pdf(doc_id: str):
                 # Nodos
                 for node in layout_nodes:
                     raw_nx = float(node.get("x", 0))
-                    nx = raw_nx if raw_nx >= ancho_orig else (ancho_orig + raw_nx)
+                    nx = raw_nx if (raw_nx >= right_margin_x or raw_nx < MARGIN_LEFT_PT) else (right_margin_x + 15)
                     ny = float(node.get("y", 50))
                     nw = float(node.get("width", 140))
                     nh = float(node.get("height", 45))
@@ -467,10 +605,10 @@ async def export_pdf(doc_id: str):
 
                     is_root = node.get("isRoot", False)
                     if is_root:
-                        page.draw_rect(nrect, color=(0.11, 0.23, 0.54), fill=(0.15, 0.30, 0.65), width=1.5, radius=0.08)
+                        new_page.draw_rect(nrect, color=(0.11, 0.23, 0.54), fill=(0.15, 0.30, 0.65), width=1.5, radius=0.08)
                         tcolor = (1.0, 1.0, 1.0)
                     else:
-                        page.draw_rect(nrect, color=(0.23, 0.51, 0.96), fill=(0.96, 0.98, 1.0), width=1.2, radius=0.08)
+                        new_page.draw_rect(nrect, color=(0.23, 0.51, 0.96), fill=(0.96, 0.98, 1.0), width=1.2, radius=0.08)
                         tcolor = (0.06, 0.10, 0.20)
 
                     label_str = clean_pdf_text(node.get("label", ""))
@@ -479,14 +617,14 @@ async def export_pdf(doc_id: str):
                     node_text = f"{label_str}\n{details_str}".strip()
 
                     trect = pymupdf.Rect(nx + 6, ny + 5, nx + nw - 6, ny + nh - 5)
-                    page.insert_textbox(trect, node_text, fontsize=8.0, fontname="helv", color=tcolor)
+                    new_page.insert_textbox(trect, node_text, fontsize=8.0, fontname="helv", color=tcolor)
 
                 # Aristas / Conexiones Bézier
                 for edge in layout_edges:
                     points = edge.get("points", [])
                     if len(points) >= 2:
                         raw_x0 = points[0]["x"]
-                        x_offset = 0 if raw_x0 >= ancho_orig else ancho_orig
+                        x_offset = 0 if (raw_x0 >= right_margin_x or raw_x0 < MARGIN_LEFT_PT) else right_margin_x
 
                         p_start = pymupdf.Point(raw_x0 + x_offset, points[0]["y"])
                         p_end = pymupdf.Point(points[-1]["x"] + x_offset, points[-1]["y"])
@@ -494,12 +632,13 @@ async def export_pdf(doc_id: str):
                         if len(points) >= 4:
                             p_c1 = pymupdf.Point(points[1]["x"] + x_offset, points[1]["y"])
                             p_c2 = pymupdf.Point(points[2]["x"] + x_offset, points[2]["y"])
-                            page.draw_bezier(p_start, p_c1, p_c2, p_end, color=(0.30, 0.40, 0.55), width=1.3)
+                            new_page.draw_bezier(p_start, p_c1, p_c2, p_end, color=(0.30, 0.40, 0.55), width=1.3)
                         else:
-                            page.draw_line(p_start, p_end, color=(0.30, 0.40, 0.55), width=1.3)
+                            new_page.draw_line(p_start, p_end, color=(0.30, 0.40, 0.55), width=1.3)
 
-        doc.save(str(output_path))
-        doc.close()
+        new_doc.save(str(output_path), garbage=4, deflate=True)
+        new_doc.close()
+        src_doc.close()
         logger.info(f"PDF exportado vectorialmente en: {output_path.name}")
         return {
             "status": "ok",
@@ -511,7 +650,51 @@ async def export_pdf(doc_id: str):
         raise HTTPException(status_code=500, detail=f"Error al compilar el PDF: {str(e)}")
 
 
-# Montar archivos estáticos
+# --- Control de Ventana sin Marcos para DeltaOS ---
+@app.post("/api/window/{action}")
+async def window_action(action: str):
+    """Control de ventana (minimizar, maximizar, cerrar) para la ventana sin marcos de DeltaOS."""
+    act = str(action).strip().lower()
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "kdotool", "search", "--name", "Delta Apuntes",
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+        )
+        stdout, _ = await proc.communicate()
+        wids = stdout.decode().strip().splitlines()
+        if not wids:
+            proc2 = await asyncio.create_subprocess_exec(
+                "kdotool", "search", "--class", "127.0.0.1:8766",
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+            )
+            stdout2, _ = await proc2.communicate()
+            wids = stdout2.decode().strip().splitlines()
+
+        wid = wids[0] if wids else None
+        if act == "close":
+            if wid:
+                await asyncio.create_subprocess_exec("kdotool", "windowclose", wid)
+            return {"status": "ok", "action": "close"}
+        elif act == "minimize":
+            if wid:
+                await asyncio.create_subprocess_exec("kdotool", "windowminimize", wid)
+            return {"status": "ok", "action": "minimize"}
+        elif act in ("maximize", "restore", "toggle_maximize"):
+            if wid:
+                await asyncio.create_subprocess_exec("kdotool", "windowstate", "--toggle", "MAXIMIZED", wid)
+            return {"status": "ok", "action": "maximize"}
+    except Exception as e:
+        logger.warning(f"Error en acción de ventana {action}: {e}")
+        return {"status": "error", "message": str(e)}
+
+    return {"status": "error", "message": "Acción desconocida o ventana no encontrada"}
+
+
+# Montar archivos estáticos y fuentes de DeltaOS
+FONTS_DIR = (BASE_DIR.parent / "panel" / "fonts").resolve()
+if FONTS_DIR.exists():
+    app.mount("/fonts", StaticFiles(directory=FONTS_DIR), name="fonts")
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 if __name__ == "__main__":

@@ -14,9 +14,10 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // Constantes espaciales en Puntos PDF (72 pt/pulgada)
-const MARGIN_EXTENDED_PT = 380; // Ancho virtual del margen lateral derecho
-const CELL_WIDTH = 65;          // Ancho de celda alfanumérica
-const CELL_HEIGHT = 65;         // Alto de celda alfanumérica
+const MARGIN_LEFT_PT = 220;    // Ancho del margen lateral izquierdo (sellos, marcas, llaves)
+const MARGIN_RIGHT_PT = 380;   // Ancho del margen lateral derecho (esquemas Dagre, notas de estudio)
+const CELL_WIDTH = 50;         // Ancho de celda alfanumérica
+const CELL_HEIGHT = 50;        // Alto de celda alfanumérica
 
 // Estado reactivo global
 const state = {
@@ -25,6 +26,8 @@ const state = {
   scale: 1.25,
   showGrid: true,
   activeRecall: false,
+  activeTool: 'highlighter',
+  activeHighlightColor: '#fef08a',
   currentPage: 1,
   cursorContext: {
     page: 1,
@@ -57,17 +60,18 @@ function measureText(text, font = '11px "Plus Jakarta Sans"') {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Convierte un nombre de celda alfanumérica (ej: "A1", "F4", "J2") a coordenadas (X, Y) en puntos.
+ * Convierte un nombre de celda alfanumérica (ej: "A1", "F4", "J2", "R5") a coordenadas (X, Y) en puntos.
  * Si isMarginTarget es true y la columna cae dentro del texto original del PDF,
- * auto-proyecta la X al comienzo del margen extendido manteniendo la fila Y.
+ * auto-proyecta la X al comienzo del margen derecho manteniendo la fila Y.
  */
 function cellToCoords(cellStr, pdfPtWidth = 595, isMarginTarget = false) {
+  const rightMarginStart = MARGIN_LEFT_PT + pdfPtWidth;
   if (!cellStr || typeof cellStr !== 'string') {
-    return { x: isMarginTarget ? pdfPtWidth + 15 : 20, y: 20 };
+    return { x: isMarginTarget ? rightMarginStart + 15 : 20, y: 20 };
   }
   const match = cellStr.toUpperCase().trim().match(/^([A-Z]+)(\d+)$/);
   if (!match) {
-    return { x: isMarginTarget ? pdfPtWidth + 15 : 20, y: 20 };
+    return { x: isMarginTarget ? rightMarginStart + 15 : 20, y: 20 };
   }
 
   const letters = match[1];
@@ -83,8 +87,8 @@ function cellToCoords(cellStr, pdfPtWidth = 595, isMarginTarget = false) {
   let x = col * CELL_WIDTH;
   const y = row * CELL_HEIGHT;
 
-  if (isMarginTarget && x < pdfPtWidth) {
-    x = pdfPtWidth + 15;
+  if (isMarginTarget && x < rightMarginStart && x >= MARGIN_LEFT_PT) {
+    x = rightMarginStart + 15;
   }
 
   return { x, y };
@@ -119,12 +123,16 @@ async function initApp() {
   await loadDocument(state.docId);
 }
 
+let currentRenderToken = 0;
+let pageObserver = null;
+
 async function refreshDocumentList() {
   try {
     const resp = await fetch('/api/documents');
     if (resp.ok) {
       const data = await resp.json();
       const select = document.getElementById('doc-select');
+      if (!select) return;
       select.innerHTML = '';
       (data.documents || []).forEach(doc => {
         const opt = document.createElement('option');
@@ -133,6 +141,9 @@ async function refreshDocumentList() {
         if (doc === state.docId) opt.selected = true;
         select.appendChild(opt);
       });
+      if (state.docId) {
+        select.value = state.docId;
+      }
     }
   } catch (e) {
     console.warn('Error al obtener lista de documentos:', e);
@@ -140,14 +151,20 @@ async function refreshDocumentList() {
 }
 
 async function loadDocument(docId) {
+  const renderToken = ++currentRenderToken;
   state.docId = docId;
+  const select = document.getElementById('doc-select');
+  if (select && select.value !== docId) {
+    select.value = docId;
+  }
+
   const container = document.getElementById('pdf-container');
-  container.innerHTML = '<div style="color: #64748b; padding: 40px; font-size: 14px;">Cargando documento PDF y notas...</div>';
+  container.innerHTML = '<div style="color: #64748b; padding: 40px; font-size: 14px; text-align: center;">Cargando documento PDF y notas...</div>';
 
   try {
     // 1. Cargar datos del sidecar JSON de notas
     try {
-      const resp = await fetch(`/api/notes/${docId}`);
+      const resp = await fetch(`/api/notes/${encodeURIComponent(docId)}`);
       if (resp.ok) {
         const loaded = await resp.json();
         if (loaded && typeof loaded === 'object') {
@@ -166,19 +183,72 @@ async function loadDocument(docId) {
     }
 
     // 2. Cargar el PDF mediante PDF.js
-    const loadingTask = pdfjsLib.getDocument(`/api/pdf/${docId}`);
+    const loadingTask = pdfjsLib.getDocument(`/api/pdf/${encodeURIComponent(docId)}`);
     state.pdfDoc = await loadingTask.promise;
-    container.innerHTML = '';
+    if (renderToken !== currentRenderToken) return;
 
-    // 3. Renderizar cada página
-    for (let pageNum = 1; pageNum <= state.pdfDoc.numPages; pageNum++) {
-      await renderPage(pageNum);
+    container.innerHTML = '';
+    const numPages = state.pdfDoc.numPages;
+
+    // Configurar observador de visibilidad de páginas para sincronizar el HUD al hacer scroll
+    if (pageObserver) pageObserver.disconnect();
+    pageObserver = new IntersectionObserver((entries) => {
+      let maxRatio = 0;
+      let visiblePage = null;
+      entries.forEach(entry => {
+        if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+          maxRatio = entry.intersectionRatio;
+          visiblePage = parseInt(entry.target.dataset.page, 10);
+        }
+      });
+      if (visiblePage && visiblePage !== state.currentPage) {
+        state.currentPage = visiblePage;
+        state.cursorContext.page = visiblePage;
+        updateHUD();
+      }
+    }, { threshold: [0.15, 0.5, 0.85] });
+
+    // Badge flotante de progreso de renderizado progresivo para documentos multipágina
+    let progressBadge = null;
+    if (numPages > 1) {
+      progressBadge = document.createElement('div');
+      progressBadge.id = 'render-progress';
+      progressBadge.style.cssText = 'position: fixed; bottom: 18px; right: 18px; background: rgba(17, 17, 17, 0.92); color: #94a3b8; padding: 6px 14px; border-radius: 20px; font-size: 11.5px; font-family: var(--mono); border: 1px solid var(--border-visible); z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); pointer-events: none; transition: opacity 0.3s;';
+      progressBadge.textContent = `Páginas: 1 de ${numPages}...`;
+      document.body.appendChild(progressBadge);
     }
 
-    console.log(`PDF '${docId}' cargado correctamente con ${state.pdfDoc.numPages} páginas.`);
+    // 3. Renderizar páginas de forma progresiva sin bloquear la interfaz
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      if (renderToken !== currentRenderToken) {
+        if (progressBadge) progressBadge.remove();
+        return;
+      }
+      await renderPage(pageNum);
+      if (progressBadge) {
+        progressBadge.textContent = `Páginas: ${pageNum} de ${numPages}...`;
+      }
+      // Ceder el hilo de ejecución para mantener fluidez e interactividad
+      if (pageNum < numPages) {
+        await new Promise(resolve => setTimeout(resolve, 8));
+      }
+    }
+
+    if (progressBadge) {
+      progressBadge.textContent = `✓ ${numPages} páginas listas`;
+      setTimeout(() => {
+        if (progressBadge && progressBadge.parentNode) {
+          progressBadge.style.opacity = '0';
+          setTimeout(() => progressBadge.remove(), 300);
+        }
+      }, 1200);
+    }
+
+    console.log(`PDF '${docId}' cargado correctamente con ${numPages} páginas.`);
   } catch (error) {
+    if (renderToken !== currentRenderToken) return;
     console.error('Error cargando PDF:', error);
-    container.innerHTML = `<div style="color: #ef4444; padding: 40px; font-size: 14px;">Error al cargar PDF: ${error.message}</div>`;
+    container.innerHTML = `<div style="color: #ef4444; padding: 40px; font-size: 14px; text-align: center;">Error al cargar PDF: ${error.message}</div>`;
   }
 }
 
@@ -194,7 +264,7 @@ async function renderPage(pageNum) {
   const unscaledViewport = page.getViewport({ scale: 1.0 });
   const pdfPtWidth = unscaledViewport.width;
   const pdfPtHeight = unscaledViewport.height;
-  const totalPtWidth = pdfPtWidth + MARGIN_EXTENDED_PT;
+  const totalPtWidth = MARGIN_LEFT_PT + pdfPtWidth + MARGIN_RIGHT_PT;
 
   state.pageViewports[pageNum] = {
     pdfPtWidth,
@@ -206,7 +276,9 @@ async function renderPage(pageNum) {
   const screenScale = state.scale;
   const screenWidth = totalPtWidth * screenScale;
   const screenHeight = pdfPtHeight * screenScale;
+  const marginLeftScreenWidth = MARGIN_LEFT_PT * screenScale;
   const pdfScreenWidth = pdfPtWidth * screenScale;
+  const rightMarginStartX = marginLeftScreenWidth + pdfScreenWidth;
 
   // Contenedor principal de la página
   const pageDiv = document.createElement('div');
@@ -216,18 +288,28 @@ async function renderPage(pageNum) {
   pageDiv.style.width = `${screenWidth}px`;
   pageDiv.style.height = `${screenHeight}px`;
 
-  // Línea divisoria del margen extendido
-  const divider = document.createElement('div');
-  divider.className = 'margin-divider';
-  divider.style.left = `${pdfScreenWidth}px`;
-  pageDiv.appendChild(divider);
+  // Línea divisoria izquierda (Margen Izquierdo <-> PDF)
+  const dividerLeft = document.createElement('div');
+  dividerLeft.className = 'margin-divider margin-divider-left';
+  dividerLeft.style.left = '0px';
+  dividerLeft.style.width = `${marginLeftScreenWidth}px`;
+  pageDiv.appendChild(dividerLeft);
 
-  // Capa 1: Canvas del PDF original (0 a pdfScreenWidth)
+  // Línea divisoria derecha (PDF <-> Margen Derecho)
+  const dividerRight = document.createElement('div');
+  dividerRight.className = 'margin-divider margin-divider-right';
+  dividerRight.style.left = `${rightMarginStartX}px`;
+  dividerRight.style.right = '0px';
+  pageDiv.appendChild(dividerRight);
+
+  // Capa 1: Canvas del PDF original (centrado entre márgenes)
   const canvas = document.createElement('canvas');
   canvas.className = 'pdf-canvas';
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(pdfScreenWidth * dpr);
   canvas.height = Math.round(screenHeight * dpr);
+  canvas.style.left = `${marginLeftScreenWidth}px`;
+  canvas.style.top = '0px';
   canvas.style.width = `${pdfScreenWidth}px`;
   canvas.style.height = `${screenHeight}px`;
   pageDiv.appendChild(canvas);
@@ -237,11 +319,14 @@ async function renderPage(pageNum) {
   const renderViewport = page.getViewport({ scale: screenScale });
   await page.render({ canvasContext: ctx, viewport: renderViewport }).promise;
 
-  // Capa 2: TextLayer nativo de PDF.js para selección y desambiguación espacial
+  // Capa 2: TextLayer nativo de PDF.js para selección y desambiguación espacial (centrado sobre el Canvas)
   const textLayerDiv = document.createElement('div');
   textLayerDiv.className = 'textLayer';
+  textLayerDiv.style.left = `${marginLeftScreenWidth}px`;
+  textLayerDiv.style.top = '0px';
   textLayerDiv.style.width = `${pdfScreenWidth}px`;
   textLayerDiv.style.height = `${screenHeight}px`;
+  textLayerDiv.style.setProperty('--scale-factor', screenScale);
   pageDiv.appendChild(textLayerDiv);
 
   const textContent = await page.getTextContent();
@@ -258,6 +343,7 @@ async function renderPage(pageNum) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('class', 'overlay-svg');
   svg.setAttribute('viewBox', `0 0 ${totalPtWidth} ${pdfPtHeight}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
   svg.dataset.page = pageNum;
   svg.dataset.pdfPtWidth = pdfPtWidth;
 
@@ -300,6 +386,7 @@ async function renderPage(pageNum) {
 
   pageDiv.appendChild(svg);
   container.appendChild(pageDiv);
+  if (pageObserver) pageObserver.observe(pageDiv);
 
   // Renderizar la cuadrícula alfanumérica de esta página
   renderGrid(gridGroup, totalPtWidth, pdfPtHeight);
@@ -309,6 +396,9 @@ async function renderPage(pageNum) {
 
   // Seguimiento contextual del cursor del ratón sobre la página
   setupMouseTracking(pageDiv, pageNum, textLayerDiv, pdfPtWidth);
+
+  // Herramienta de subrayado manual interactivo con el ratón
+  setupTextSelectionHighlighting(pageDiv, pageNum, pdfPtWidth);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -322,7 +412,7 @@ function renderGrid(group, width, height) {
 
   // Líneas verticales
   for (let c = 0; c <= cols; c++) {
-    const x = c * CELL_WIDTH;
+    const x = Math.min(width, c * CELL_WIDTH);
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', x);
     line.setAttribute('y1', 0);
@@ -334,7 +424,7 @@ function renderGrid(group, width, height) {
 
   // Líneas horizontales
   for (let r = 0; r <= rows; r++) {
-    const y = r * CELL_HEIGHT;
+    const y = Math.min(height, r * CELL_HEIGHT);
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', 0);
     line.setAttribute('y1', y);
@@ -344,13 +434,30 @@ function renderGrid(group, width, height) {
     group.appendChild(line);
   }
 
-  // Etiquetas alfanuméricas
+  // Celdas y etiquetas alfanuméricas
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const cellLabel = coordsToCell(c * CELL_WIDTH, r * CELL_HEIGHT);
+      const cellX = c * CELL_WIDTH;
+      const cellY = r * CELL_HEIGHT;
+      const cellW = Math.min(CELL_WIDTH, width - cellX);
+      const cellH = Math.min(CELL_HEIGHT, height - cellY);
+      if (cellW <= 0 || cellH <= 0) continue;
+
+      const cellLabel = coordsToCell(cellX, cellY);
+
+      // Caja interactiva de la celda
+      const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      box.setAttribute('x', cellX);
+      box.setAttribute('y', cellY);
+      box.setAttribute('width', cellW);
+      box.setAttribute('height', cellH);
+      box.setAttribute('class', 'grid-cell-box');
+      box.dataset.cell = cellLabel;
+      group.appendChild(box);
+
       const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      text.setAttribute('x', c * CELL_WIDTH + 5);
-      text.setAttribute('y', r * CELL_HEIGHT + 13);
+      text.setAttribute('x', cellX + 5);
+      text.setAttribute('y', cellY + 13);
       text.setAttribute('class', 'grid-label');
       text.textContent = cellLabel;
       group.appendChild(text);
@@ -365,14 +472,22 @@ function renderGrid(group, width, height) {
 let lastWsContextSend = 0;
 
 function setupMouseTracking(pageDiv, pageNum, textLayerDiv, pdfPtWidth) {
+  const viewportInfo = state.pageViewports[pageNum] || { totalPtWidth: 1195, pdfPtHeight: 842 };
+  const totalPtWidth = viewportInfo.totalPtWidth || (MARGIN_LEFT_PT + pdfPtWidth + MARGIN_RIGHT_PT);
+  const pdfPtHeight = viewportInfo.pdfPtHeight || 842;
+  const marginLeftScreenWidth = MARGIN_LEFT_PT * state.scale;
+
   pageDiv.addEventListener('mousemove', (e) => {
     const rect = pageDiv.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
 
-    // Convertir píxeles de pantalla a puntos PDF sin escalar
-    const ptX = Math.round(screenX / state.scale);
-    const ptY = Math.round(screenY / state.scale);
+    // Normalización exacta a puntos PDF acorde al viewBox nativo de la superficie
+    const scaleX = rect.width > 0 ? (rect.width / totalPtWidth) : state.scale;
+    const scaleY = rect.height > 0 ? (rect.height / pdfPtHeight) : state.scale;
+
+    const ptX = Math.max(0, Math.min(totalPtWidth, Math.round(screenX / scaleX)));
+    const ptY = Math.max(0, Math.min(pdfPtHeight, Math.round(screenY / scaleY)));
 
     const cell = coordsToCell(ptX, ptY);
     state.currentPage = pageNum;
@@ -381,7 +496,7 @@ function setupMouseTracking(pageDiv, pageNum, textLayerDiv, pdfPtWidth) {
       cell: cell,
       pos: [ptX, ptY],
       posScreen: [Math.round(screenX), Math.round(screenY)],
-      nearestText: findNearestText(screenX, screenY, textLayerDiv)
+      nearestText: findNearestText(screenX, screenY, textLayerDiv, marginLeftScreenWidth)
     };
 
     updateHUD();
@@ -392,6 +507,7 @@ function setupMouseTracking(pageDiv, pageNum, textLayerDiv, pdfPtWidth) {
       lastWsContextSend = now;
       state.ws.send(JSON.stringify({
         type: 'mouse_context',
+        doc_id: state.currentDocId || 'sample.pdf',
         page: pageNum,
         nearest_cell: cell,
         mouse_pos: state.cursorContext.pos,
@@ -402,7 +518,7 @@ function setupMouseTracking(pageDiv, pageNum, textLayerDiv, pdfPtWidth) {
   });
 }
 
-function findNearestText(screenX, screenY, textLayerDiv) {
+function findNearestText(screenX, screenY, textLayerDiv, marginLeftScreenWidth = 0) {
   const spans = textLayerDiv.querySelectorAll('span');
   if (!spans.length) return '';
 
@@ -414,7 +530,7 @@ function findNearestText(screenX, screenY, textLayerDiv) {
     const text = s.textContent.trim();
     if (!text || text.length < 3) continue;
 
-    const sLeft = parseFloat(s.style.left) || 0;
+    const sLeft = (parseFloat(s.style.left) || 0) + marginLeftScreenWidth;
     const sTop = parseFloat(s.style.top) || 0;
     const sWidth = parseFloat(s.style.width) || (text.length * 7);
     const sHeight = parseFloat(s.style.fontSize) || 12;
@@ -430,6 +546,85 @@ function findNearestText(screenX, screenY, textLayerDiv) {
   }
 
   return nearestStr.length > 45 ? nearestStr.substring(0, 45) + '…' : nearestStr;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Herramientas de Subrayado y Borrado Interactivo con Ratón
+// ─────────────────────────────────────────────────────────────────────────────
+
+function deleteHighlight(hlId, pageNum) {
+  const pageKey = String(pageNum);
+  if (!state.notes || !state.notes.pages || !state.notes.pages[pageKey]) return;
+  const pdata = state.notes.pages[pageKey];
+  if (!Array.isArray(pdata.highlights)) return;
+
+  const prevLen = pdata.highlights.length;
+  pdata.highlights = pdata.highlights.filter(h => h.id !== hlId);
+  if (pdata.highlights.length !== prevLen) {
+    refreshCurrentPageSvg(pageNum);
+    saveNotesToServer();
+  }
+}
+
+function setupTextSelectionHighlighting(pageDiv, pageNum, pdfPtWidth) {
+  pageDiv.addEventListener('mouseup', () => {
+    if (state.activeTool !== 'highlighter') return;
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+
+    const selectedText = selection.toString().trim();
+    if (!selectedText) return;
+
+    const range = selection.getRangeAt(0);
+    const clientRects = range.getClientRects();
+    if (!clientRects || clientRects.length === 0) return;
+
+    const pageRect = pageDiv.getBoundingClientRect();
+    const viewportInfo = state.pageViewports[pageNum] || { totalPtWidth: 1195, pdfPtHeight: 842 };
+    const totalPtWidth = viewportInfo.totalPtWidth || (MARGIN_LEFT_PT + pdfPtWidth + MARGIN_RIGHT_PT);
+    const pdfPtHeight = viewportInfo.pdfPtHeight || 842;
+
+    const scaleX = pageRect.width > 0 ? (pageRect.width / totalPtWidth) : state.scale;
+    const scaleY = pageRect.height > 0 ? (pageRect.height / pdfPtHeight) : state.scale;
+
+    const rects = [];
+    for (let i = 0; i < clientRects.length; i++) {
+      const cr = clientRects[i];
+      const x1 = Math.max(0, Math.min(totalPtWidth, (cr.left - pageRect.left) / scaleX));
+      const y1 = Math.max(0, Math.min(pdfPtHeight, (cr.top - pageRect.top) / scaleY));
+      const x2 = Math.max(0, Math.min(totalPtWidth, (cr.right - pageRect.left) / scaleX));
+      const y2 = Math.max(0, Math.min(pdfPtHeight, (cr.bottom - pageRect.top) / scaleY));
+      if (x2 - x1 > 2 && y2 - y1 > 2) {
+        rects.push([Math.round(x1), Math.round(y1), Math.round(x2), Math.round(y2)]);
+      }
+    }
+
+    if (rects.length > 0) {
+      const pageKey = String(pageNum);
+      if (!state.notes.pages[pageKey]) {
+        state.notes.pages[pageKey] = {
+          highlights: [],
+          annotations: [],
+          brackets: [],
+          stamps: [],
+          schemas: []
+        };
+      }
+      const pdata = state.notes.pages[pageKey];
+      if (!Array.isArray(pdata.highlights)) pdata.highlights = [];
+
+      pdata.highlights.push({
+        id: `hl_${Date.now()}`,
+        text: selectedText,
+        color: state.activeHighlightColor || '#fef08a',
+        rects: rects
+      });
+
+      refreshCurrentPageSvg(pageNum);
+      saveNotesToServer();
+      selection.removeAllRanges();
+    }
+  });
 }
 
 function updateHUD() {
@@ -631,6 +826,13 @@ function renderPageAnnotations(pageNum, svg, pdfPtWidth) {
           rect.setAttribute('height', Math.max(0, r[3] - r[1]));
           rect.setAttribute('fill', hl.color || '#fef08a');
           rect.setAttribute('class', 'highlight-rect');
+          rect.dataset.hlId = hl.id;
+          rect.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (state.activeTool === 'eraser' || e.shiftKey || e.altKey) {
+              deleteHighlight(hl.id, pageNum);
+            }
+          });
           highlightsGroup.appendChild(rect);
         });
       }
@@ -706,7 +908,7 @@ function renderBracketGroup(bracketsGroup, br, pdfPtWidth) {
   const yStart = Number(br.y_start) || 100;
   const yEnd = Number(br.y_end) || 250;
   const yMid = (yStart + yEnd) / 2;
-  const x = Number(br.x) || (pdfPtWidth - 12);
+  const x = Number(br.x) || (MARGIN_LEFT_PT + pdfPtWidth - 12);
   const w = 10;
   const r = 8;
 
@@ -874,7 +1076,7 @@ function executeVoiceCommand(command, args = {}) {
       spans.forEach(span => {
         const spanText = span.textContent.toLowerCase();
         if (spanText.includes(targetText)) {
-          const sLeft = (parseFloat(span.style.left) || 0) / state.scale;
+          const sLeft = MARGIN_LEFT_PT + ((parseFloat(span.style.left) || 0) / state.scale);
           const sTop = (parseFloat(span.style.top) || 0) / state.scale;
           const sWidth = ((parseFloat(span.style.width) || (span.textContent.length * 7))) / state.scale;
           const sHeight = ((parseFloat(span.style.fontSize) || 12)) / state.scale;
@@ -896,8 +1098,8 @@ function executeVoiceCommand(command, args = {}) {
         candidateMatches.sort((a, b) => a.dist - b.dist);
         matchedRects.push(candidateMatches[0].rect);
       } else {
-        // Fallback aproximado a la altura del cursor
-        const mx = Math.min(state.cursorContext.pos[0] || 50, pdfPtWidth - 200);
+        // Fallback aproximado a la altura del cursor dentro del área de texto central
+        const mx = Math.max(MARGIN_LEFT_PT + 20, Math.min(state.cursorContext.pos[0] || (MARGIN_LEFT_PT + 50), MARGIN_LEFT_PT + pdfPtWidth - 220));
         const my = state.cursorContext.pos[1] || 120;
         matchedRects.push([mx, my - 4, mx + 220, my + 14]);
       }
@@ -914,10 +1116,48 @@ function executeVoiceCommand(command, args = {}) {
       break;
     }
 
+    case 'remove_highlight': {
+      const targetText = (args.target_text || '').toLowerCase().trim();
+      if (!Array.isArray(pageNotes.highlights) || pageNotes.highlights.length === 0) break;
+
+      if (targetText && targetText !== 'esto' && targetText !== 'aqui' && targetText !== 'aquí') {
+        pageNotes.highlights = pageNotes.highlights.filter(h => !(h.text || '').toLowerCase().includes(targetText));
+      } else {
+        // Eliminar el más cercano al cursor
+        let bestIdx = -1;
+        let minDist = Infinity;
+        pageNotes.highlights.forEach((h, idx) => {
+          (h.rects || []).forEach(r => {
+            const cx = (r[0] + r[2]) / 2;
+            const cy = (r[1] + r[3]) / 2;
+            const d = Math.hypot(state.cursorContext.pos[0] - cx, state.cursorContext.pos[1] - cy);
+            if (d < minDist) {
+              minDist = d;
+              bestIdx = idx;
+            }
+          });
+        });
+        if (bestIdx >= 0) {
+          pageNotes.highlights.splice(bestIdx, 1);
+        }
+      }
+
+      refreshCurrentPageSvg(curPage);
+      saveNotesToServer();
+      break;
+    }
+
+    case 'clear_highlights': {
+      pageNotes.highlights = [];
+      refreshCurrentPageSvg(curPage);
+      saveNotesToServer();
+      break;
+    }
+
     case 'add_margin_note': {
       pageNotes.annotations.push({
         id: `note_${Date.now()}`,
-        cell: args.cell || state.cursorContext.cell || 'F4',
+        cell: args.cell || state.cursorContext.cell || 'R4',
         type: args.note_type || 'warning',
         text: args.text || 'Nota de estudio',
         width: 250,
@@ -929,10 +1169,11 @@ function executeVoiceCommand(command, args = {}) {
     }
 
     case 'add_bracket_group': {
-      const startCell = args.start_cell || 'A5';
-      const endCell = args.end_cell || 'A10';
+      const startCell = args.start_cell || 'B5';
+      const endCell = args.end_cell || 'B10';
       const startCoords = cellToCoords(startCell, pdfPtWidth, false);
       const endCoords = cellToCoords(endCell, pdfPtWidth, false);
+      const defaultX = MARGIN_LEFT_PT + pdfPtWidth - 12;
 
       pageNotes.brackets.push({
         id: `br_${Date.now()}`,
@@ -940,7 +1181,7 @@ function executeVoiceCommand(command, args = {}) {
         end_cell: endCell,
         y_start: startCoords.y,
         y_end: endCoords.y + CELL_HEIGHT,
-        x: pdfPtWidth - 12,
+        x: args.x !== undefined ? Number(args.x) : defaultX,
         label: args.label || 'Grupo temático'
       });
       refreshCurrentPageSvg(curPage);
@@ -949,12 +1190,12 @@ function executeVoiceCommand(command, args = {}) {
     }
 
     case 'add_stamp_symbol': {
-      const cellCoords = cellToCoords(args.cell || 'A2', pdfPtWidth, false);
+      const cellCoords = cellToCoords(args.cell || 'B2', pdfPtWidth, false);
       pageNotes.stamps.push({
         id: `stamp_${Date.now()}`,
-        cell: args.cell || 'A2',
-        x: cellCoords.x + 6,
-        y: cellCoords.y + 6,
+        cell: args.cell || 'B2',
+        x: cellCoords.x + 8,
+        y: cellCoords.y + 8,
         symbol: args.symbol || '⚠️',
         label: args.label || ''
       });
@@ -970,6 +1211,25 @@ function executeVoiceCommand(command, args = {}) {
           refreshCurrentPageSvg(String(p));
         }
         saveNotesToServer();
+      }
+      break;
+    }
+
+    case 'open_document': {
+      if (args.doc_id) {
+        loadDocument(args.doc_id);
+      }
+      break;
+    }
+
+    case 'go_to_page': {
+      const targetPage = parseInt(args.page, 10) || 1;
+      const el = document.getElementById(`page-container-${targetPage}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        state.currentPage = targetPage;
+        state.cursorContext.page = targetPage;
+        updateHUD();
       }
       break;
     }
@@ -991,7 +1251,7 @@ function refreshCurrentPageSvg(pageNum) {
 
 async function saveNotesToServer() {
   try {
-    await fetch(`/api/notes/${state.docId}`, {
+    await fetch(`/api/notes/${encodeURIComponent(state.docId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state.notes)
@@ -1071,17 +1331,24 @@ function setupUIListeners() {
 
     try {
       btnUpload.textContent = '⏳';
+      btnUpload.disabled = true;
       const resp = await fetch('/api/upload', { method: 'POST', body: formData });
       if (resp.ok) {
+        const data = await resp.json();
+        const uploadedDoc = data.filename || file.name;
+        state.docId = uploadedDoc;
         await refreshDocumentList();
-        await loadDocument(file.name);
+        await loadDocument(uploadedDoc);
       } else {
-        alert('Error al subir el archivo PDF.');
+        const err = await resp.json().catch(() => ({}));
+        alert(`Error al subir el archivo PDF: ${err.detail || resp.statusText}`);
       }
     } catch (err) {
       alert(`Error al subir: ${err.message}`);
     } finally {
-      btnUpload.textContent = '📁';
+      btnUpload.textContent = '+';
+      btnUpload.disabled = false;
+      uploadInput.value = '';
     }
   });
 
@@ -1115,7 +1382,7 @@ function setupUIListeners() {
     btn.disabled = true;
 
     try {
-      const resp = await fetch(`/api/export/${state.docId}`, { method: 'POST' });
+      const resp = await fetch(`/api/export/${encodeURIComponent(state.docId)}`, { method: 'POST' });
       const data = await resp.json();
       if (resp.ok) {
         window.open(data.download_url, '_blank');
@@ -1192,6 +1459,10 @@ function setupUIListeners() {
           });
           break;
 
+        case 'remove_highlight':
+          executeVoiceCommand('remove_highlight');
+          break;
+
         case 'note_prescripcion':
           executeVoiceCommand('add_margin_note', {
             cell: 'F4',
@@ -1251,6 +1522,47 @@ function setupUIListeners() {
     }
   });
 
+  // Barra de herramientas de subrayado y paleta
+  const btnHighlighter = document.getElementById('btn-tool-highlighter');
+  const btnEraser = document.getElementById('btn-tool-eraser');
+  const swatches = document.querySelectorAll('.hl-swatch');
+
+  function setHighlighterMode(tool) {
+    state.activeTool = tool;
+    if (tool === 'highlighter') {
+      if (btnHighlighter) btnHighlighter.classList.add('active');
+      if (btnEraser) btnEraser.classList.remove('active');
+      document.body.classList.remove('hl-eraser-mode');
+      document.body.classList.add('hl-pen-mode');
+    } else if (tool === 'eraser') {
+      if (btnHighlighter) btnHighlighter.classList.remove('active');
+      if (btnEraser) btnEraser.classList.add('active');
+      document.body.classList.add('hl-eraser-mode');
+      document.body.classList.remove('hl-pen-mode');
+    }
+  }
+
+  if (btnHighlighter) {
+    btnHighlighter.addEventListener('click', () => {
+      setHighlighterMode('highlighter');
+    });
+  }
+
+  if (btnEraser) {
+    btnEraser.addEventListener('click', () => {
+      setHighlighterMode(state.activeTool === 'eraser' ? 'highlighter' : 'eraser');
+    });
+  }
+
+  swatches.forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      swatches.forEach(s => s.classList.remove('active'));
+      swatch.classList.add('active');
+      state.activeHighlightColor = swatch.dataset.color || '#fef08a';
+      setHighlighterMode('highlighter');
+    });
+  });
+
   // Atajos de teclado
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -1258,6 +1570,10 @@ function setupUIListeners() {
       executeVoiceCommand('activate_grid', { show: !state.showGrid });
     } else if (e.key === 'r' || e.key === 'R') {
       executeVoiceCommand('toggle_active_recall', { enabled: !state.activeRecall });
+    } else if (e.key === 'h' || e.key === 'H') {
+      setHighlighterMode('highlighter');
+    } else if (e.key === 'e' || e.key === 'E') {
+      setHighlighterMode(state.activeTool === 'eraser' ? 'highlighter' : 'eraser');
     } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
       executeVoiceCommand('undo_last_action');
     }

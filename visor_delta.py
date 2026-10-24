@@ -39,12 +39,41 @@ URL_VISOR = f"http://127.0.0.1:{PUERTO_VISOR}"
 
 COLORES = {
     "amarillo": "#fef08a",
-    "naranja": "#fed7aa",
     "verde": "#bbf7d0",
     "azul": "#bae6fd",
     "rosa": "#fbcfe8",
+    "naranja": "#fed7aa",
     "morado": "#e9d5ff",
+    "lila": "#e9d5ff",
+    "rojo": "#fecaca",
+    "coral": "#fecaca",
+    "turquesa": "#a5f3fc",
+    "cian": "#a5f3fc",
+    "cyan": "#a5f3fc",
+    "gris": "#e2e8f0",
 }
+
+
+_CACHE_ACTIVO = {"activo": False, "ts": 0.0}
+
+def apuntes_activo() -> bool:
+    """Comprueba de forma ultra rápida (con caché de 2.5s) si el visor de apuntes está activo y en uso."""
+    now = time.monotonic()
+    if now - _CACHE_ACTIVO["ts"] < 2.5:
+        return _CACHE_ACTIVO["activo"]
+
+    _CACHE_ACTIVO["ts"] = now
+    try:
+        with httpx.Client(timeout=0.25) as client:
+            resp = client.get(f"{URL_VISOR}/api/status")
+            if resp.status_code == 200:
+                data = resp.json()
+                _CACHE_ACTIVO["activo"] = bool(data.get("active", False) or data.get("connections", 0) > 0)
+                return _CACHE_ACTIVO["activo"]
+    except Exception:
+        pass
+    _CACHE_ACTIVO["activo"] = False
+    return False
 
 
 async def asegurar_servidor() -> bool:
@@ -193,6 +222,23 @@ async def apuntes_subrayar(texto="", color="amarillo", pagina=""):
         return f"Subrayado en {color}: «{txt[:45]}…»."
     except Exception as e:
         return f"Error al subrayar: {e}"
+
+
+async def apuntes_borrar_subrayado(texto="", pagina=""):
+    """Elimina un subrayado del documento por texto o el más cercano al cursor."""
+    ctx = await obtener_contexto()
+    try:
+        pag = int(pagina) if str(pagina).strip().isdigit() else ctx.get("page", 1)
+    except Exception:
+        pag = 1
+    txt = str(texto).strip()
+    if txt.lower() in ("esto", "aqui", "aquí", "cursor", "este"):
+        txt = ""
+    try:
+        await enviar_comando("remove_highlight", {"target_text": txt, "page": pag})
+        return f"Subrayado eliminado de la página {pag}." if not txt else f"Subrayado «{txt}» eliminado."
+    except Exception as e:
+        return f"Error al borrar subrayado: {e}"
 
 
 async def apuntes_esquema(titulo="", celda="", nodos="", conexiones="", orientacion="TB", pagina=""):
@@ -386,6 +432,68 @@ async def apuntes_cursor():
     return f"Página {pag}, celda {celda}. El cursor no está sobre ningún bloque de texto."
 
 
+async def apuntes_leer(pagina="", seccion=""):
+    """Extrae el texto completo estructurado de la página actual del visor de apuntes y sus notas al margen para responder con precisión."""
+    await asegurar_servidor()
+    ctx = await obtener_contexto()
+    doc_id = ctx.get("doc_id", "sample.pdf")
+    try:
+        pag = int(pagina) if str(pagina).strip().isdigit() else ctx.get("page", 1)
+    except Exception:
+        pag = 1
+
+    try:
+        async with httpx.AsyncClient(timeout=3.5) as client:
+            resp = await client.get(f"{URL_VISOR}/api/page_text/{doc_id}/{pag}")
+            if resp.status_code == 200:
+                data = resp.json()
+                texto = data.get("text", "").strip()
+                notes = data.get("notes", {})
+                resumen_notas = []
+                for s in notes.get("schemas", []):
+                    resumen_notas.append(f"• Esquema «{s.get('root_title', '')}» en celda {s.get('anchor_cell', '')}")
+                for n in notes.get("margin_notes", []):
+                    resumen_notas.append(f"• Nota [{n.get('type', 'nota')}]: «{n.get('text', '')}» en celda {n.get('anchor_cell', '')}")
+                for h in notes.get("highlights", []):
+                    resumen_notas.append(f"• Subrayado: «{h.get('text', '')}»")
+
+                res = f"Documento: {doc_id}, Página {pag}.\n\n--- CONTENIDO TEXTUAL ---\n{texto or '(página sin texto legible)'}"
+                if resumen_notas:
+                    res += f"\n\n--- ANOTACIONES Y ESQUEMAS EN EL MARGEN ---\n" + "\n".join(resumen_notas)
+                return res
+            else:
+                return f"No se pudo extraer el texto de la página {pag}: {resp.text}"
+    except Exception as e:
+        return f"Error al leer la página de apuntes: {e}"
+
+
+async def apuntes_mirar_pagina(pagina=""):
+    """Renderiza la página del PDF a resolución vectorial nativa (150 DPI) y la envía de inmediato a Gemini Live como frame de vídeo de alta definición."""
+    await asegurar_servidor()
+    ctx = await obtener_contexto()
+    doc_id = ctx.get("doc_id", "sample.pdf")
+    try:
+        pag = int(pagina) if str(pagina).strip().isdigit() else ctx.get("page", 1)
+    except Exception:
+        pag = 1
+
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            resp = await client.get(f"{URL_VISOR}/api/render/{doc_id}/{pag}?dpi=150")
+            if resp.status_code == 200:
+                jpeg_bytes = resp.content
+                session = acciones.ST.get("session")
+                if session:
+                    from google.genai import types
+                    await session.send_realtime_input(video=types.Blob(data=jpeg_bytes, mime_type="image/jpeg"))
+                    return f"Te acabo de enviar una captura vectorial ultra nítida de la página {pag} de {doc_id} a 150 DPI."
+                return f"Página {pag} renderizada con éxito ({len(jpeg_bytes)//1024} KB), sin sesión activa de Gemini Live."
+            else:
+                return f"Error al renderizar página {pag}: {resp.text}"
+    except Exception as e:
+        return f"Error al renderizar la página de apuntes: {e}"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Registro en el Sistema de Herramientas de Delta
 # ─────────────────────────────────────────────────────────────────────────────
@@ -394,6 +502,7 @@ acciones.ETIQUETAS.update({
     "apuntes_abrir": "Abro visor de apuntes",
     "apuntes_cuadricula": "Cuadrícula de apuntes",
     "apuntes_subrayar": "Subrayo en apuntes",
+    "apuntes_borrar_subrayado": "Borro subrayado en apuntes",
     "apuntes_esquema": "Creo esquema en apuntes",
     "apuntes_rama": "Añado rama",
     "apuntes_nota": "Nota en margen",
@@ -402,6 +511,8 @@ acciones.ETIQUETAS.update({
     "apuntes_pagina": "Página en apuntes",
     "apuntes_exportar": "Compilo PDF de apuntes",
     "apuntes_cursor": "Posición del cursor",
+    "apuntes_leer": "Leo página de apuntes",
+    "apuntes_mirar_pagina": "Miro página en detalle",
 })
 
 acciones.registrar([
@@ -411,7 +522,10 @@ acciones.registrar([
         {"estado": _s("ver | ocultar")}),
     _fn("apuntes_subrayar", "Resalta un texto o lo que el usuario señala con el ratón en el visor.",
         {"texto": _s("frase o pasaje a resaltar (vacío o «esto» para lo señalado con el ratón)"),
-         "color": _s("amarillo | naranja | verde | azul | rosa"),
+         "color": _s("amarillo | verde | azul | rosa | naranja | morado | rojo | turquesa"),
+         "pagina": _s("número de página (1-based)")}),
+    _fn("apuntes_borrar_subrayado", "Elimina un pasaje subrayado en el visor (por texto o el señalado con el ratón).",
+        {"texto": _s("texto o frase del subrayado a borrar (omitir o «esto» para borrar el que señala el ratón)"),
          "pagina": _s("número de página (1-based)")}),
     _fn("apuntes_esquema", "Genera un mapa conceptual jerárquico Dagre.js en el margen derecho.",
         {"titulo": _s("título principal"), "celda": _s("celda alfanumérica de anclaje (ej. E1, F4)"),
@@ -431,8 +545,12 @@ acciones.registrar([
     _fn("apuntes_exportar", "Compila y exporta el PDF vectorial con el margen ensanchado de 400 pt.",
         {"documento": _s("nombre del documento")}),
     _fn("apuntes_cursor", "Consulta la celda, página y texto que el usuario está señalando con el ratón."),
+    _fn("apuntes_leer", "Lee y extrae el texto completo estructurado de la página actual (o la solicitada) y sus notas para responder preguntas sobre el temario.",
+        {"pagina": _s("número de página a leer")}),
+    _fn("apuntes_mirar_pagina", "Renderiza la página del visor en alta resolución vectorial a 150 DPI y la envía directamente a la sesión de Gemini Live.",
+        {"pagina": _s("número de página a renderizar")}),
 ], [
-    apuntes_abrir, apuntes_cuadricula, apuntes_subrayar, apuntes_esquema,
-    apuntes_rama, apuntes_nota, apuntes_repaso, apuntes_deshacer,
-    apuntes_pagina, apuntes_exportar, apuntes_cursor
+    apuntes_abrir, apuntes_cuadricula, apuntes_subrayar, apuntes_borrar_subrayado,
+    apuntes_esquema, apuntes_rama, apuntes_nota, apuntes_repaso, apuntes_deshacer,
+    apuntes_pagina, apuntes_exportar, apuntes_cursor, apuntes_leer, apuntes_mirar_pagina
 ])
