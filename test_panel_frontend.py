@@ -100,6 +100,12 @@ def test_ios_screensaver_styles_are_scoped():
                      '[data-tema="ios"] #visor', '[data-tema="ios"] #chuleta', '[data-tema="ios"] #pegar'):
         assert selector in html, f"Falta el ámbito iOS de la interfaz principal: {selector}"
     assert '--text-display:#1c1c1e' in html and '--accent:#007aff' in html
+    assert "document.documentElement.dataset.tema==='ios'" in html
+    assert "ios?'#1c1c1e':'#f2f2f2'" in html
+    assert "ios?'#8e8e93':'#1c1c1c'" in html
+    fondo = FONDO_PATH.read_text(encoding='utf-8')
+    assert "$('imp3d').addEventListener('wheel'" in fondo
+    assert 'zoomMini' in fondo and 'passive: false' in fondo
     print("✓ iOS: interfaz principal y salvapantallas acotados con fondo claro y fallbacks de accesibilidad")
 
 

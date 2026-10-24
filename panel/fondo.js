@@ -125,8 +125,15 @@ function bucle(ms) {
 // ---------- impresión en vivo: el G-code en 3D. Lo impreso es un cordón de plástico con luz (color del filamento),
 // la capa en curso en rojo, lo que falta en líneas tenues. Un solo lienzo WebGL que va de la tarjeta al salvapantallas.
 const Imp = (() => {
-  let archivo = null, cargando = false, G = null, r3 = null, objetivo = 0, mostrado = 0, ultPoll = 0, ultFrame = 0, boq = null, boqObj = null;
+  let archivo = null, cargando = false, G = null, r3 = null, objetivo = 0, mostrado = 0, ultPoll = 0, ultFrame = 0, boq = null, boqObj = null, zoomMini = 1;
   const ANCHO = 0.45, ROJO = new THREE.Color(0xd71921);
+
+  $('imp3d').addEventListener('wheel', e => {
+    if (e.deltaY === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    zoomMini = Math.max(.72, Math.min(1.65, zoomMini + (e.deltaY < 0 ? .08 : -.08)));
+  }, {passive: false});
 
   function parsear(txt) {
     const seg = [], off = [], capas = [], zs = [];
@@ -267,7 +274,7 @@ const Imp = (() => {
     if (cv.width !== Math.round(w * r3.ren.getPixelRatio()) || cv.height !== Math.round(h * r3.ren.getPixelRatio())) {
       r3.ren.setSize(w, h, false); r3.cam.aspect = w / h; r3.cam.updateProjectionMatrix();
     }
-    const ang = t * .06, R = G.tam * (mini ? 1.75 : 2.3), zc = G.alto * .45;
+    const ang = t * .06, R = G.tam * (mini ? 1.75 / zoomMini : 2.3), zc = G.alto * .45;
     r3.cam.position.set(Math.sin(ang) * R, zc + R * .55, Math.cos(ang) * R); r3.cam.lookAt(0, zc, 0);
     r3.ren.render(r3.escena, r3.cam);
     if (mini) return;

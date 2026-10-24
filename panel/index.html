@@ -991,7 +991,7 @@ function trama(code,noche){const g=Array.from({length:11},()=>Array(11).fill(0))
   else sprite(g,NUBE,0,2);
   return g}
 function icono(cv,code,noche,d){const g=trama(code,noche),k=devicePixelRatio||1,u=d*2*k;cv.width=cv.height=11*u;cv.style.width=cv.style.height=11*d*2+'px';
-  const x=cv.getContext('2d');g.forEach((r,j)=>r.forEach((v,i)=>{x.fillStyle=v?'#f2f2f2':'#1c1c1c';x.beginPath();x.arc(i*u+u/2,j*u+u/2,u*(v?.38:.13),0,7);x.fill()}))}
+  const x=cv.getContext('2d'),ios=document.documentElement.dataset.tema==='ios';g.forEach((r,j)=>r.forEach((v,i)=>{x.fillStyle=v?(ios?'#1c1c1e':'#f2f2f2'):(ios?'#8e8e93':'#1c1c1c');x.beginPath();x.arc(i*u+u/2,j*u+u/2,u*(v?.38:.13),0,7);x.fill()}))}
 
 /* ---------- matriz de puntos ---------- */
 const cv=$('cv'),cx=cv.getContext('2d');let W,H,cols,rows,G=16,NV=0;
