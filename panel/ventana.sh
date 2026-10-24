@@ -68,18 +68,33 @@ regla() {
   read -r X Y AN AL _ <<<"$1"
   local k="kwriteconfig6 --file kwinrulesrc --group delta-panel --key" r
   $k Description "Delta panel (ventana.sh)"; $k wmclass "127.0.0.1__"; $k wmclassmatch 2
-  $k position "$X,$Y"; $k positionrule 3; $k size "$AN,$AL"; $k sizerule 3
+  $k position "$X,$Y"; $k positionrule 1; $k size "$AN,$AL"; $k sizerule 1
   r=$(kreadconfig6 --file kwinrulesrc --group General --key rules)
   [[ ",$r," == *,delta-panel,* ]] || r="${r:+$r,}delta-panel"
   kwriteconfig6 --file kwinrulesrc --group General --key rules "$r"
   kwriteconfig6 --file kwinrulesrc --group General --key count "$(tr ',' '\n' <<<"$r" | grep -c .)"
   dbus-send --session --type=method_call --dest=org.kde.KWin /KWin org.kde.KWin.reconfigure
 }
+
+preparar_chromium() {
+  local p="$DIR/.chromium"
+  # Limpiar bloqueos huérfanos de sesiones anteriores o cierres abruptos
+  rm -f "$p/SingletonLock" "$p/SingletonCookie" "$p/SingletonSocket"
+  # Quitar sesiones previas con pestañas/ventanas para evitar que intente restaurar un crash
+  rm -rf "$p/Default/Sessions"
+  # Si Preferences quedó marcado como Crashed tras un kill/pkill, corregirlo a Normal
+  if [ -f "$p/Default/Preferences" ]; then
+    sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/g; s/"exited_cleanly":false/"exited_cleanly":true/g' "$p/Default/Preferences" 2>/dev/null || true
+  fi
+}
+
 D=$(destino); [ -n "$D" ] && regla "$D"
 for i in $(seq 30); do curl -sf "$URL" >/dev/null && break; sleep 1; done
+preparar_chromium
 # Chromium y no Chrome: Chrome ya no admite --load-extension, y sinmarcos/ deja incrustar webs en el panel
-chromium-browser --user-data-dir="$DIR/.chromium" --load-extension="$DIR/sinmarcos" --app="$URL" --no-first-run \
-  --disable-features=Translate --autoplay-policy=no-user-gesture-required &
+chromium-browser --user-data-dir="$DIR/.chromium" --load-extension="$DIR/sinmarcos" --app="$URL/" --no-first-run \
+  --hide-crash-restore-bubble --disable-session-crashed-bubble --no-recovery-component --no-default-browser-check \
+  --disable-features=Translate,OptimizationGuideOnDeviceModel --autoplay-policy=no-user-gesture-required &
 CH=$!
 # Wayland ignora --window-position: se coloca con KWin una vez aparece la ventana
 for i in $(seq 40); do W=$(kdotool search --class "chrome.*127.0.0.1|127.0.0.1" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep .5; done

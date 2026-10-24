@@ -153,12 +153,20 @@ def _salud(ST, mic):
             "impresora": "off" if not imp or not imp.get("online") else "act" if imp.get("estado") == "printing" else "ok"}
 
 
+def _panel_version():
+    try:
+        return max((AQUI / "panel" / f).stat().st_mtime_ns for f in ("index.html", "fondo.js", "orbe.js", "blob.js", "tiempo.js", "mapache3d.js")) // 1_000_000
+    except Exception:
+        return 0
+
+
 def snapshot(ST):
     ahora = time.monotonic()
     mic = _mic(ST)
     _ajustar_tira()  # el visor puede haber aparecido o cerrado sin pasar por tarjeta()
     return {
         **S,
+        "v": _panel_version(),
         "mic": mic, "salud": _salud(ST, mic), "lat": ST.get("lat"), "priv": bool(ST.get("privacidad")),
         "vista": _vista_actual(), "nomol": ST.get("no_molestar", 0) > ahora,
         "vivo": ST.get("vivo", 0) > ahora,  # directo de pantalla: el panel enciende el REC
