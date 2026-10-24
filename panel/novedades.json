@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-24",
+  "t": "Diseño Nothing Design System en todo DeltaOS: Dark Mode OLED puro (#000000), tipografías Space Grotesk/Mono y Doto locales, rojo acento #D71921, barras segmentadas mecánicas, tarjetas flotantes e informes de investigación rediseñados",
+  "como": "«pon el panel completo», «investiga a fondo sobre…»"
+ },
+ {
+  "f": "2026-10-24",
   "t": "Plan B con Cherry para mejoras de Delta o tareas cuando Claude no tenga tokens",
   "como": "«mejora esto con Cherry», «dile a Cherry que cambie esto»"
  },

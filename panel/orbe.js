@@ -12,7 +12,7 @@
 // de la esfera se proyectan a mano y los tramos se agrupan en unos pocos trazos por nivel de opacidad,
 // que si no son ~1.600 strokes por fotograma.
 
-const FG = '242,242,242', ROJO = '255,45,31';
+const FG = '242,242,242', ROJO = '215,25,33';
 const PAR = 15, SEG = 72, MER = 12, MSEG = 60;   // paralelos y meridianos, y en cuántos tramos va cada uno
 const TILT = .40, DIST = 3.6;                    // inclinación del eje y distancia de la cámara (perspectiva)
 const NIV = 5;                                   // niveles de opacidad (profundidad): un trazo por nivel

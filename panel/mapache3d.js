@@ -8,7 +8,7 @@ const FORMAS = {cabeza: [[14.5, 13, 0], [15, 10, 9]], cuerpo: [[14.5, 30.5, 0], 
 const ESPALDA = {cabeza: '+', cuerpo: '+', pata_i: '#', pata_d: '#', cola: null};
 const LATERAL = ['cabeza', 'cuerpo', 'cola'], MOVIL = new Set(['cola', 'ojo', 'pata', 'oreja']);
 const HOMBROS = [[7, 25, 4], [22, 25, 4]], PIVOTE_OREJA = [[5, 7.5], [24, 7.5]], PIVOTE_COLA = [33, 26];
-const LENGUA = '214,96,104', ROJO = '255,45,31';
+const LENGUA = '214,96,104', ROJO = '215,25,33';
 const PASES = 4, VENTANA_PASES = 6, JUEGA = 9, SIGUE = 8;  // pases del ratón para jugar, en cuántos s; s jugando; s siguiéndolo
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 

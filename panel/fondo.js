@@ -126,7 +126,7 @@ function bucle(ms) {
 // la capa en curso en rojo, lo que falta en líneas tenues. Un solo lienzo WebGL que va de la tarjeta al salvapantallas.
 const Imp = (() => {
   let archivo = null, cargando = false, G = null, r3 = null, objetivo = 0, mostrado = 0, ultPoll = 0, ultFrame = 0, boq = null, boqObj = null;
-  const ANCHO = 0.45, ROJO = new THREE.Color(0xff2d1f);
+  const ANCHO = 0.45, ROJO = new THREE.Color(0xd71921);
 
   function parsear(txt) {
     const seg = [], off = [], capas = [], zs = [];
@@ -197,13 +197,13 @@ const Imp = (() => {
     // luz: cielo suave, sol blanco que marca las líneas de capa y un contraluz rojo (el acento del panel)
     r3.escena.add(new THREE.HemisphereLight(0xffffff, 0x0a0a0a, 1.1));
     const sol = new THREE.DirectionalLight(0xffffff, 2.4); sol.position.set(tam, tam * 1.7, tam * .8); r3.escena.add(sol);
-    const contra = new THREE.DirectionalLight(0xff2d1f, .9); contra.position.set(-tam, tam * .3, -tam); r3.escena.add(contra);
+    const contra = new THREE.DirectionalLight(0xd71921, .9); contra.position.set(-tam, tam * .3, -tam); r3.escena.add(contra);
     // cama de puntos cada 10 mm (300×300), como la trama del panel
     const cama = [];
     for (let a = 0; a <= 300; a += 10) for (let c = 0; c <= 300; c += 10) cama.push(a - cx, 0, -(c - cy));
     const gc = new THREE.BufferGeometry(); gc.setAttribute('position', new THREE.Float32BufferAttribute(cama, 3));
     r3.escena.add(new THREE.Points(gc, new THREE.PointsMaterial({color: 0x5a5a5a, size: 1.6, sizeAttenuation: false})));
-    boq = new THREE.Mesh(new THREE.SphereGeometry(Math.max(.8, tam / 90), 12, 8), new THREE.MeshBasicMaterial({color: 0xff2d1f}));
+    boq = new THREE.Mesh(new THREE.SphereGeometry(Math.max(.8, tam / 90), 12, 8), new THREE.MeshBasicMaterial({color: 0xd71921}));
     r3.escena.add(boq);
     r3.grupo = r3.escena.children.slice(antes);
     r3.escena.fog = new THREE.Fog(0x000000, tam * 1.6, tam * 4.2);
@@ -292,7 +292,7 @@ const Imp = (() => {
     const t = T.temperatures, o = T.targets || [], mx = Math.max(...t, ...o, 1) * 1.08, n = t.length;
     for (let i = 0; i < n; i++) {
       const px = i / (n - 1) * (w - 4 * k) + 2 * k;
-      x.fillStyle = '#ff2d1f'; if (o[i]) { x.beginPath(); x.arc(px, h - o[i] / mx * h, 1 * k, 0, 7); x.fill(); }
+      x.fillStyle = '#D71921'; if (o[i]) { x.beginPath(); x.arc(px, h - o[i] / mx * h, 1 * k, 0, 7); x.fill(); }
       x.fillStyle = '#f2f2f2'; x.beginPath(); x.arc(px, h - t[i] / mx * h, 1.5 * k, 0, 7); x.fill();
     }
   }

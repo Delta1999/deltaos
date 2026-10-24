@@ -12,7 +12,7 @@
 // Se dibuja en 2D a mano (sin WebGL, como el orbe): la gráfica es un solo lienzo que se repinta cada
 // fotograma, y los textos van en HTML porque así escalan con vh/vw sin recalcular nada.
 
-const FG = '242,242,242', ROJO = '255,45,31', DIM = '110,110,110';
+const FG = '242,242,242', ROJO = '215,25,33', DIM = '110,110,110';
 const $ = i => document.getElementById(i);
 const hm = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
 const SEM = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];

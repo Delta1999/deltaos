@@ -183,7 +183,7 @@ function montar(cv, dirR, seg) {
   // luz: una clave blanca que marca el volumen y un contraluz rojo, el acento del panel
   escena.add(new THREE.HemisphereLight(0xffffff, 0x0a0a0a, .55));
   const clave = new THREE.DirectionalLight(0xffffff, 2.2); clave.position.set(-1.6, 2.2, 2.4); escena.add(clave);
-  const contra = new THREE.DirectionalLight(0xff2d1f, 1.1); contra.position.set(1.8, -.6, -1.8); escena.add(contra);
+  const contra = new THREE.DirectionalLight(0xd71921, 1.1); contra.position.set(1.8, -.6, -1.8); escena.add(contra);
 
   const cam = new THREE.PerspectiveCamera(30, 1, .1, 50);
   cam.position.set(0, 0, 6.6);

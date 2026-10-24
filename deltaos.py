@@ -249,8 +249,8 @@ async def _investigar_(pregunta, prog):
 
 # ---------- edición de informes ----------
 VERSIONES = INFORMES / ".versiones"  # fuera de la ruta servida: _informe solo da ficheros de INFORMES
-ESTILO_EDICION = ('<style id="ed">.sr{text-decoration:underline #ff2d1f 2px;text-underline-offset:3px}.rojo{color:#ff2d1f}'
-                  "mark{background:#ffd60a;color:#000;padding:0 2px}.nota{border-left:3px solid #ff2d1f;padding:4px 12px;"
+ESTILO_EDICION = ('<style id="ed">.sr{text-decoration:underline #D71921 2px;text-underline-offset:3px}.rojo{color:#D71921}'
+                  "mark{background:#ffd60a;color:#000;padding:0 2px}.nota{border-left:3px solid #D71921;padding:4px 12px;"
                   "margin:12px 0;color:#cfcfcf;font-size:14px}@media print{.nota{color:#333}.rojo,.sr{color:#c00}}</style>")
 
 
@@ -341,16 +341,175 @@ async def investigar(pregunta):
 
 
 PLANTILLA = """<!doctype html><html lang="es"><meta charset="utf-8"><title>{t}</title>
-<style>@font-face{{font-family:Doto;font-weight:900;src:url(/fonts/doto-900.ttf)}}
-@font-face{{font-family:Plex;src:url(/fonts/plexmono-400.ttf)}}
-body{{background:#000;color:#f2f2f2;font:16px/1.65 Plex,monospace;max-width:900px;margin:0 auto;padding:40px 36px 80px}}
-h1{{font-family:Doto;font-weight:900;font-size:40px;line-height:1.1;letter-spacing:.03em}}
-h2{{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:#ff2d1f;margin-top:36px}}
-a{{color:#f2f2f2}}a.c{{color:#ff2d1f;text-decoration:none;font-size:12px;vertical-align:super}}
-table{{border-collapse:collapse}}td,th{{border:1px solid #262626;padding:6px 10px}}
-.meta,ul.f{{color:#5a5a5a;font-size:13px}}ul.f{{list-style:none;padding:0}}ul.f a{{color:#8a8a8a}}
-@media print{{@page{{size:A4;margin:18mm}}body{{background:#fff;color:#111;padding:0;font-size:11pt}}a,ul.f a{{color:#111}}
-td,th{{border-color:#999}}h1{{font-size:28px}}}}</style>
+<style>
+@font-face{{font-family:Doto;font-weight:900;src:url(/fonts/doto-900.ttf)}}
+@font-face{{font-family:'Space Grotesk';font-weight:400;src:url(/fonts/spacegrotesk-400.ttf)}}
+@font-face{{font-family:'Space Grotesk';font-weight:500;src:url(/fonts/spacegrotesk-500.ttf)}}
+@font-face{{font-family:'Space Grotesk';font-weight:700;src:url(/fonts/spacegrotesk-700.ttf)}}
+@font-face{{font-family:'Space Mono';font-weight:400;src:url(/fonts/spacemono-400.ttf)}}
+@font-face{{font-family:'Space Mono';font-weight:700;src:url(/fonts/spacemono-700.ttf)}}
+
+:root{{
+  --black:#000000;
+  --surface:#111111;
+  --surface-raised:#1A1A1A;
+  --border:#222222;
+  --border-visible:#333333;
+  --text-disabled:#666666;
+  --text-secondary:#999999;
+  --text-primary:#E8E8E8;
+  --text-display:#FFFFFF;
+  --accent:#D71921;
+}}
+
+body{{
+  background:var(--black);
+  color:var(--text-primary);
+  font:16px/1.65 'Space Grotesk',ui-sans-serif,sans-serif;
+  max-width:860px;
+  margin:0 auto;
+  padding:48px 32px 96px;
+  -webkit-font-smoothing:antialiased;
+}}
+
+.meta{{
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--text-secondary);
+  margin-bottom:24px;
+  border-bottom:1px solid var(--border);
+  padding-bottom:12px;
+}}
+
+h1{{
+  font-family:Doto,'Space Mono',monospace;
+  font-weight:900;
+  font-size:36px;
+  line-height:1.15;
+  letter-spacing:-.01em;
+  color:var(--text-display);
+  margin:0 0 28px;
+}}
+
+h2{{
+  font-family:'Space Mono',monospace;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--accent);
+  margin-top:42px;
+  margin-bottom:16px;
+  padding-bottom:6px;
+  border-bottom:1px solid var(--border-visible);
+}}
+
+h3{{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:18px;
+  font-weight:700;
+  color:var(--text-display);
+  margin:28px 0 10px;
+}}
+
+p{{margin:14px 0;color:var(--text-primary)}}
+ul,ol{{padding-left:22px;margin:14px 0}}
+li{{margin-bottom:6px}}
+strong,b{{color:var(--text-display);font-weight:700}}
+
+a{{color:var(--text-display);text-decoration-color:var(--border-visible)}}
+a:hover{{text-decoration-color:var(--text-display)}}
+
+a.c{{
+  font-family:'Space Mono',monospace;
+  color:var(--accent);
+  text-decoration:none;
+  font-size:11px;
+  font-weight:700;
+  padding:0 3px;
+  border:1px solid var(--border-visible);
+  border-radius:4px;
+  margin:0 2px;
+  vertical-align:baseline;
+  transition:border-color .15s ease,background-color .15s ease;
+}}
+a.c:hover{{border-color:var(--accent);background:rgba(215,25,33,.12)}}
+
+table{{
+  border-collapse:collapse;
+  width:100%;
+  margin:24px 0;
+  font-size:14px;
+  border:1px solid var(--border);
+}}
+
+th{{
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--text-secondary);
+  border-bottom:1px solid var(--border-visible);
+  border-right:1px solid var(--border);
+  padding:10px 14px;
+  text-align:left;
+  background:var(--surface);
+}}
+
+td{{
+  border:1px solid var(--border);
+  padding:10px 14px;
+  color:var(--text-primary);
+}}
+
+ul.f{{
+  list-style:none;
+  padding:0;
+  margin:18px 0 0;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  font-family:'Space Mono',monospace;
+  font-size:12px;
+}}
+
+ul.f li{{
+  padding:10px 14px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text-secondary);
+  line-height:1.45;
+  word-break:break-all;
+  margin:0;
+}}
+
+ul.f li:target{{
+  border-color:var(--accent);
+  background:var(--surface-raised);
+}}
+
+ul.f a{{
+  color:var(--text-primary);
+  text-decoration:none;
+}}
+ul.f a:hover{{
+  color:var(--text-display);
+  text-decoration:underline;
+}}
+
+@media print{{
+  @page{{size:A4;margin:18mm}}
+  body{{background:#fff;color:#111;padding:0;font-size:11pt}}
+  a,ul.f a{{color:#111}}
+  td,th{{border-color:#999}}
+  h1{{font-size:28px;color:#000}}
+  h2{{color:#D71921}}
+  ul.f li{{background:#f9f9f9;border-color:#ddd}}
+}}
+</style>
 <div class="meta">INVESTIGACIÓN · {meta}</div>{cuerpo}<h2>Fuentes</h2><ul class="f">{fuentes}</ul></html>"""
 
 
