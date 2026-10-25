@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-25",
+  "t": "Panel rediseñado: la conversación va al lado del módulo de estado (escuchando / stand-by / trabajando), que ahora lleva dentro los medidores (se pliegan en reposo) y las luces de enlace, mic, eco, Claude y 3D como una fila de puntos. Privacidad, Alertas y Diseño pasan debajo de la tira del día, a la derecha, con Permitir y Denegar delante cuando hay que decidir. El botón Dormir/Activar desaparece: se despierta diciendo «Delta» y se duerme por voz.",
+  "como": "Mira la cabecera: los botones están bajo la tira del día",
+  "voz": false
+ },
+ {
+  "f": "2026-10-25",
   "t": "Calendario: puedes apuntar citas de otros días («el jueves», «mañana», «pasado mañana») y se ven en la línea de la semana de la cabecera. Gira la rueda del ratón sobre la tira del día (o púlsala) para pasar de «hoy» a «semana»; vuelve sola a los 25 s. Los avisos que ya tenías también salen ahora en la tira.",
   "como": "«Apunta en el calendario que el jueves tengo médico a las 17:30» · «Recuérdame mañana a las 9 llamar al banco»"
  },

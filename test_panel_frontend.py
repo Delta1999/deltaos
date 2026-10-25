@@ -78,11 +78,28 @@ def test_required_dom_ids():
         "sub", "frases", "impd", "agenda", "sis", "clima", "uso", "k1", "k2", "k3",
         "k4", "k5", "k6", "rec", "pasos", "t-hora", "t-est", "t-sub", "t-vivo", "t-pie",
         "t-card", "p-card", "p-card-cerrar", "pegar-cerrar", "b-priv", "b-modo",
-        "b-dormir", "b-si", "b-no", "b-tema", "vif", "pegar", "tdia"
+        "b-si", "b-no", "b-tema", "vif", "pegar", "tdia"
     ]
     missing = [i for i in critical_ids if i not in existing_ids]
     assert not missing, f"Faltan IDs críticos en el DOM de panel/index.html: {missing}"
     print(f"✓ panel/index.html: Todos los IDs críticos ({len(critical_ids)}) existen en el DOM")
+
+
+def test_layout_hero_y_cabecera():
+    """Rediseño del 25/10/2026: conversación junto al módulo de estado; medidores y lámparas dentro de él;
+    botones bajo la tira del día; sin tarjeta «consola» ni botón Dormir."""
+    html = HTML_PATH.read_text(encoding="utf-8")
+    cuerpo = html[html.index("<body>"):]
+    assert 'id="consola"' not in cuerpo and 'id="der"' not in cuerpo and 'id="b-dormir"' not in cuerpo
+    hero = cuerpo[cuerpo.index('id="hero"'):cuerpo.index('id="frases"')]
+    for i in ("g0", "g1", "g2", "v0", "v1", "v2", "l-enlace", "l-mic", "l-aec", "l-claude", "l-impresora", "pasos", "estado"):
+        assert f'id="{i}"' in hero, f"{i} debería estar dentro del módulo hero"
+    cabd = cuerpo[cuerpo.index('class="cabd"'):cuerpo.index("</header>")]
+    assert cabd.index('id="tdia"') < cabd.index('class="btns"')
+    for i in ("b-si", "b-no", "b-priv", "b-modo", "b-tema"):
+        assert f'id="{i}"' in cabd, f"{i} debería estar bajo la tira del día"
+    assert "dormir" not in html[html.index("[['p-card-cerrar'"):][:400]
+    print("✓ panel/index.html: hero con medidores y lámparas, conversación al lado, botones bajo la tira")
 
 
 def test_ios_screensaver_styles_are_scoped():
@@ -252,7 +269,7 @@ def test_render_headless():
       avisos: [{{ t: '2099-01-01T09:30:00', texto: 'Llamar al dentista', tipo: 'aviso' }}],
       arreglos: [{{ id: 1, t: '10:00', txt: 'Arreglar la tele', estado: 'pendiente' }}]
     }});
-    const der = document.getElementById('der'), fr = document.getElementById('frases');
+    const der = document.getElementById('hero'), fr = document.getElementById('frases');
     const casos = [
       ['reposo', base, true],
       ['escuchando', Object.assign({{}}, base, {{ estado: 'escuchando' }}), false],
@@ -464,6 +481,7 @@ if __name__ == "__main__":
     test_error_boundary_present()
     test_js_syntax()
     test_required_dom_ids()
+    test_layout_hero_y_cabecera()
     test_ios_screensaver_styles_are_scoped()
     test_render_headless()
     print("🎉 TODAS LAS PRUEBAS DE FRONTEND SUPERADAS CORRECTAMENTE.")

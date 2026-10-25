@@ -262,7 +262,6 @@ window.onunhandledrejection = function(e) {
 [data-tema="ios"] .lamp.ok i {background: #34c759; border-color: #34c759;}
 [data-tema="ios"] .lamp.act i {background: var(--accent); border-color: var(--accent);}
 [data-tema="ios"] .lamp.mal i {background: var(--red); border-color: var(--red);}
-[data-tema="ios"] .mando {border-color: var(--border);}
 [data-tema="ios"] .fr {color: var(--text-secondary);}
 [data-tema="ios"] .fr:last-child {color: var(--text-primary);}
 [data-tema="ios"] .msg.tu .bub {background: var(--accent); border-color: rgba(0,122,255,.28); color: #fff; box-shadow: 0 2px 8px rgba(0,122,255,.2);}
@@ -420,9 +419,9 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:24p
 /* La tira del día: bajo .meta, sin sumar altura a la cabecera (la fija el orbe; la tira se queda con lo que sobra).
    Una línea de puntos cada 15 min (brillantes de día, tenues de noche) y los hitos encima: sol, fin de impresión,
    avisos y alarmas. «Ahora» queda fijo a 1/14 del borde izquierdo. Sin rojo: no es un aviso. */
-.cabd{flex:1;min-width:0;align-self:stretch;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.cabd{flex:1;min-width:0;align-self:stretch;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .cabd .meta{max-width:100%}
-.tdia{position:relative;align-self:stretch;flex:1 1 0;min-height:0;overflow:hidden}
+.tdia{position:relative;align-self:stretch;flex:1 1 0;min-height:36px;overflow:hidden}
 .tdia .td-p{position:absolute;top:50%;width:3px;height:3px;margin:-1.5px 0 0 -1.5px;border-radius:50%;background:var(--text-display)}
 .tdia .td-p.h{width:5px;height:5px;margin:-2.5px 0 0 -2.5px}
 .tdia .td-p.n{background:var(--text-secondary);opacity:.4}
@@ -441,11 +440,12 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:24p
 .tdia .td-h{position:absolute;white-space:nowrap;top:3px;transform:translateX(-50%);font-size:9px;letter-spacing:.04em;line-height:1;opacity:.5;pointer-events:none}   /* horas en segundo plano */
 #td-pop{position:fixed;z-index:60;max-width:280px;padding:10px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--border-visible);box-shadow:0 8px 28px rgba(0,0,0,.4);pointer-events:none}
 #td-pop[hidden]{display:none}#td-pop b{display:block;font-family:var(--dot);font-weight:700;font-size:15px;color:var(--text-display);margin:5px 0 3px;overflow-wrap:anywhere}#td-pop .lbl{display:block}
-@media (max-width:900px){.tdia{display:none}}
+@media (max-width:900px){.tdia{display:none}header{flex-wrap:wrap;gap:12px}.cab{flex:1 1 auto}.cabd{flex:1 1 100%}}
 body.minimizado .tdia,body.widget .tdia{display:none}
 main{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:24px;min-height:0}
 .card{background:var(--surface);border:1px solid var(--border-visible);border-radius:16px;padding:22px 26px;position:relative;overflow:hidden;min-height:0}
 #hero{display:flex;flex-direction:column;justify-content:space-between}
+#hero .hv{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
 canvas{width:100%;flex:1;min-height:0;display:block}
 #estado{font-size:22px;line-height:1;margin-top:10px;color:var(--text-display)}
 #sub{font-family:var(--mono);color:var(--text-secondary);font-size:13px;margin-top:8px;height:18px}
@@ -491,25 +491,21 @@ footer{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.15fr) minma
 .hs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0 4px;text-align:center}
 .hs div{font-family:var(--mono);font-size:11px;color:var(--text-secondary);display:flex;flex-direction:column;align-items:center;gap:5px}
 .hs b{color:var(--text-primary);font-weight:500}
-#der{display:flex;flex-direction:column;gap:24px;min-height:0}
-#der #frases{flex:1}
-#consola{padding:14px 22px 12px;display:flex;flex-direction:column;gap:8px}
+/* Medidores y lámparas dentro del módulo de estado. En reposo los medidores se pliegan (la rejilla pasa de 1fr a 0fr)
+   y solo quedan las lámparas: sin actividad no hay nada que medir. */
+#hero .hm{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
 .gsw{display:grid;grid-template-rows:1fr;opacity:1;margin-bottom:0;transition:grid-template-rows .3s ease,opacity .3s ease,margin-bottom .3s ease}
 .gs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;min-height:0;overflow:hidden}
-/* Reposo: los medidores se pliegan (la rejilla pasa de 1fr a 0fr) y la tarjeta se queda en lámparas y botones */
-#der.reposo .gsw{grid-template-rows:0fr;opacity:0;margin-bottom:-8px}
-#der.reposo .mando{border-top-color:transparent;padding-top:0}
-.mando{transition:border-color .3s ease,padding-top .3s ease}
+#hero.reposo .gsw{grid-template-rows:0fr;opacity:0;margin-bottom:-8px}
 /* Vista de espera de la tarjeta de conversación: solo datos que ya hay, discreta y centrada */
 #frases>.rep{margin:auto 0;max-width:520px;display:flex;flex-direction:column;gap:18px}
 .rep .lbl{display:block}.rep .ag{grid-template-columns:52px 1fr auto}
 .rep .ej{font-family:var(--sans);font-size:17px;line-height:1.4;color:var(--text-primary);margin-top:8px;min-height:2.8em;transition:opacity .4s ease}
 .rep .ej.fuera{opacity:0}
-@media (prefers-reduced-motion:reduce){.gsw,.mando,.rep .ej{transition:none}}
+@media (prefers-reduced-motion:reduce){.gsw,.rep .ej{transition:none}}
 .g{text-align:center;display:flex;flex-direction:column;align-items:center}
 .g canvas{flex:none;width:100%;height:64px}
 .g .lbl{margin-top:8px}.g b{font-family:var(--dot);font-weight:900;font-size:19px;letter-spacing:.02em;margin-top:2px;color:var(--text-display)}
-.mando{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--border);padding-top:12px}
 .lamps{display:flex;gap:14px;flex-wrap:wrap}
 .lamp{font-family:var(--mono);display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.12em;color:var(--text-secondary);text-transform:uppercase}
 .lamp i{width:8px;height:8px;border-radius:50%;border:1px solid var(--border-visible);background:transparent}
@@ -517,13 +513,18 @@ footer{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.15fr) minma
 .lamp.act i{background:var(--text-display);border-color:var(--text-display);animation:pul 1.2s ease-in-out infinite}.lamp.act{color:var(--text-display)}
 .lamp.mal i{background:var(--accent);border-color:var(--accent);animation:par .9s steps(2) infinite}.lamp.mal{color:var(--accent)}
 @keyframes par{50%{opacity:.12}}@keyframes pul{50%{opacity:.25}}
-.btns{display:flex;gap:8px}
+/* Lámparas del módulo: solo puntos (el nombre sale en el title y, si algo falla, junto al punto) */
+#hero .lamps{gap:14px}
+#hero .lamp span{display:none}#hero .lamp.mal span{display:inline}
+/* Botones bajo la tira del día, a la derecha; Permitir/Denegar delante, que son lo urgente */
+.btns{display:flex;gap:8px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.btns .btn{padding:5px 12px}
 .btn{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-primary);background:transparent;border:1px solid var(--border-visible);border-radius:999px;padding:7px 14px;cursor:pointer;white-space:nowrap;transition:border-color .15s ease,color .15s ease,background-color .15s ease}
 .btn:hover{border-color:var(--text-display);color:var(--text-display)}.btn:active{transform:translateY(1px)}
 .btn.on{background:var(--text-display);border-color:var(--text-display);color:var(--bg);font-weight:700}
 .fr small.i{color:var(--text-secondary)}
 /* pasos y consumo en el recuadro de estado */
-#pasos{position:absolute;top:22px;right:26px;width:min(560px,56%);background:rgba(17,17,17,.92);border:1px solid var(--border-visible);border-radius:14px;padding:14px 16px 10px;display:none}
+#pasos{position:absolute;top:0;right:0;width:min(560px,70%);max-height:100%;overflow:hidden;background:rgba(17,17,17,.92);border:1px solid var(--border-visible);border-radius:14px;padding:14px 16px 10px;display:none}
 #pasos.on{display:block}
 .p{font-family:var(--mono);display:grid;grid-template-columns:62px 1fr minmax(18px,auto);gap:10px;font-size:13px;line-height:1.5;color:var(--text-secondary)}
 .p span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--sans)}
@@ -738,12 +739,12 @@ body.widget :is(#t-card,#t-web).on{display:flex;flex-direction:column;min-height
 #tira #t-pie b{color:var(--fg);font-weight:400}#tira #t-pie b.r{color:var(--accent)}
 /* Pantallas bajas (la ventana del portátil, 1280×720): el pie se comía la fila central (2026-10-19) */
 @media (max-height:820px){
-  body{gap:14px;padding:16px 24px}main,footer,#der{gap:14px}
+  body{gap:14px;padding:16px 24px}main,footer{gap:14px}
   .card{padding:14px 18px;border-radius:14px}
   :root{--dockh:72px}#hora{font-size:38px}.slot .v{font-size:30px}#estado{font-size:18px}.fr{font-size:17px}.bub{font-size:16px;padding:9px 13px}
   #clima #ic0{width:66px!important;height:66px!important}.hs canvas{width:44px!important;height:44px!important}
   .hs{margin:8px 0 2px}.row{margin-top:5px}.big{font-size:40px}
-  .mando{padding-top:8px}.g canvas{height:52px}
+  .g canvas{height:52px}
 }
 
 /* ==========================================================================
@@ -950,7 +951,6 @@ body.widget :is(#t-card,#t-web).on{display:flex;flex-direction:column;min-height
 [data-tema="ios"] .lamp.ok i{background:#34c759;border-color:#34c759}
 [data-tema="ios"] .lamp.act i{background:var(--accent);border-color:var(--accent)}
 [data-tema="ios"] .lamp.mal i{background:var(--red);border-color:var(--red)}
-[data-tema="ios"] .mando{border-color:var(--border)}
 [data-tema="ios"] .fr{color:var(--text-secondary)}
 [data-tema="ios"] .fr:last-child{color:var(--text-primary)}
 [data-tema="ios"] .msg.tu .bub{background:var(--accent);border-color:rgba(0,122,255,.28);color:#fff;box-shadow:0 2px 8px rgba(0,122,255,.2)}
@@ -1052,34 +1052,27 @@ body.widget :is(#t-card,#t-web).on{display:flex;flex-direction:column;min-height
       <div><span class="lbl">Última actividad</span><b id="ultima">—</b></div>
     </div>
     <div id="tdia" class="tdia" role="group" aria-label="Las próximas horas" title="Rueda del ratón o clic: hoy ⇄ semana"></div><div id="td-pop" hidden></div>
+    <div class="btns">
+      <button class="btn on" id="b-si" hidden>Permitir</button><button class="btn" id="b-no" hidden>Denegar</button><button class="btn" id="b-priv">Privacidad</button><button class="btn" id="b-modo">Alertas</button><button class="btn" id="b-tema" title="Alternar diseño (Nothing / Apple iOS)">Tema</button>
+    </div>
   </div>
 </header>
 <main>
   <section class="card" id="hero">
-    <canvas id="cv"></canvas>
-    <div id="pasos"></div>
-    <div id="pie"><div aria-live="polite" aria-atomic="true"><div id="estado" class="dot">CARGANDO</div><div id="sub"></div></div><div id="uso" class="lbl"></div></div>
-  </section>
-  <div id="der">
-    <section class="card" id="consola">
+    <div class="hv"><canvas id="cv"></canvas><div id="pasos"></div></div>
+    <div class="hm">
       <div class="gsw"><div class="gs">
         <div class="g"><canvas id="g0"></canvas><span class="lbl">Micro</span><b id="v0">—</b></div>
         <div class="g"><canvas id="g1"></canvas><span class="lbl">Voz</span><b id="v1">—</b></div>
         <div class="g"><canvas id="g2"></canvas><span class="lbl">Respuesta</span><b id="v2">—</b></div>
       </div></div>
-      <div class="mando">
-        <div class="lamps">
-          <span class="lamp" id="l-enlace"><i></i>Enlace</span><span class="lamp" id="l-mic"><i></i>Mic</span>
-          <span class="lamp" id="l-aec"><i></i>Eco</span><span class="lamp" id="l-claude"><i></i>Claude</span>
-          <span class="lamp" id="l-impresora"><i></i>3D</span>
-        </div>
-        <div class="btns">
-          <button class="btn" id="b-priv">Privacidad</button><button class="btn" id="b-modo">Alertas</button><button class="btn" id="b-tema" title="Alternar diseño (Nothing / Apple iOS)">Tema</button><button class="btn" id="b-dormir">Dormir</button><button class="btn on" id="b-si" hidden>Permitir</button><button class="btn" id="b-no" hidden>Denegar</button>
-        </div>
+      <div class="lamps">
+        <span class="lamp" id="l-enlace" title="Enlace"><i></i><span>Enlace</span></span><span class="lamp" id="l-mic" title="Micro"><i></i><span>Mic</span></span><span class="lamp" id="l-aec" title="Eco"><i></i><span>Eco</span></span><span class="lamp" id="l-claude" title="Claude"><i></i><span>Claude</span></span><span class="lamp" id="l-impresora" title="Impresora 3D"><i></i><span>3D</span></span>
       </div>
-    </section>
-    <section class="card" id="frases"></section>
-  </div>
+    </div>
+    <div id="pie"><div aria-live="polite" aria-atomic="true"><div id="estado" class="dot">CARGANDO</div><div id="sub"></div></div><div id="uso" class="lbl"></div></div>
+  </section>
+  <section class="card" id="frases"></section>
 </main>
 <section class="card" id="visor">
   <div class="vbar"><span class="lbl" id="vtit"></span><span class="vder"><span class="lbl" id="vest"></span><button class="btn" id="b-cerrar">Cerrar</button></span></div>
@@ -1344,7 +1337,7 @@ function _pintar(d){
   const reposo=d.estado==='dormido'&&!(d.frases||[]).length&&!d.confirma&&!d.herramienta&&d.modo!=='alertas'
    &&!(d.pasos||[]).some(p=>p.e==='en curso')&&!(d.claude&&d.claude.estado==='trabajando')&&!Object.values(d.trabajos||{}).some(e=>e==='en curso');
   if(reposo!==REPOSO){REPOSO=reposo;REPOSO_DESDE=performance.now()}
-  const elDer=$('der');if(elDer)elDer.classList.toggle('reposo',reposo);
+  const elHero=$('hero');if(elHero)elHero.classList.toggle('reposo',reposo);
   if(fe){
     fe.classList.toggle('alertas',d.modo==='alertas');
     const fh=d.modo==='alertas'?alertas(d)
@@ -1360,10 +1353,9 @@ function _pintar(d){
       ejemploPon()}
   }
   for(const k in d.salud){const l=$('l-'+k);if(l)l.className='lamp '+d.salud[k]}
-  const bp=$('b-priv'),bm=$('b-modo'),bd=$('b-dormir'),bs=$('b-si'),bn=$('b-no');
+  const bp=$('b-priv'),bm=$('b-modo'),bs=$('b-si'),bn=$('b-no');
   if(bp){bp.className='btn'+(d.priv?' on':'');bp.textContent=d.priv?'Privacidad · ON':'Privacidad'}
   if(bm){bm.className='btn'+(d.modo==='alertas'?' on':'');bm.textContent=d.modo==='alertas'?'Alertas · ON':'Alertas'+(d.nuevas?` · ${d.nuevas}`:'')}
-  if(bd)bd.textContent=d.estado==='dormido'?'Activar':'Dormir';
   if(bs&&bn){bs.hidden=bn.hidden=!d.confirma;bs.title=d.confirma||''}
   $txt('v0',d.mic.db==null?'—':d.mic.db+' dB');
   const lm=$('l-mic');if(lm)lm.title='Micro: '+(d.mic.db==null?'—':d.mic.db+' dB');$txt('v1',d.estado==='hablando'?'HABLA':'—');
@@ -1682,7 +1674,7 @@ const elReset=$('reset'); if(elReset) elReset.addEventListener('click',e=>{e.sto
 const elImp=$('imp'); if(elImp) elImp.addEventListener('click',()=>window.pantallaCompleta&&window.pantallaCompleta('impresora'));
 const elSis=$('sis'); if(elSis) elSis.addEventListener('click',()=>window.pantallaCompleta&&window.pantallaCompleta('sistema'));
 const elClima=$('clima'); if(elClima){elClima.style.cursor='pointer';elClima.title='Abrir Nothing Weather';elClima.addEventListener('click',()=>cmd('tiempo'))};
-[['p-card-cerrar','quitar_tarjeta'],['b-cerrar','cerrar_visor'],['b-priv','privacidad'],['b-modo','modo'],['b-tema','cambiar_tema'],['b-dormir','dormir'],['b-si','permitir'],['b-no','denegar']].forEach(([i,c])=>{const el=$(i);if(el)el.addEventListener('click',()=>cmd(c))});
+[['p-card-cerrar','quitar_tarjeta'],['b-cerrar','cerrar_visor'],['b-priv','privacidad'],['b-modo','modo'],['b-tema','cambiar_tema'],['b-si','permitir'],['b-no','denegar']].forEach(([i,c])=>{const el=$(i);if(el)el.addEventListener('click',()=>cmd(c))});
 function ws(){const w=WS=new WebSocket(`ws://${location.host}/ws`);w.onopen=()=>geo(w);
   w.onmessage=m=>{try{const d=JSON.parse(m.data);if(d.v){if(window._v===undefined){window._v=d.v}else if(d.v!==window._v){window._v=d.v;location.reload();return}}pintar(d);const lp=$('lapiz');if(lp)lp.classList.toggle('lleno',!!d.pegado);window.fondoEspera&&window.fondoEspera(d)}catch(err){console.error('Error ws onmessage:',err);if(window.__reportError)window.__reportError(err.message,'index.html',err.lineNumber||0,0,err)}};
   w.onclose=()=>{if(S.conexion){S.sinPanel=true;pintar(S)}setTimeout(ws,2000)}}
