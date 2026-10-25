@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-25",
+  "t": "Al investigar, Delta avisa de que va a hacer hasta 8 búsquedas en Google antes de empezar: esas tienen cuota aparte de la del modelo. La segunda ronda ya no se pasa del tope (hacía hasta 5 en vez de 3).",
+  "como": "Investiga a fondo qué filamento aguanta mejor el sol"
+ },
+ {
+  "f": "2026-10-25",
   "t": "Fuera el servidor del móvil (el 127.0.0.1:7877 con su web, su clave y sus avisos push): hablarle desde el móvil se va a enfocar de otra manera. Las notificaciones y las imágenes al móvil por KDE Connect siguen igual.",
   "como": "«¿tengo notificaciones?» · «mándame esta foto al móvil»"
  },

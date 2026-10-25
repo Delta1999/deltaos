@@ -137,6 +137,8 @@ def _gem():
 
 LLAMADA_MAX = 150    # s por llamada a Gemini: sin tope, una colgada dejó la investigación muda 20 min (21/10)
 INVESTIGA_MAX = 600  # s la investigación entera; pasado eso falla y lo dice, en vez de quedarse «en curso» para siempre
+SUBS, SUBS_HUECOS = 5, 3  # búsquedas por ronda: la primera reparte la pregunta, la segunda cubre huecos
+BUSQUEDAS_MAX = SUBS + SUBS_HUECOS  # lo que Delta dice en voz alta antes de empezar: la búsqueda tiene cuota aparte
 
 
 async def _json(prompt):
@@ -201,17 +203,17 @@ async def _investigar_(pregunta, prog):
             docs = docs + [("texto pegado en el panel", pg[:60000])]
         indice = "\n".join(f"- {n}: {t[:300]!r}" for n, t in docs) or "(vacía)"
         plan = await _json(f"Vas a investigar a fondo: «{pregunta}». Documentos locales disponibles:\n{indice}\n"
-                           'Devuelve JSON {"subpreguntas": [3 a 5 preguntas web concretas que juntas la respondan]}.')
+                           f'Devuelve JSON {{"subpreguntas": [3 a {SUBS} preguntas web concretas que juntas la respondan]}}.')
         notas = []
         for salto in (1, 2):
-            subs = plan["subpreguntas"][:5]
+            subs = plan["subpreguntas"][:SUBS if salto == 1 else SUBS_HUECOS]
             prog.update(etapa=f"búsquedas web, ronda {salto} de 2 ({len(subs)})", pct=15 + 30 * (salto - 1))
             paso(f"Salto {salto}: {len(subs)} búsquedas", "hecho")
             notas += await asyncio.gather(*(_salto(s) for s in subs))
             if salto == 1:  # segundo salto: lo que falta o se contradice
                 resumen = "\n\n".join(f"P: {q}\nR: {r[:1500]}" for q, r, _ in notas)
                 plan = await _json(f"Pregunta original: «{pregunta}». Notas hasta ahora:\n{resumen}\n"
-                                   'Devuelve JSON {"subpreguntas": [1 a 3 preguntas para cubrir huecos, contradicciones o verificar cifras clave]}.')
+                                   f'Devuelve JSON {{"subpreguntas": [1 a {SUBS_HUECOS} preguntas para cubrir huecos, contradicciones o verificar cifras clave]}}.')
         fuentes = list({u: (t, u) for _, _, fs in notas for t, u in fs}.values())  # sin repetir URL, en orden
         num = {u: i + 1 for i, (_, u) in enumerate(fuentes)}
         web_ = "\n\n".join(f"P: {q}\nR: {r}\nFuentes: {', '.join(f'[{num[u]}]' for _, u in fs)}" for q, r, fs in notas)
@@ -340,7 +342,9 @@ async def buscar(consulta):
 async def investigar(pregunta):
     acciones.tarea(_investigar(pregunta))
     return (f"Investigación profunda en marcha (web + {BIBLIOTECA}). Suele tardar de 2 a 5 minutos y como mucho "
-            f"{INVESTIGA_MAX // 60}; te llegará un aviso al terminar o al fallar. Díselo al usuario en una frase. "
+            f"{INVESTIGA_MAX // 60}; te llegará un aviso al terminar o al fallar. Díselo al usuario en una frase, "
+            f"y en esa misma frase dile que vas a hacer hasta {BUSQUEDAS_MAX} búsquedas en Google, porque esas tienen "
+            "cuota aparte y quiere saber lo que gasta (pedido el 25/10/2026). "
             "Si pregunta cómo va o cuánto falta, mira taller → trabajos y dile la etapa que pone: NUNCA inventes "
             "progreso ni plazos («ultimando», «menos de un minuto») sin haberlo mirado.")
 
