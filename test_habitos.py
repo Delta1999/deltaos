@@ -82,6 +82,19 @@ assert "Meditar" in corre(habitos.habitos_configurar("quitar", "meditar"))
 assert "Meditar" not in corre(habitos.habitos_configurar("listar"))
 assert "Error" in corre(habitos.habitos_configurar("hacer el pino")), "acción desconocida"
 
+# ---------- recordatorio diario ----------
+assert habitos._hora("22:00") == "22:00" and habitos._hora("9") == "09:00" and habitos._hora("21.30") == "21:30"
+assert habitos._hora("25:00") is None and habitos._hora("a media tarde") is None
+assert "No hay recordatorio" in corre(habitos.habitos_recordatorio())
+assert "22:00" in corre(habitos.habitos_recordatorio("22:00"))
+assert habitos.ajuste("recordatorio") == "22:00" and "22:00" in corre(habitos.habitos_recordatorio())
+assert "No entiendo la hora" in corre(habitos.habitos_recordatorio("cuando cene"))
+assert habitos.ajuste("recordatorio") == "22:00", "una hora que no entiendo no borra la que había"
+faltan = [h["nombre"] for h in habitos.sin_marcar()]
+assert "Leer 20 min" in faltan and "Gimnasio" not in faltan, f"solo lo de hoy sin marcar: {faltan}"
+assert habitos.datos_mes(hoy.year, hoy.month)["recordatorio"] == "22:00", "la página no recibe la hora"
+assert "Quitado" in corre(habitos.habitos_recordatorio("quitar")) and habitos.ajuste("recordatorio") == ""
+
 # ---------- lo que recibe la página ----------
 d = habitos.datos_mes(hoy.year, hoy.month)
 assert d["dias"] in (28, 29, 30, 31) and 0 <= d["primer_dia"] <= 6

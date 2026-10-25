@@ -90,6 +90,10 @@ body.editando #edit{display:block}
 .fila{display:flex;align-items:center;gap:8px;padding:4px 0}
 .fila input[type=text]{flex:1;min-width:0;background:var(--surface);color:var(--fg);border:1px solid var(--border);
   border-radius:var(--radio);padding:5px 9px;font-family:var(--sans);font-size:13px}
+.fila input[type=time]{background:var(--surface);color:var(--fg);border:1px solid var(--border);
+  border-radius:var(--radio);padding:5px 9px;font-family:var(--mono);font-size:13px}
+#rec{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
+#rec .lbl{flex:1}
 .fila input[type=color]{width:28px;height:26px;padding:0;border:1px solid var(--border);border-radius:var(--radio);background:var(--surface);cursor:pointer}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px}
 .x{color:var(--dim);background:transparent;border:0;padding:3px 6px;font-size:14px;cursor:pointer}
@@ -133,6 +137,8 @@ body.editando #edit{display:block}
       <div id="em"></div>
       <div class="fila"><input type="color" id="nm-color" value="#E0A82E">
         <input type="text" id="nm" maxlength="30" placeholder="Motivo nuevo (Intro)"></div>
+      <div class="fila" id="rec"><span class="lbl">Recordármelo cada día a las</span>
+        <input type="time" id="rhora"><button class="x" id="rquita" title="Quitar el recordatorio">✕</button></div>
     </div>
   </div>
 </section>
@@ -168,7 +174,7 @@ function pintar(d) {
   $("vacio").hidden = d.habitos.length > 0;
   const t = $("rejilla");
   t.innerHTML = "";
-  if (!d.habitos.length) { leyenda(); editor(); return; }
+  if (!d.habitos.length) { leyenda(); editor(); recordatorio(); return; }
 
   const cab = t.insertRow();
   cab.insertCell().className = "h";
@@ -208,7 +214,7 @@ function pintar(d) {
     const r = fila.insertCell(); r.className = "r";
     r.innerHTML = `<b>${h.si}</b>/<i>${h.no}</i>` + (h.racha > 1 ? ` · ${h.racha}🔥` : "");
   }
-  leyenda(); editor();
+  leyenda(); editor(); recordatorio();
 }
 
 /* vacío → hecho → no pudo ser (pregunta el motivo) → vacío */
@@ -289,6 +295,13 @@ function editor() {
     em.appendChild(f);
   }
 }
+function recordatorio() {
+  $("rhora").value = D.recordatorio || "";
+  $("rquita").style.opacity = D.recordatorio ? 1 : .25;
+}
+$("rhora").onchange = e => enviar("config", {accion: "recordatorio", hora: e.target.value});
+$("rquita").onclick = () => enviar("config", {accion: "recordatorio", hora: ""});
+
 function bot(txt, off, fn) {
   const b = document.createElement("button");
   b.className = "x"; b.textContent = txt; b.disabled = off; b.style.opacity = off ? .25 : 1;

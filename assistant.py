@@ -547,6 +547,7 @@ async def main():
     acciones.tarea(acciones.vigilar_impresora())
     acciones.adoptar_trabajos()  # los trabajos que siguen vivos de antes de reiniciar vuelven a la barra
     acciones.tarea(avisos.vigilar())
+    acciones.tarea(habitos.vigilar())  # recordatorio diario de los hábitos sin marcar
     acciones.tarea(mcp_puente.vigilar())  # sostiene las sesiones MCP; sin conectores activos, sale sola
     acciones.tarea(proactivo.vigilar())
     acciones.tarea(vision_delta.vigilar())

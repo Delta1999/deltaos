@@ -10,6 +10,7 @@ Pedido el 25/10/2026 a partir de un calendario de hábitos de papel. Reglas, por
 Cada casilla tiene tres estados: vacía (ni sí ni no), hecho, y no hecho con un motivo configurable y su color,
 que es lo que deja ver de un vistazo POR QUÉ no pudo ser.
 """
+import asyncio
 import calendar
 import json
 import re
@@ -54,6 +55,10 @@ CREATE TABLE IF NOT EXISTS marcas(
   PRIMARY KEY(habito, dia)
 );
 CREATE INDEX IF NOT EXISTS marcas_dia ON marcas(dia);
+CREATE TABLE IF NOT EXISTS ajustes(
+  clave TEXT PRIMARY KEY,
+  valor TEXT NOT NULL
+);
 """
 
 _con = None
@@ -168,7 +173,7 @@ def datos_mes(anio, mes):
         si = [d for d in dias if marcas[f"{h['id']}:{anio:04d}-{mes:02d}-{d:02d}"]["hecho"]]
         h["si"], h["no"] = len(si), len(dias) - len(si)
         h["racha"] = _racha(h["id"], corte) if corte else 0
-    return {"anio": anio, "mes": mes, "dias": ultimo,
+    return {"anio": anio, "mes": mes, "dias": ultimo, "recordatorio": ajuste("recordatorio"),
             "primer_dia": calendar.monthrange(anio, mes)[0],  # 0 = lunes
             "hoy": date.today().isoformat(), "habitos": habitos, "motivos": motivos, "marcas": marcas}
 
@@ -299,6 +304,65 @@ def borrar_motivo(motivo_id):
     con.commit()
 
 
+# ---------- ajustes y recordatorio diario ----------
+def ajuste(clave, por_defecto=""):
+    f = _bd().execute("SELECT valor FROM ajustes WHERE clave=?", (clave,)).fetchone()
+    return f["valor"] if f else por_defecto
+
+
+def fijar_ajuste(clave, valor):
+    con = _bd()
+    con.execute("INSERT INTO ajustes(clave, valor) VALUES(?,?) ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor",
+                (clave, str(valor)))
+    con.commit()
+
+
+def _hora(h):
+    """«22:00», «22.00», «22», «10 y media» no; HH:MM normalizado, o None si no hay hora que valga."""
+    m = re.fullmatch(r"(\d{1,2})(?:[:.h ](\d{2}))?", _sin_tildes(h).strip())
+    if not m:
+        return None
+    hh, mm = int(m.group(1)), int(m.group(2) or 0)
+    return f"{hh:02d}:{mm:02d}" if hh < 24 and mm < 60 else None
+
+
+def sin_marcar(dia=None):
+    """Hábitos activos que ese día no están ni en sí ni en no."""
+    dia = dia or date.today().isoformat()
+    con = _bd()
+    return [dict(h) for h in con.execute(
+        "SELECT h.id, h.nombre FROM habitos h WHERE h.archivado IS NULL "
+        "AND NOT EXISTS (SELECT 1 FROM marcas m WHERE m.habito=h.id AND m.dia=?) ORDER BY h.orden, h.id", (dia,))]
+
+
+async def vigilar():
+    """Recordatorio diario a la hora que el usuario haya puesto: solo si queda algo sin marcar hoy.
+
+    No usa avisos.py a propósito: el texto depende de lo que falte en el momento de decirlo, y el usuario puede
+    mover la hora desde el propio calendario. Va sin «motivo» (acciones.avisar) porque es un recordatorio que pidió
+    él, como una alarma: no se filtra por proactivo."""
+    import acciones
+    while True:
+        await asyncio.sleep(30)
+        try:
+            h = _hora(ajuste("recordatorio"))
+            hoy = date.today().isoformat()
+            if not h or ajuste("recordado") == hoy or time.strftime("%H:%M") < h:
+                continue
+            fijar_ajuste("recordado", hoy)   # una vez al día, aunque el PC estuviera apagado a esa hora
+            faltan = sin_marcar(hoy)
+            if not faltan:
+                continue
+            nombres = ", ".join(f["nombre"] for f in faltan)
+            cuantos = f"le queda 1 hábito" if len(faltan) == 1 else f"le quedan {len(faltan)} hábitos"
+            await acciones.avisar(
+                f"Recordatorio diario que te pidió el usuario: {cuantos} por marcar hoy ({nombres}). "
+                "Pregúntaselos de palabra y ve marcando con habitos_marcar según te conteste; si prefiere "
+                "hacerlo a mano, enséñale el calendario con habitos_ver.")
+        except Exception as e:
+            print(f"habitos: {e}")
+
+
 # ---------- página y API del panel ----------
 async def _pagina(request):
     return web.FileResponse(PAGINA, headers={"Cache-Control": "no-cache"})
@@ -341,6 +405,11 @@ async def _api_config(request):
             cambiar_motivo(int(d["id"]), d.get("nombre", ""), d.get("color", ""))
         elif accion == "motivo_quitar":
             borrar_motivo(int(d["id"]))
+        elif accion == "recordatorio":
+            h = _hora(str(d.get("hora", "")))
+            fijar_ajuste("recordatorio", h or "")
+            if h:
+                fijar_ajuste("recordado", "")  # la hora nueva vale ya para hoy
         else:
             raise ValueError(f"acción desconocida: {accion}")
     except (KeyError, TypeError, ValueError) as e:
@@ -432,6 +501,26 @@ async def habitos_resumen(mes="", habito=""):
     return resumen(a, m, _buscar_habito(habito) if habito else None)
 
 
+async def habitos_recordatorio(hora=""):
+    h = _sin_tildes(hora).strip()
+    if h in ("quitar", "quita", "ninguno", "ninguna", "no", "nada", "apagar", "desactivar"):
+        fijar_ajuste("recordatorio", "")
+        _refrescar()
+        return "Quitado el recordatorio diario de los hábitos."
+    if not h:
+        puesto = _hora(ajuste("recordatorio"))
+        return (f"El recordatorio diario de los hábitos está a las {puesto}." if puesto
+                else "No hay recordatorio diario de los hábitos. Pregúntale a qué hora lo quiere.")
+    n = _hora(h)
+    if not n:
+        return f"No entiendo la hora «{hora}»: dímela como HH:MM, por ejemplo 22:00."
+    fijar_ajuste("recordatorio", n)
+    fijar_ajuste("recordado", "")  # si la hora de hoy aún no ha pasado, avisa hoy mismo
+    _refrescar()
+    return (f"Hecho: cada día a las {n} te recuerdo marcar los hábitos que lleves sin marcar, "
+            "y solo si queda alguno.")
+
+
 def _refrescar():
     """Si el calendario está puesto en el visor, que la página recargue (cambia el id del visor)."""
     try:
@@ -480,7 +569,13 @@ def registrar():
                      "ser), para decírselo de palabra sin abrir el panel.",
                      {"mes": acciones._s("AAAA-MM, nombre del mes o «el mes pasado»; vacío = este mes"),
                       "habito": acciones._s("un hábito concreto; vacío = todos")}, req=[]),
-    ], (habitos_ver, habitos_marcar, habitos_configurar, habitos_resumen))
+        acciones._fn("habitos_recordatorio",
+                     "Pone, cambia, consulta o quita el recordatorio diario del calendario de hábitos: a esa hora, si "
+                     "queda algún hábito sin marcar ese día, Delta se lo recuerda al usuario y le pregunta uno a uno. "
+                     "Úsalo cuando diga «recuérdame los hábitos a las diez de la noche», «cambia el recordatorio de los "
+                     "hábitos a las 21:30», «quita el recordatorio de los hábitos», «¿a qué hora me lo recuerdas?».",
+                     {"hora": acciones._s("HH:MM; «quitar» para apagarlo; vacío para decir cuál hay ahora")}, req=[]),
+    ], (habitos_ver, habitos_marcar, habitos_configurar, habitos_resumen, habitos_recordatorio))
 
 
 registrar()
