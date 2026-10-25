@@ -13,6 +13,7 @@ venv/
 # hay Cookies y Login Data. Nunca deben salir de esta máquina.
 panel/.chrome/
 panel/.chromium/
+visor_apuntes/.chromium/
 
 # Datos de entrenamiento y modelos: 17 GB en un .npy, muy por encima del límite
 # de 100 MB por fichero de GitHub. Se descargan, no se versionan.

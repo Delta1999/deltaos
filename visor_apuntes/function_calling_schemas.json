@@ -1,13 +1,13 @@
 [
   {
     "name": "activate_grid",
-    "description": "Muestra u oculta la cuadrícula de coordenadas espaciales alfanuméricas sobre el documento PDF y su margen extendido.",
+    "description": "Muestra u oculta la cuadrícula de coordenadas espaciales alfanuméricas sobre el documento PDF adaptada a la separación real de líneas y a sus márgenes extendidos.",
     "parameters": {
       "type": "object",
       "properties": {
         "show": {
           "type": "boolean",
-          "description": "true para activar la cuadrícula transparente con etiquetas alfanuméricas (A1, B2, J3...) o false para desactivarla."
+          "description": "true para activar la cuadrícula transparente con etiquetas alfanuméricas adaptadas a las líneas de texto o false para ocultarla."
         }
       },
       "required": ["show"]
@@ -15,81 +15,312 @@
   },
   {
     "name": "highlight_passage",
-    "description": "Resalta visualmente un pasaje de texto en el documento con mezcla multiplicativa (mix-blend-mode: multiply). Si existen múltiples coincidencias del texto en la página, desambigua automáticamente seleccionando la más cercana a la posición actual del cursor del ratón.",
+    "description": "Subraya o resalta un pasaje o término en el documento. Admite indicar un texto directo (target_text) o un rango delimitado por palabras ancla (desde 'from_text' hasta 'to_text'). El estilo puede ser subrayado ('underline') o resaltado translúcido ('solid_highlight').",
     "parameters": {
       "type": "object",
       "properties": {
         "target_text": {
           "type": "string",
-          "description": "Cadena de texto o fragmento exacto a localizar y subrayar en la página activa."
+          "description": "Cadena de texto o término puntual exacto a localizar y marcar en la página activa."
+        },
+        "from_text": {
+          "type": "string",
+          "description": "Palabra o frase de ancla inicial cuando se define un rango continuo de lectura."
+        },
+        "to_text": {
+          "type": "string",
+          "description": "Palabra o frase de ancla final donde termina el rango a marcar."
         },
         "color": {
           "type": "string",
-          "description": "Color hexadecimal de resaltado (ej: '#fef08a' para amarillo fluorescente suave, '#fed7aa' para naranja, '#bbf7d0' para verde menta, '#bae6fd' para azul celeste). Por defecto '#fef08a'."
+          "description": "Color del trazo o resaltado: 'amarillo' (#fef08a), 'azul' (#93c5fd), 'verde' (#86efac), 'rojo' (#fca5a5), 'naranja' (#fdba74), 'rosa' (#f9a8d4) o código hexadecimal. Por defecto amarillo."
+        },
+        "style": {
+          "type": "string",
+          "enum": ["solid_highlight", "underline"],
+          "description": "Estilo visual: 'solid_highlight' (resaltado fluorescente translúcido) o 'underline' (línea inferior de subrayado preciso)."
         },
         "page": {
           "type": "integer",
-          "description": "Número de página (1-based). Si se omite, se utiliza la página sobre la que se encuentra el cursor."
+          "description": "Número de página (1-based). Si se omite, se usa la página activa."
+        }
+      }
+    }
+  },
+  {
+    "name": "frame_text",
+    "description": "Enmarca o redondea visualmente un término, frase o título en el PDF con un recuadro delimitador en color.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "target_text": {
+          "type": "string",
+          "description": "Fragmento de texto o título a recuadrar."
+        },
+        "color": {
+          "type": "string",
+          "description": "Color del contorno del recuadro (ej: 'azul', 'rojo', '#2563eb')."
+        },
+        "style": {
+          "type": "string",
+          "enum": ["box", "rounded_box"],
+          "description": "Forma del recuadro ('box' rectangular o 'rounded_box' con bordes redondeados)."
+        },
+        "page": {
+          "type": "integer",
+          "description": "Número de página (1-based)."
         }
       },
       "required": ["target_text"]
     }
   },
   {
+    "name": "strikethrough_text",
+    "description": "Tacha una palabra, frase o fragmento irrelevante del temario mediante una línea horizontal central roja o del color indicado.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "target_text": {
+          "type": "string",
+          "description": "Texto a tachar."
+        },
+        "color": {
+          "type": "string",
+          "description": "Color de la línea de tachado (por defecto '#ef4444' rojo)."
+        },
+        "page": {
+          "type": "integer",
+          "description": "Número de página (1-based)."
+        }
+      },
+      "required": ["target_text"]
+    }
+  },
+  {
+    "name": "add_bracket_group",
+    "description": "Dibuja una llave vertical clásica { o barra lateral de agrupación entre dos fragmentos de ancla de texto o celdas de inicio y fin, con etiqueta descriptiva.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "from_text": {
+          "type": "string",
+          "description": "Fragmento de texto ancla donde comienza la agrupación superior."
+        },
+        "to_text": {
+          "type": "string",
+          "description": "Fragmento de texto ancla donde finaliza la agrupación inferior."
+        },
+        "start_cell": {
+          "type": "string",
+          "description": "Alternativa de celda alfanumérica de inicio (ej: 'A5')."
+        },
+        "end_cell": {
+          "type": "string",
+          "description": "Alternativa de celda alfanumérica de fin (ej: 'A10')."
+        },
+        "label": {
+          "type": "string",
+          "description": "Etiqueta descriptiva centrada al lado de la llave (ej: 'Fases Art. 53-86', 'Requisitos esenciales')."
+        },
+        "bracket_type": {
+          "type": "string",
+          "enum": ["bracket", "bar"],
+          "description": "'bracket' para llave curvada tradicional { o 'bar' para barra lateral sólida de agrupación."
+        },
+        "page": {
+          "type": "integer",
+          "description": "Número de página (1-based)."
+        }
+      }
+    }
+  },
+  {
+    "name": "create_margin_diagram",
+    "description": "Genera y renderiza un esquema jerárquico estructurado (árbol conceptual) en el margen lateral (derecho o izquierdo) alineado verticalmente con la coordenada Y del fragmento ancla de texto en el documento.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "anchor_text": {
+          "type": "string",
+          "description": "Fragmento o término del texto del PDF que sirve de ancla para posicionar el esquema a esa misma altura vertical."
+        },
+        "side": {
+          "type": "string",
+          "enum": ["right", "left"],
+          "description": "Margen donde proyectar el esquema: 'right' (margen derecho de estudio) o 'left' (margen izquierdo)."
+        },
+        "diagram_type": {
+          "type": "string",
+          "enum": ["tree", "flowchart", "bracket"],
+          "description": "Tipo de diagrama visual ('tree' árbol jerárquico Dagre, 'flowchart', 'bracket')."
+        },
+        "content": {
+          "type": "object",
+          "description": "Estructura jerárquica del esquema.",
+          "properties": {
+            "root": {
+              "type": "string",
+              "description": "Título o concepto del nodo raíz."
+            },
+            "nodes": {
+              "type": "array",
+              "description": "Ramas dependientes de la raíz.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "description": "Título o categoría de la rama." },
+                  "children": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Elementos o nodos dependientes de esta rama."
+                  }
+                },
+                "required": ["title"]
+              }
+            }
+          },
+          "required": ["root", "nodes"]
+        },
+        "page": {
+          "type": "integer",
+          "description": "Número de página (1-based)."
+        }
+      },
+      "required": ["anchor_text", "content"]
+    }
+  },
+  {
+    "name": "margin_note_with_highlights",
+    "description": "Pipeline acoplado: Inserta una tarjeta o post-it en el margen lateral alineado a la coordenada Y de un texto ancla y, simultáneamente, busca y subraya en el texto del PDF los términos clave críticos (terms_to_match), trazando un conector visual sutil desde la tarjeta hacia los términos.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "anchor_text": {
+          "type": "string",
+          "description": "Término o frase del texto del PDF que sirve de ancla de posicionamiento vertical para la tarjeta marginal."
+        },
+        "margin": {
+          "type": "string",
+          "enum": ["right", "left"],
+          "description": "Margen de colocación de la tarjeta: 'right' o 'left'."
+        },
+        "note_content": {
+          "type": "string",
+          "description": "Texto sintetizado o aclaración que se mostrará dentro de la tarjeta marginal."
+        },
+        "highlight_rules": {
+          "type": "object",
+          "description": "Reglas de subrayado de entidades críticas en el PDF asociadas a la nota.",
+          "properties": {
+            "color": {
+              "type": "string",
+              "description": "Color de subrayado para los términos coincidentes ('red', 'blue', 'orange', etc.)."
+            },
+            "style": {
+              "type": "string",
+              "enum": ["underline", "solid_highlight"],
+              "description": "Estilo de marcado en el PDF: 'underline' (subrayado) o 'solid_highlight' (resaltador)."
+            },
+            "terms_to_match": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Lista de palabras clave que deben ser subrayadas en el texto del PDF."
+            }
+          },
+          "required": ["terms_to_match"]
+        },
+        "page": {
+          "type": "integer",
+          "description": "Número de página (1-based)."
+        }
+      },
+      "required": ["anchor_text", "note_content"]
+    }
+  },
+  {
+    "name": "move_schema",
+    "description": "Mueve y reposiciona un esquema jerárquico existente entre el margen derecho y el margen izquierdo.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "side": {
+          "type": "string",
+          "enum": ["left", "right"],
+          "description": "Margen de destino: 'left' (margen izquierdo) o 'right' (margen derecho)."
+        },
+        "schema_id": {
+          "type": "string",
+          "description": "ID del esquema a mover. Si se omite, se desplaza el último esquema creado."
+        },
+        "page": {
+          "type": "integer",
+          "description": "Número de página (1-based)."
+        }
+      },
+      "required": ["side"]
+    }
+  },
+  {
+    "name": "undo_last_action",
+    "description": "Deshace de inmediato la última acción realizada sobre el documento (resaltado, esquema, nota, llave o sello) sin tocar el teclado.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "clear_page_annotations",
+    "description": "Borra todas las anotaciones, esquemas, resaltados y notas de la página actual.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": "integer",
+          "description": "Número de página a limpiar (1-based). Si se omite, limpia la página activa."
+        }
+      }
+    }
+  },
+  {
     "name": "create_schema",
-    "description": "Crea y renderiza un nuevo esquema jerárquico o mapa conceptual en el margen extendido calculado mediante Dagre.js sin colisiones ni solapamientos.",
+    "description": "Crea un nuevo esquema conceptual libre basado en nodos y conexiones dirigidas mediante Dagre.js.",
     "parameters": {
       "type": "object",
       "properties": {
         "anchor_cell": {
           "type": "string",
-          "description": "Celda alfanumérica de anclaje donde comenzará el árbol (ej: 'E1', 'J1', 'F3'). Si la celda cae en el área de texto original, el sistema alinea automáticamente el esquema en el margen extendido a la altura de dicha fila."
+          "description": "Celda alfanumérica donde se ancla el inicio del grafo (ej: 'E1')."
         },
         "schema_id": {
           "type": "string",
-          "description": "Identificador único para el esquema (ej: 'schema_fases_proc', 'schema_cortes_generales')."
+          "description": "ID único para el esquema."
         },
         "root_title": {
           "type": "string",
-          "description": "Título principal del nodo raíz si no se define explícitamente en la lista de nodos."
-        },
-        "orientation": {
-          "type": "string",
-          "enum": ["TB", "BT", "LR", "RL"],
-          "description": "Dirección del grafo: 'TB' (Top-to-Bottom, vertical hacia abajo) o 'LR' (Left-to-Right, horizontal). Por defecto 'TB'."
+          "description": "Título del nodo raíz."
         },
         "nodes": {
           "type": "array",
-          "description": "Lista de nodos del grafo con sus etiquetas y detalles.",
           "items": {
             "type": "object",
             "properties": {
-              "id": { "type": "string", "description": "ID único del nodo dentro del esquema." },
-              "label": { "type": "string", "description": "Título visible o concepto clave del nodo." },
-              "details": {
-                "type": "array",
-                "items": { "type": "string" },
-                "description": "Puntos clave, artículos, reglas mnemotécnicas o viñetas asociadas al nodo."
-              }
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "details": { "type": "array", "items": { "type": "string" } }
             },
             "required": ["id", "label"]
           }
         },
         "edges": {
           "type": "array",
-          "description": "Relaciones y conexiones dirigidas entre nodos.",
           "items": {
             "type": "object",
             "properties": {
-              "from": { "type": "string", "description": "ID del nodo origen." },
-              "to": { "type": "string", "description": "ID del nodo destino." }
+              "from": { "type": "string" },
+              "to": { "type": "string" }
             },
             "required": ["from", "to"]
           }
-        },
-        "page": {
-          "type": "integer",
-          "description": "Número de página donde proyectar el esquema. Si se omite, se utiliza la página activa."
         }
       },
       "required": ["anchor_cell", "nodes", "edges"]
@@ -97,34 +328,20 @@
   },
   {
     "name": "add_schema_branch",
-    "description": "Añade dinámicamente un nuevo nodo y su conexión a un esquema existente, recalculando el layout de Dagre de forma fluida en el margen.",
+    "description": "Añade un nodo dependiente a un esquema previo recalculando el grafo.",
     "parameters": {
       "type": "object",
       "properties": {
-        "schema_id": {
-          "type": "string",
-          "description": "ID del esquema existente al que añadir la rama. Si no se especifica, se toma el último esquema creado en la página."
-        },
-        "parent_node_id": {
-          "type": "string",
-          "description": "ID del nodo padre al que se conectará la nueva rama."
-        },
+        "schema_id": { "type": "string" },
+        "parent_node_id": { "type": "string" },
         "new_node": {
           "type": "object",
           "properties": {
-            "id": { "type": "string", "description": "ID único para el nuevo nodo." },
-            "label": { "type": "string", "description": "Título o concepto del nuevo nodo." },
-            "details": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Detalles o viñetas asociadas al nuevo nodo."
-            }
+            "id": { "type": "string" },
+            "label": { "type": "string" },
+            "details": { "type": "array", "items": { "type": "string" } }
           },
           "required": ["id", "label"]
-        },
-        "page": {
-          "type": "integer",
-          "description": "Número de página donde reside el esquema."
         }
       },
       "required": ["parent_node_id", "new_node"]
@@ -132,102 +349,47 @@
   },
   {
     "name": "add_margin_note",
-    "description": "Inserta una tarjeta o post-it en el margen extendido lateral a la altura de una celda específica.",
+    "description": "Inserta una nota marginal simple en una celda alfanumérica.",
     "parameters": {
       "type": "object",
       "properties": {
-        "cell": {
-          "type": "string",
-          "description": "Celda alfanumérica de referencia (ej: 'F4', 'J2', 'B6'). Si la celda es del texto, se proyecta horizontalmente al margen."
-        },
-        "text": {
-          "type": "string",
-          "description": "Contenido de la nota (ej: 'Plazo general de prescripción: 4 años. Art. 66 LGT')."
-        },
-        "note_type": {
-          "type": "string",
-          "enum": ["warning", "info", "tip", "exam"],
-          "description": "Categoría visual: 'warning' (aviso ⚠️), 'info' (aclaración 📌), 'tip' (clave/mnemotecnia 💡) o 'exam' (pregunta de examen 👁️)."
-        },
-        "page": {
-          "type": "integer",
-          "description": "Número de página donde colocar la nota."
-        }
+        "cell": { "type": "string" },
+        "text": { "type": "string" },
+        "note_type": { "type": "string", "enum": ["warning", "info", "tip", "exam"] }
       },
       "required": ["cell", "text"]
     }
   },
   {
-    "name": "add_bracket_group",
-    "description": "Dibuja una llave vertical { que agrupa visualmente un rango vertical de texto o líneas del PDF y proyecta una etiqueta centrada en la punta hacia el margen.",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "start_cell": {
-          "type": "string",
-          "description": "Celda alfanumérica donde comienza la llave superior (ej: 'A5', 'H5')."
-        },
-        "end_cell": {
-          "type": "string",
-          "description": "Celda alfanumérica donde termina la llave inferior (ej: 'A10', 'H10')."
-        },
-        "label": {
-          "type": "string",
-          "description": "Etiqueta o concepto que engloba el grupo (ej: 'Art. 53-86: Procedimiento', 'Requisitos esenciales')."
-        },
-        "page": {
-          "type": "integer",
-          "description": "Número de página donde dibujar la llave."
-        }
-      },
-      "required": ["start_cell", "end_cell", "label"]
-    }
-  },
-  {
     "name": "add_stamp_symbol",
-    "description": "Inserta un sello o insignia rápida (alerta, examen, estrella, objetivo) en una celda alfanumérica o cabecera de párrafo.",
+    "description": "Coloca una insignia o sello mnemotécnico en una celda.",
     "parameters": {
       "type": "object",
       "properties": {
-        "cell": {
-          "type": "string",
-          "description": "Celda alfanumérica donde estampar el símbolo (ej: 'A2', 'J4', 'B8')."
-        },
-        "symbol": {
-          "type": "string",
-          "enum": ["⚠️", "👁️", "⭐", "🎯", "⚖️"],
-          "description": "Símbolo visual del sello: ⚠️ (alerta/cuidado), 👁️ (pregunta test), ⭐ (imprescindible), 🎯 (clave), ⚖️ (jurisprudencia/ley)."
-        },
-        "label": {
-          "type": "string",
-          "description": "Etiqueta breve opcional asociada al sello (ej: 'IMP', 'TEST', 'OJO')."
-        },
-        "page": {
-          "type": "integer",
-          "description": "Número de página donde estampar el símbolo."
-        }
+        "cell": { "type": "string" },
+        "symbol": { "type": "string", "enum": ["⚠️", "👁️", "⭐", "🎯", "⚖️"] },
+        "label": { "type": "string" }
       },
       "required": ["cell", "symbol"]
     }
   },
   {
-    "name": "undo_last_action",
-    "description": "Deshace la última intervención realizada sobre el documento (resaltado, esquema, nota, llave o sello).",
+    "name": "remove_highlight",
+    "description": "Elimina un resaltado existente.",
     "parameters": {
       "type": "object",
-      "properties": {}
+      "properties": {
+        "target_text": { "type": "string" }
+      }
     }
   },
   {
     "name": "toggle_active_recall",
-    "description": "Activa o desactiva el modo de repaso activo (Active Recall), ocultando las definiciones y nodos secundarios con desenfoque para autoevaluación memorística.",
+    "description": "Activa o desactiva el modo de repaso activo con desenfoque de respuestas.",
     "parameters": {
       "type": "object",
       "properties": {
-        "enabled": {
-          "type": "boolean",
-          "description": "true para activar el modo de repaso activo, false para modo lectura normal."
-        }
+        "enabled": { "type": "boolean" }
       },
       "required": ["enabled"]
     }

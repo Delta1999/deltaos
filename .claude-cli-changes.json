@@ -1,0 +1,55 @@
+{
+  "last_updated": "2026-10-23",
+  "version": "1.0",
+  "changes": {
+    "2026-10-23": {
+      "time": "14:15",
+      "author": "Claude (Cherry Studio)",
+      "files": [
+        "panel/index.html"
+      ],
+      "changes": [
+        {
+          "file": "panel/index.html",
+          "type": "fix",
+          "description": "Estabilizar orbe en modo invisible",
+          "details": "Añadido canvas t-miniorbe a la barra de estado (#tira) y lógica de renderizado permanente para modo invisible.",
+          "lines": "328, 256, 680-686"
+        }
+      ]
+    },
+    "2026-10-22": {
+      "time": "21:40",
+      "author": "Claude CLI",
+      "files": [
+        "deltaos.py",
+        "panel/index.html",
+        "panel/fondo.js"
+      ],
+      "changes": [
+        {
+          "file": "deltaos.py",
+          "type": "feat",
+          "description": "Añadir función de búsqueda en mapa con Nominatim",
+          "details": "Implementar _nominatim() y _sitios() para búsqueda de lugares en OpenStreetMap",
+          "lines": "79-100"
+        },
+        {
+          "file": "panel/index.html",
+          "type": "feat",
+          "description": "Añadir botón de mapa en la barra de herramientas",
+          "details": "Nuevo botón '🗺️ Mapa' que abre el visor con mapa personalizado",
+          "lines": "45-52"
+        },
+        {
+          "file": "panel/fondo.js",
+          "type": "feat",
+          "description": "Implementar mapa personalizado con OpenStreetMap",
+          "details": "Nuevo archivo mapa.html con visor de mapas usando Leaflet + Nominatim",
+          "lines": "nuevo archivo"
+        }
+      ]
+    }
+  },
+  "instructions": "Este archivo registra todas las modificaciones realizadas por Claude CLI mientras el usuario trabajaba en ausencia. Cuando uses Claude Code de escritorio, revisa este archivo para saber qué cambios se han hecho y por qué."
+}

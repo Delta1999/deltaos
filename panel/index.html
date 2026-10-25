@@ -44,6 +44,315 @@ window.onunhandledrejection = function(e) {
 };
 </script>
 <style>
+[data-tema="ios"] {
+  --bg: #000000;
+  --black: #000000;
+  --surface: rgba(28,28,30,.78);
+  --surface-raised: rgba(44,44,46,.82);
+  --text-display: #FFFFFF;
+  --text-primary: #F5F5F7;
+  --text-secondary: rgba(235,235,245,.62);
+  --text-disabled: rgba(235,235,245,.3);
+  --accent: #0A84FF;
+  --border: rgba(255,255,255,.09);
+  --border-visible: rgba(255,255,255,.16);
+  --interactive: #0A84FF;
+
+  --fg: var(--text-primary);
+  --dim: var(--text-secondary);
+  --faint: var(--border);
+  --red: var(--accent);
+  --line: var(--border-visible);
+
+  --dockh: 120px;
+  --dot: -apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",sans-serif;
+  --mono: "SF Mono",ui-monospace,Menlo,Monaco,monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",sans-serif;
+}
+
+[data-tema="ios"] .card {
+  background: var(--surface);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid var(--border-visible);
+  border-radius: 22px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12);
+}
+
+[data-tema="ios"] .dot {font-family: var(--sans); font-weight: 700; letter-spacing: -.02em;}
+[data-tema="ios"] #hora {font-weight: 200; letter-spacing: -.04em;}
+[data-tema="ios"] .lbl {font-family: var(--sans); font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--text-secondary); text-transform: uppercase;}
+[data-tema="ios"] .meta b {font-family: var(--sans); font-weight: 600; font-size: 13px;}
+[data-tema="ios"] .big {font-family: var(--sans); font-weight: 700; letter-spacing: -.03em;}
+[data-tema="ios"] #estado {font-family: var(--sans); font-weight: 700; letter-spacing: -.03em;}
+[data-tema="ios"] #sub {font-family: var(--sans); font-weight: 400; color: var(--text-secondary);}
+[data-tema="ios"] .row {font-family: var(--sans);}
+[data-tema="ios"] .row span:last-child {font-family: var(--mono);}
+[data-tema="ios"] .ag {font-family: var(--sans);}
+[data-tema="ios"] .ag b {font-family: var(--mono); font-weight: 600;}
+[data-tema="ios"] .vacio {font-family: var(--sans);}
+[data-tema="ios"] #uso {font-family: var(--sans);}
+[data-tema="ios"] #uso b {font-family: var(--mono);}
+[data-tema="ios"] .g b {font-family: var(--sans); font-weight: 700; font-size: 18px; letter-spacing: -.01em;}
+
+[data-tema="ios"] .bar {
+  height: 7px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,.12);
+}
+[data-tema="ios"] .bar::before {
+  border-radius: 9999px;
+  background: var(--text-display);
+  box-shadow: 0 0 8px rgba(255,255,255,.3);
+}
+[data-tema="ios"] .bar.r::before {
+  border-radius: 9999px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(10,132,255,.45);
+}
+
+[data-tema="ios"] .btn {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  border-radius: 9999px;
+  background: rgba(255,255,255,.09);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,.14);
+  color: var(--text-primary);
+  padding: 7px 16px;
+}
+[data-tema="ios"] .btn:hover {
+  background: rgba(255,255,255,.16);
+  border-color: rgba(255,255,255,.24);
+}
+[data-tema="ios"] .btn.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(10,132,255,.4);
+}
+
+[data-tema="ios"] .lamp {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+}
+[data-tema="ios"] .lamp.ok i {background: #30D158; border-color: #30D158; box-shadow: 0 0 6px rgba(48,209,88,.5);}
+[data-tema="ios"] .lamp.act i {background: #0A84FF; border-color: #0A84FF; box-shadow: 0 0 6px rgba(10,132,255,.6);}
+[data-tema="ios"] .lamp.mal i {background: #FF453A; border-color: #FF453A; box-shadow: 0 0 6px rgba(255,69,58,.6);}
+
+[data-tema="ios"] .msg {max-width: 82%;}
+[data-tema="ios"] .msg.tu .bub {
+  background: #0A84FF;
+  color: #FFFFFF;
+  border: 1px solid rgba(10,132,255,.35);
+  border-radius: 18px 18px 4px 18px;
+  box-shadow: 0 2px 10px rgba(10,132,255,.32);
+  font-size: 16px;
+  font-weight: 400;
+}
+[data-tema="ios"] .msg:not(.tu) .bub {
+  background: rgba(44,44,46,.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 18px 18px 18px 4px;
+  color: #F5F5F7;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+[data-tema="ios"] .msg small {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: .04em;
+}
+[data-tema="ios"] .msg.tu small {color: rgba(235,235,245,.5);}
+[data-tema="ios"] .msg:not(.tu) small {color: var(--accent);}
+[data-tema="ios"] .cur {background: var(--accent);}
+
+[data-tema="ios"] #p-card {
+  background: rgba(28,28,30,.88);
+  backdrop-filter: blur(32px) saturate(190%);
+  -webkit-backdrop-filter: blur(32px) saturate(190%);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 24px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14);
+}
+[data-tema="ios"] #p-card .tcab b, [data-tema="ios"] #t-card .tcab b {
+  font-family: var(--sans);
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: none;
+  letter-spacing: normal;
+}
+[data-tema="ios"] #p-card .tcab i, [data-tema="ios"] #t-card .tcab i {border-radius: 50%;}
+[data-tema="ios"] #p-card .barra {background: var(--accent); height: 3px; border-radius: 9999px;}
+
+[data-tema="ios"] body.invisible #tira {
+  background: rgba(22,22,24,.88);
+  backdrop-filter: blur(36px) saturate(190%);
+  -webkit-backdrop-filter: blur(36px) saturate(190%);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 24px;
+  margin: 6px 10px;
+  box-shadow: 0 12px 36px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.15);
+}
+[data-tema="ios"] #tira #t-hora {font-family: var(--sans); font-weight: 700; letter-spacing: -.02em;}
+[data-tema="ios"] #tira #t-hora i {color: var(--accent);}
+[data-tema="ios"] #tira #t-est {font-family: var(--sans); font-weight: 600; letter-spacing: normal;}
+[data-tema="ios"] #tira #t-sub {font-family: var(--sans); font-weight: 400;}
+[data-tema="ios"] #tira #t-vivo b {font-family: var(--sans); font-weight: 700; color: var(--accent);}
+[data-tema="ios"] #tira #t-pie {font-family: var(--sans);}
+[data-tema="ios"] #tira #t-pie b {font-family: var(--mono);}
+
+[data-tema="ios"] #pasos {
+  background: rgba(28,28,30,.88);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 18px;
+  box-shadow: 0 10px 32px rgba(0,0,0,.45);
+}
+[data-tema="ios"] .p {font-family: var(--sans);}
+[data-tema="ios"] .p span:first-child {font-family: var(--mono);}
+[data-tema="ios"] .p.cur b {color: var(--accent);}
+
+/* Interfaz principal iOS: superficie clara; el cristal queda reservado a tarjetas y overlays. */
+[data-tema="ios"] {
+  --bg: #f2f2f7;
+  --black: #f2f2f7;
+  --surface: rgba(255,255,255,.82);
+  --surface-raised: #ffffff;
+  --text-display: #1c1c1e;
+  --text-primary: #1c1c1e;
+  --text-secondary: #636366;
+  --text-disabled: #8e8e93;
+  --accent: #007aff;
+  --border: rgba(60,60,67,.18);
+  --border-visible: rgba(60,60,67,.28);
+  --interactive: #007aff;
+  --fg: #1c1c1e;
+  --dim: #636366;
+  --faint: rgba(120,120,128,.16);
+  --red: #ff3b30;
+  --line: rgba(60,60,67,.18);
+  background: var(--bg);
+  color: var(--text-primary);
+}
+[data-tema="ios"] body {background: var(--bg);}
+[data-tema="ios"] header {background: rgba(255,255,255,.62); border: 1px solid rgba(60,60,67,.12); border-radius: 22px; padding: 16px 20px; box-shadow: 0 4px 18px rgba(0,0,0,.06);}
+[data-tema="ios"] #dock-pips i {background: rgba(60,60,67,.22);}
+[data-tema="ios"] #dock-pips i.a {background: var(--accent);}
+[data-tema="ios"] #rec {color: var(--red);}
+[data-tema="ios"] #rec i {background: var(--red);}
+[data-tema="ios"] .card, [data-tema="ios"] #visor {
+  background: var(--surface); border-color: rgba(60,60,67,.16); box-shadow: 0 8px 28px rgba(0,0,0,.07), inset 0 1px 0 rgba(255,255,255,.9);
+}
+[data-tema="ios"] #hero {background: linear-gradient(145deg,#fff 0%,rgba(255,255,255,.78) 62%,#eef0f5 100%);}
+[data-tema="ios"] .meta b, [data-tema="ios"] .row span:last-child, [data-tema="ios"] .ag b, [data-tema="ios"] .g b {color: var(--text-primary);}
+[data-tema="ios"] .ok, [data-tema="ios"] .lamp.ok {color: #248a3d;}
+[data-tema="ios"] .mal, [data-tema="ios"] .lamp.mal {color: var(--red);}
+[data-tema="ios"] .lamp.ok i {background: #34c759; border-color: #34c759;}
+[data-tema="ios"] .lamp.act i {background: var(--accent); border-color: var(--accent);}
+[data-tema="ios"] .lamp.mal i {background: var(--red); border-color: var(--red);}
+[data-tema="ios"] .mando {border-color: var(--border);}
+[data-tema="ios"] .fr {color: var(--text-secondary);}
+[data-tema="ios"] .fr:last-child {color: var(--text-primary);}
+[data-tema="ios"] .msg.tu .bub {background: var(--accent); border-color: rgba(0,122,255,.28); color: #fff; box-shadow: 0 2px 8px rgba(0,122,255,.2);}
+[data-tema="ios"] .msg:not(.tu) .bub {background: rgba(255,255,255,.9); border-color: rgba(60,60,67,.16); color: var(--text-primary); box-shadow: 0 2px 8px rgba(0,0,0,.07); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);}
+[data-tema="ios"] .msg small {color: var(--accent);}
+[data-tema="ios"] .msg.tu small {color: var(--text-secondary);}
+[data-tema="ios"] .bar {background: rgba(120,120,128,.16);}
+[data-tema="ios"] .bar::before {background: var(--accent); box-shadow: none;}
+[data-tema="ios"] .bar.r::before {background: var(--red); box-shadow: none;}
+[data-tema="ios"] #pasos {background: rgba(255,255,255,.94); border-color: var(--border-visible); box-shadow: 0 10px 30px rgba(0,0,0,.12);}
+[data-tema="ios"] #visor {background: #fff;}
+[data-tema="ios"] .vbar {border-color: var(--border);}
+[data-tema="ios"] #vest {color: var(--text-primary);}
+[data-tema="ios"] #chuleta {background: rgba(242,242,247,.96); color: var(--text-primary);}
+[data-tema="ios"] #chuleta h2 {color: var(--text-primary);}
+[data-tema="ios"] #chuleta section {border-color: var(--border);}
+[data-tema="ios"] #chuleta li {color: var(--text-primary);}
+[data-tema="ios"] #chuleta li i {color: var(--text-secondary);}
+[data-tema="ios"] #reset {color: var(--text-primary); border-color: var(--border-visible);}
+[data-tema="ios"] #pegar {background: rgba(28,28,30,.28);}
+[data-tema="ios"] #pegar .card, [data-tema="ios"] #p-card {background: rgba(255,255,255,.94); border-color: var(--border-visible); box-shadow: 0 16px 42px rgba(0,0,0,.16);}
+[data-tema="ios"] #ptxt {background: #f2f2f7; color: var(--text-primary); border-color: var(--border-visible);}
+[data-tema="ios"] #pinfo {color: var(--text-secondary);}
+[data-tema="ios"] #tira {color: var(--text-primary);}
+[data-tema="ios"] :is(.btn,#lapiz,#miniorbe,#p-card-cerrar,#reset):focus-visible {outline: 3px solid rgba(0,122,255,.45); outline-offset: 3px;}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  [data-tema="ios"] header, [data-tema="ios"] .card, [data-tema="ios"] #visor, [data-tema="ios"] #p-card, [data-tema="ios"] #pegar .card, [data-tema="ios"] #pasos {backdrop-filter: none; -webkit-backdrop-filter: none; background: #fff;}
+  [data-tema="ios"] #pegar {background: rgba(28,28,30,.5);}
+}
+
+/* Salvapantallas iOS: fondo claro, contenido limpio y cristal solo en capas funcionales. */
+[data-tema="ios"] #fondo {
+  --ios-bg: #f2f2f7;
+  --ios-elevated: #ffffff;
+  --ios-label: #1c1c1e;
+  --ios-secondary: #636366;
+  --ios-tertiary: #8e8e93;
+  --ios-line: rgba(60,60,67,.18);
+  --ios-fill: rgba(120,120,128,.16);
+  --ios-blue: #007aff;
+  --ios-red: #ff3b30;
+  --ios-green: #34c759;
+  background: var(--ios-bg);
+  color: var(--ios-label);
+  filter: none;
+}
+[data-tema="ios"] #fondo.noche {filter: brightness(.86);}
+[data-tema="ios"] #fondo>div {animation: none;}
+[data-tema="ios"] #f-reloj {background: linear-gradient(145deg,#ffffff 0%,#f2f2f7 58%,#e8e8ed 100%);}
+[data-tema="ios"] #fr-hora {
+  font-family: var(--sans); font-weight: 200; letter-spacing: -.065em; color: var(--ios-label);
+  text-shadow: 0 1px 0 rgba(255,255,255,.8);
+}
+[data-tema="ios"] #fr-fecha {font-family: var(--sans); font-weight: 600; color: var(--ios-secondary);}
+[data-tema="ios"] #fr-pie {font-family: var(--sans); font-size: 14px; letter-spacing: normal; color: var(--ios-tertiary);}
+[data-tema="ios"] #f-blob {background: radial-gradient(circle at 50% 28%,#fff 0%,#f2f2f7 48%,#e5e5ea 100%);}
+[data-tema="ios"] #fb-hora {font-family: var(--sans); font-weight: 300; letter-spacing: .16em; color: rgba(28,28,30,.82);}
+[data-tema="ios"] #fb-hora i {color: var(--ios-blue);}
+[data-tema="ios"] #fb-chat {mask-image: linear-gradient(to bottom,transparent,#000 14%); -webkit-mask-image: linear-gradient(to bottom,transparent,#000 14%);}
+[data-tema="ios"] #fb-chat .msg.tu .bub {background: var(--ios-blue); border-color: rgba(0,122,255,.3); box-shadow: 0 2px 8px rgba(0,122,255,.2);}
+[data-tema="ios"] #fb-chat .msg:not(.tu) .bub {background: rgba(255,255,255,.82); border-color: rgba(60,60,67,.16); color: var(--ios-label); box-shadow: 0 2px 8px rgba(0,0,0,.08); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);}
+[data-tema="ios"] #fb-chat .msg small {font-family: var(--sans); color: var(--ios-secondary);}
+[data-tema="ios"] #fb-chat .msg:not(.tu) small {color: var(--ios-blue);}
+[data-tema="ios"] #f-tiempo {background: linear-gradient(160deg,#f2f2f7,#e8e8ed);}
+[data-tema="ios"] #ft-desc, [data-tema="ios"] #ft-pie, [data-tema="ios"] #ft-datos span, [data-tema="ios"] #ft-dias span {font-family: var(--sans); letter-spacing: normal; color: var(--ios-secondary);}
+[data-tema="ios"] #ft-temp, [data-tema="ios"] #ft-datos b, [data-tema="ios"] #ft-dias b {font-family: var(--sans); font-weight: 700; letter-spacing: -.04em; color: var(--ios-label);}
+[data-tema="ios"] #ft-datos div, [data-tema="ios"] #ft-dias div, [data-tema="ios"] #ft-pie {border-color: var(--ios-line);}
+[data-tema="ios"] #ft-datos b i, [data-tema="ios"] #ft-dias b i {font-family: var(--sans); color: var(--ios-tertiary);}
+[data-tema="ios"] #f-sistema {background: linear-gradient(160deg,#f2f2f7,#e8e8ed);}
+[data-tema="ios"] #fs-top b {font-family: var(--sans); font-weight: 700; color: var(--ios-label);}
+[data-tema="ios"] #fs-top b.r {color: var(--ios-red);}
+[data-tema="ios"] #fs-pie, [data-tema="ios"] #fs-tabla .h {font-family: var(--sans); letter-spacing: normal; color: var(--ios-secondary);}
+[data-tema="ios"] #fs-tabla {font-family: var(--sans); color: var(--ios-label);}
+[data-tema="ios"] #fs-tabla .no {color: var(--ios-secondary);}
+[data-tema="ios"] #fs-tabla .si {color: var(--ios-blue);}
+[data-tema="ios"] #fs-tabla .bar {background: var(--ios-fill);}
+[data-tema="ios"] #fs-tabla .bar::before {background: var(--ios-blue);}
+[data-tema="ios"] #fi-txt, [data-tema="ios"] #fi-full {color: var(--ios-label);}
+[data-tema="ios"] #fi-info, [data-tema="ios"] #fi-full .row span:first-child {color: var(--ios-secondary);}
+[data-tema="ios"] #fi-full section {border-color: var(--ios-line);}
+[data-tema="ios"] #fi-full .lbl {color: var(--ios-blue);}
+[data-tema="ios"] .btn:focus-visible, [data-tema="ios"] #miniorbe:focus-visible, [data-tema="ios"] #hora:focus-visible {outline: 3px solid rgba(0,122,255,.65); outline-offset: 3px;}
+@media (prefers-reduced-motion: reduce) {
+  [data-tema="ios"] #fondo *, [data-tema="ios"] #fondo *::before, [data-tema="ios"] #fondo *::after {animation-duration: .01ms!important; animation-iteration-count: 1!important; transition-duration: .01ms!important;}
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  [data-tema="ios"] .card, [data-tema="ios"] .btn, [data-tema="ios"] #pasos, [data-tema="ios"] #fb-chat .msg:not(.tu) .bub {backdrop-filter: none; -webkit-backdrop-filter: none; background: #fff; border-color: rgba(28,28,30,.35);}
+  [data-tema="ios"] #fb-chat .msg.tu .bub {background: #005fcc;}
+}
+
 @font-face{font-family:Doto;font-weight:400;src:url(/fonts/doto-400.ttf)}
 @font-face{font-family:Doto;font-weight:900;src:url(/fonts/doto-900.ttf)}
 @font-face{font-family:"Space Grotesk";font-weight:300;src:url(/fonts/spacegrotesk-300.ttf)}

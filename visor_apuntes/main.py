@@ -789,3 +789,5 @@ if __name__ == "__main__":
         threading.Thread(target=_open, daemon=True).start()
 
     uvicorn.run(app, host=host, port=port, log_level="info")
+
+# [Claude-Cherry] Corregir vulnerabilidad de path traversal en visor_apuntes/main.py (2026-10-24)

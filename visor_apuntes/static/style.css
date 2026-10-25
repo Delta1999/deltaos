@@ -1,45 +1,54 @@
+/* Estilo DeltaOS para Visor de Apuntes */
 :root {
-  --bg-app: #0f172a;
-  --bg-surface: #1e293b;
-  --bg-surface-hover: #334155;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --border-color: #334155;
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --accent: #8b5cf6;
-  --accent-hover: #7c3aed;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  
-  --pdf-bg: #f1f5f9;
+  --bg-app: #000000;
+  --bg-surface: #111111;
+  --bg-surface-hover: #1A1A1A;
+  --text-main: #E8E8E8;
+  --text-secondary: #999999;
+  --text-disabled: #666666;
+  --accent: #D71921;
+  --border: #222222;
+  --border-visible: #333333;
+  --interactive: #5B9BF6;
+  --pdf-bg: #0F172A;
   --page-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.15);
-  --margin-line: #cbd5e1;
+  --margin-line: #CBD5E1;
+  --dot: "Doto", "Space Mono", monospace;
+  --mono: "Space Mono", ui-monospace, monospace;
+  --sans: "Space Grotesk", ui-sans-serif, sans-serif;
+
+  /* Paleta de colores para subrayado */
+  --hl-amarillo: #fef08a;
+  --hl-naranja: #fed7aa;
+  --hl-verde: #bbf7d0;
+  --hl-azul: #bae6fd;
+  --hl-rosa: #fbcfe8;
+  --hl-morado: #e9d5ff;
+  --hl-gris: #e5e7eb;
+  --hl-rojo: #fecaca;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
-  padding: 0;
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  background-color: var(--pdf-bg);
-  color: #1e293b;
+  font-family: var(--sans);
+  background-color: var(--bg-app);
+  color: var(--text-main);
   height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* Header & Barra Superior */
+/* Cabecera y Barra Superior */
 .app-header {
   height: 60px;
   background-color: var(--bg-surface);
   color: var(--text-main);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-visible);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -63,8 +72,22 @@ body {
   letter-spacing: -0.02em;
 }
 
-.brand-icon {
-  font-size: 18px;
+.brand-mark {
+  width: 24px;
+  height: 24px;
+  background-color: var(--accent);
+  border-radius: 4px;
+}
+
+.brand-title {
+  font-family: var(--dot);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.brand-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .doc-selector-wrap {
@@ -72,13 +95,13 @@ body {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
-.doc-selector-wrap select {
+doc-selector-wrap select {
   background: var(--bg-app);
   color: var(--text-main);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-visible);
   padding: 5px 10px;
   border-radius: 6px;
   font-size: 13px;
@@ -99,13 +122,18 @@ body {
   background: rgba(15, 23, 42, 0.6);
   padding: 6px 14px;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 12px;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--text-muted);
+  font-family: var(--mono);
+  color: var(--text-secondary);
 }
 
-.context-hud strong {
+.hud-sep {
+  width: 1px;
+  height: 16px;
+  background-color: var(--border-visible);
+}
+
+.hud-item strong {
   color: var(--text-main);
 }
 
@@ -161,7 +189,7 @@ body {
 
 .btn-secondary {
   background: var(--bg-surface-hover);
-  border-color: var(--border-color);
+  border-color: var(--border-visible);
 }
 
 .btn-secondary.active {
@@ -170,17 +198,63 @@ body {
   color: white;
 }
 
-.btn-primary {
-  background: var(--primary);
-  color: white;
-}
-.btn-primary:hover { background: var(--primary-hover); }
-
-.btn-accent {
+.btn.on {
   background: var(--accent);
+  border-color: var(--accent);
   color: white;
 }
-.btn-accent:hover { background: var(--accent-hover); }
+
+/* Barra de Herramientas y Paleta de Subrayado */
+.hl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-surface-hover);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-visible);
+}
+
+.hl-palette {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hl-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  outline: none;
+}
+
+.hl-swatch:hover {
+  transform: scale(1.22);
+}
+
+.hl-swatch.active {
+  transform: scale(1.3);
+  border-color: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.75);
+}
+
+body.hl-pen-mode .textLayer {
+  cursor: text;
+}
+
+body.hl-eraser-mode .highlight-rect {
+  cursor: pointer !important;
+}
+
+body.hl-eraser-mode .highlight-rect:hover {
+  opacity: 0.35 !important;
+  stroke: #ff4444;
+  stroke-width: 1.5;
+}
 
 .control-group, .zoom-controls, .action-buttons {
   display: flex;
@@ -189,11 +263,11 @@ body {
 }
 
 #zoom-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--mono);
   font-size: 12px;
   min-width: 44px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 /* Estado WebSocket */
@@ -204,9 +278,9 @@ body {
   background: var(--bg-app);
   padding: 4px 10px;
   border-radius: 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-visible);
   font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--mono);
 }
 
 .status-dot {
@@ -299,7 +373,7 @@ body {
   color: #e2e8f0;
   padding: 5px 12px;
   border-radius: 6px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--mono);
   font-size: 11.5px;
   outline: none;
 }
@@ -333,22 +407,42 @@ body {
   overflow: hidden;
 }
 
-/* Línea divisoria del margen extendido */
+/* Líneas divisorias de márgenes extendidos (Izquierdo y Derecho) */
 .margin-divider {
   position: absolute;
   top: 0;
   bottom: 0;
-  border-left: 1.5px dashed var(--margin-line);
   z-index: 2;
   pointer-events: none;
 }
 
-.margin-divider::after {
-  content: 'MARGEN EXTENDIDO';
+.margin-divider-left {
+  border-right: 1.5px dashed var(--margin-line);
+}
+
+.margin-divider-left::after {
+  content: 'MARGEN IZQ. (SELLOS / LLAVES)';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  opacity: 0.6;
+}
+
+.margin-divider-right {
+  border-left: 1.5px dashed var(--margin-line);
+}
+
+.margin-divider-right::after {
+  content: 'MARGEN DCH. (ESTUDIO / DAGRE)';
   position: absolute;
   top: 10px;
   left: 10px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -418,10 +512,11 @@ body {
   stroke: #cbd5e1;
   stroke-width: 0.6;
   stroke-dasharray: 2 4;
+  vector-effect: non-scaling-stroke;
 }
 
 .grid-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--mono);
   font-size: 10px;
   font-weight: 500;
   fill: #94a3b8;
@@ -528,7 +623,7 @@ body {
 }
 
 .node-label {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--sans);
   font-size: 11px;
   font-weight: 600;
   fill: #0f172a;
@@ -539,7 +634,7 @@ body {
 }
 
 .node-detail-line {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--sans);
   font-size: 9.5px;
   fill: #475569;
 }
@@ -561,7 +656,6 @@ body {
 .active-recall-enabled .schema-node:not(.root-node):hover .node-detail-line {
   filter: none;
 }
-
 
 /* Llaves Verticales de Agrupación (Bracket Groups) */
 .brackets-layer {
@@ -598,7 +692,7 @@ body {
 }
 
 .bracket-text {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--sans);
   font-size: 9.5px;
   font-weight: 600;
   fill: #1e40af;
@@ -617,40 +711,141 @@ body {
 }
 
 .stamp-group:hover {
-  transform: scale(1.12);
+  transform: scale(1.05);
 }
 
-.stamp-badge {
-  rx: 6px;
-  ry: 6px;
+.stamp-circle {
   fill: #ffffff;
-  stroke: #f59e0b;
-  stroke-width: 1.4;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.12));
+  stroke: #3b82f6;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
-.stamp-badge.type-warning { stroke: #f59e0b; fill: #fffbeb; }
-.stamp-badge.type-exam { stroke: #ef4444; fill: #fef2f2; }
-.stamp-badge.type-star { stroke: #eab308; fill: #fefce8; }
-.stamp-badge.type-target { stroke: #8b5cf6; fill: #f5f3ff; }
-.stamp-badge.type-law { stroke: #0284c7; fill: #f0f9ff; }
-
-.stamp-symbol {
-  font-size: 13px;
+.stamp-icon {
+  font-size: 12px;
+  font-weight: bold;
+  fill: #3b82f6;
   user-select: none;
 }
 
-.stamp-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 8px;
+/* Controles de Ventana */
+.window-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.win-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.win-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-main);
+}
+
+.win-close:hover {
+  background: #D71921;
+  color: white;
+}
+
+/* Estado de Carga */
+.loading-state {
+  color: var(--text-secondary);
+  padding: 40px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Etiquetas y Tipografía */
+.lbl {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.dot {
+  font-family: var(--dot);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Nuevos estilos visuales: subrayado, tachado, recuadro, cuadrícula adaptada y conectores
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.highlight-underline {
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  cursor: pointer;
+  transition: stroke-width 0.15s ease;
+}
+.highlight-underline:hover {
+  stroke-width: 4.5;
+}
+
+.highlight-strikethrough {
+  stroke-width: 2.2;
+  stroke-linecap: square;
+  opacity: 0.85;
+  cursor: pointer;
+  transition: stroke-width 0.15s ease;
+}
+.highlight-strikethrough:hover {
+  stroke-width: 3.8;
+}
+
+.highlight-box {
+  fill: rgba(37, 99, 235, 0.05);
+  stroke-width: 1.8;
+  rx: 3px;
+  ry: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.highlight-box:hover {
+  fill: rgba(37, 99, 235, 0.14);
+  stroke-width: 2.4;
+}
+
+.note-connector-line {
+  stroke-dasharray: 4 3;
+  fill: none;
+  pointer-events: none;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.grid-line-row {
+  stroke: #cbd5e1;
+  stroke-width: 0.55;
+  stroke-dasharray: 2 4;
+}
+
+.grid-gutter-num {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  fill: #94a3b8;
+  user-select: none;
+  pointer-events: none;
+}
+
+.note-term-emphasis {
+  color: #dc2626;
   font-weight: 700;
-  fill: #475569;
-  letter-spacing: 0.04em;
-  user-select: none;
-}
-
-/* Nota de Margen tipo Examen */
-.note-box.type-exam {
-  fill: #fef2f2;
-  stroke: #ef4444;
+  background: rgba(254, 202, 202, 0.45);
+  padding: 1px 3px;
+  border-radius: 2px;
 }

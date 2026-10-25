@@ -29,6 +29,58 @@
               290
             ]
           ]
+        },
+        {
+          "id": "hl_1792834359218",
+          "text": "el procedimiento administrativo común",
+          "color": "#fef08a",
+          "rects": [
+            [
+              6.720000000000001,
+              15.824000000000002,
+              577.9200000000001,
+              25.424
+            ]
+          ]
+        },
+        {
+          "id": "hl_1792839475893",
+          "text": "iniciarse de oficio",
+          "color": "#fef08a",
+          "rects": [
+            [
+              6.720000000000001,
+              25.088,
+              561.12,
+              34.688
+            ]
+          ]
+        },
+        {
+          "id": "hl_1792839551148",
+          "text": "iniciarse de oficio",
+          "color": "#fef08a",
+          "rects": [
+            [
+              6.720000000000001,
+              25.088,
+              561.12,
+              34.688
+            ]
+          ]
+        },
+        {
+          "id": "hl_1792839600507",
+          "text": "iniciarse de oficio",
+          "color": "#fef08a",
+          "rects": [
+            [
+              6.720000000000001,
+              25.088,
+              561.12,
+              34.688
+            ]
+          ]
         }
       ],
       "annotations": [
@@ -37,8 +89,8 @@
           "cell": "F4",
           "type": "warning",
           "text": "Plazo general prescripción: 4 años (Art. 66 LGT)",
-          "x": 610,
-          "y": 240,
+          "x": 830,
+          "y": 150,
           "width": 250,
           "height": 62
         },
@@ -47,10 +99,52 @@
           "cell": "F6",
           "type": "tip",
           "text": "Regla general: Estimatorio salvo norma legal o UE",
-          "x": 610,
-          "y": 320,
+          "x": 830,
+          "y": 250,
           "width": 250,
           "height": 62
+        },
+        {
+          "id": "test_note_1",
+          "type": "tip",
+          "text": "Nota marginal de prueba automatizada",
+          "cell": "A1",
+          "x": 830,
+          "y": 140,
+          "width": 240,
+          "height": 60,
+          "connector_to": {
+            "x": 200,
+            "y": 140
+          }
+        },
+        {
+          "id": "test_note_1",
+          "type": "tip",
+          "text": "Nota marginal de prueba automatizada",
+          "cell": "A1",
+          "x": 830,
+          "y": 140,
+          "width": 240,
+          "height": 60,
+          "connector_to": {
+            "x": 200,
+            "y": 140
+          }
+        },
+        {
+          "id": "test_note_1",
+          "type": "tip",
+          "text": "Nota marginal de prueba automatizada",
+          "cell": "A1",
+          "x": 830,
+          "y": 140,
+          "width": 240,
+          "height": 60,
+          "connector_to": {
+            "x": 200,
+            "y": 140
+          }
         }
       ],
       "brackets": [
@@ -142,9 +236,466 @@
               "from": "fases",
               "to": "finalizacion"
             }
+          ],
+          "layout_nodes": [
+            {
+              "id": "fases",
+              "label": "Fases Proc. Admin.",
+              "details": [
+                "Ley 39/2015",
+                "4 fases clave"
+              ],
+              "isRoot": true,
+              "x": 443,
+              "y": 10,
+              "width": 130,
+              "height": 64
+            },
+            {
+              "id": "iniciacion",
+              "label": "1. Iniciación",
+              "details": [
+                "De oficio / A solicitud"
+              ],
+              "isRoot": false,
+              "x": 210,
+              "y": 109,
+              "width": 130,
+              "height": 48
+            },
+            {
+              "id": "ordenacion",
+              "label": "2. Ordenación",
+              "details": [
+                "Celeridad e impulso"
+              ],
+              "isRoot": false,
+              "x": 365,
+              "y": 109,
+              "width": 130,
+              "height": 48
+            },
+            {
+              "id": "instruccion",
+              "label": "3. Instrucción",
+              "details": [
+                "Alegaciones, prueba"
+              ],
+              "isRoot": false,
+              "x": 520,
+              "y": 109,
+              "width": 130,
+              "height": 48
+            },
+            {
+              "id": "finalizacion",
+              "label": "4. Finalización",
+              "details": [
+                "Resolución, desistimiento"
+              ],
+              "isRoot": false,
+              "x": 675,
+              "y": 109,
+              "width": 130,
+              "height": 48
+            }
+          ],
+          "layout_edges": [
+            {
+              "from": "fases",
+              "to": "iniciacion",
+              "points": [
+                {
+                  "x": 443,
+                  "y": 56
+                },
+                {
+                  "x": 275,
+                  "y": 92
+                },
+                {
+                  "x": 275,
+                  "y": 109
+                }
+              ]
+            },
+            {
+              "from": "fases",
+              "to": "ordenacion",
+              "points": [
+                {
+                  "x": 457,
+                  "y": 74
+                },
+                {
+                  "x": 430,
+                  "y": 92
+                },
+                {
+                  "x": 430,
+                  "y": 109
+                }
+              ]
+            },
+            {
+              "from": "fases",
+              "to": "instruccion",
+              "points": [
+                {
+                  "x": 558,
+                  "y": 74
+                },
+                {
+                  "x": 585,
+                  "y": 92
+                },
+                {
+                  "x": 585,
+                  "y": 109
+                }
+              ]
+            },
+            {
+              "from": "fases",
+              "to": "finalizacion",
+              "points": [
+                {
+                  "x": 573,
+                  "y": 56
+                },
+                {
+                  "x": 740,
+                  "y": 92
+                },
+                {
+                  "x": 740,
+                  "y": 109
+                }
+              ]
+            }
           ]
         }
       ]
+    },
+    "2": {
+      "highlights": [
+        {
+          "id": "hl_1792851517878",
+          "text": "fases del procedimiento administrativo",
+          "color": "#fecaca",
+          "rects": [
+            [
+              240,
+              167,
+              460,
+              185
+            ]
+          ]
+        }
+      ],
+      "annotations": [
+        {
+          "id": "note_1792851522909",
+          "cell": "C4",
+          "type": "info",
+          "text": "Composición y funciones",
+          "width": 250,
+          "height": 62,
+          "x": 100,
+          "y": 150
+        }
+      ],
+      "schemas": [
+        {
+          "id": "sch_1792851667",
+          "anchor_cell": "E4",
+          "orientation": "TB",
+          "nodes": [
+            {
+              "id": "root",
+              "label": "Composición y funciones",
+              "details": []
+            },
+            {
+              "id": "n_1",
+              "label": "Composición y funciones",
+              "details": []
+            },
+            {
+              "id": "n_2",
+              "label": "Cortes Generales",
+              "details": []
+            },
+            {
+              "id": "n_3",
+              "label": "Pueblo Español",
+              "details": []
+            },
+            {
+              "id": "n_4",
+              "label": "Diputado",
+              "details": []
+            },
+            {
+              "id": "n_5",
+              "label": "Senado",
+              "details": []
+            },
+            {
+              "id": "n_6",
+              "label": "potestad legislativa del Estado",
+              "details": []
+            },
+            {
+              "id": "n_7",
+              "label": "inviolables",
+              "details": []
+            }
+          ],
+          "edges": [
+            {
+              "from": "root",
+              "to": "n_1"
+            },
+            {
+              "from": "root",
+              "to": "n_2"
+            },
+            {
+              "from": "root",
+              "to": "n_3"
+            },
+            {
+              "from": "root",
+              "to": "n_4"
+            },
+            {
+              "from": "root",
+              "to": "n_5"
+            },
+            {
+              "from": "root",
+              "to": "n_6"
+            },
+            {
+              "from": "root",
+              "to": "n_7"
+            }
+          ],
+          "layout_nodes": [
+            {
+              "id": "root",
+              "label": "Composición y funciones",
+              "details": [],
+              "isRoot": true,
+              "x": 676,
+              "y": 160,
+              "width": 153,
+              "height": 32
+            },
+            {
+              "id": "n_1",
+              "label": "Composición y funciones",
+              "details": [],
+              "isRoot": false,
+              "x": 210,
+              "y": 227,
+              "width": 143,
+              "height": 32
+            },
+            {
+              "id": "n_2",
+              "label": "Cortes Generales",
+              "details": [],
+              "isRoot": false,
+              "x": 378,
+              "y": 227,
+              "width": 130,
+              "height": 32
+            },
+            {
+              "id": "n_3",
+              "label": "Pueblo Español",
+              "details": [],
+              "isRoot": false,
+              "x": 533,
+              "y": 227,
+              "width": 130,
+              "height": 32
+            },
+            {
+              "id": "n_4",
+              "label": "Diputado",
+              "details": [],
+              "isRoot": false,
+              "x": 688,
+              "y": 227,
+              "width": 130,
+              "height": 32
+            },
+            {
+              "id": "n_5",
+              "label": "Senado",
+              "details": [],
+              "isRoot": false,
+              "x": 843,
+              "y": 227,
+              "width": 130,
+              "height": 32
+            },
+            {
+              "id": "n_6",
+              "label": "potestad legislativa del Estado",
+              "details": [],
+              "isRoot": false,
+              "x": 998,
+              "y": 227,
+              "width": 167,
+              "height": 32
+            },
+            {
+              "id": "n_7",
+              "label": "inviolables",
+              "details": [],
+              "isRoot": false,
+              "x": 1190,
+              "y": 227,
+              "width": 130,
+              "height": 32
+            }
+          ],
+          "layout_edges": [
+            {
+              "from": "root",
+              "to": "n_1",
+              "points": [
+                {
+                  "x": 676,
+                  "y": 181
+                },
+                {
+                  "x": 281,
+                  "y": 210
+                },
+                {
+                  "x": 281,
+                  "y": 227
+                }
+              ]
+            },
+            {
+              "from": "root",
+              "to": "n_2",
+              "points": [
+                {
+                  "x": 676,
+                  "y": 184
+                },
+                {
+                  "x": 443,
+                  "y": 210
+                },
+                {
+                  "x": 443,
+                  "y": 227
+                }
+              ]
+            },
+            {
+              "from": "root",
+              "to": "n_3",
+              "points": [
+                {
+                  "x": 679,
+                  "y": 192
+                },
+                {
+                  "x": 598,
+                  "y": 210
+                },
+                {
+                  "x": 598,
+                  "y": 227
+                }
+              ]
+            },
+            {
+              "from": "root",
+              "to": "n_4",
+              "points": [
+                {
+                  "x": 753,
+                  "y": 192
+                },
+                {
+                  "x": 753,
+                  "y": 210
+                },
+                {
+                  "x": 753,
+                  "y": 227
+                }
+              ]
+            },
+            {
+              "from": "root",
+              "to": "n_5",
+              "points": [
+                {
+                  "x": 827,
+                  "y": 192
+                },
+                {
+                  "x": 908,
+                  "y": 210
+                },
+                {
+                  "x": 908,
+                  "y": 227
+                }
+              ]
+            },
+            {
+              "from": "root",
+              "to": "n_6",
+              "points": [
+                {
+                  "x": 829,
+                  "y": 184
+                },
+                {
+                  "x": 1081,
+                  "y": 210
+                },
+                {
+                  "x": 1081,
+                  "y": 227
+                }
+              ]
+            },
+            {
+              "from": "root",
+              "to": "n_7",
+              "points": [
+                {
+                  "x": 829,
+                  "y": 181
+                },
+                {
+                  "x": 1255,
+                  "y": 210
+                },
+                {
+                  "x": 1255,
+                  "y": 227
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "brackets": [],
+      "stamps": []
     }
   }
 }

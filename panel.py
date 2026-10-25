@@ -539,7 +539,9 @@ async def _abrir_tiempo():
     if (lugar := await posicion()):
         lat, lon = lugar.split(",")
         ciudad = (S["clima"] or {}).get("ciudad", "")
-        q = "?" + urllib.parse.urlencode({"lat": lat, "lon": lon, "city": ciudad})
+        q = "?" + urllib.parse.urlencode({"lat": lat, "lon": lon, "city": ciudad, "tema": S.get("tema", "nothing"), "night": "1" if S.get("tema", "nothing") == "nothing" else "0"})
+    else:
+        q = "?" + urllib.parse.urlencode({"tema": S.get("tema", "nothing"), "night": "1" if S.get("tema", "nothing") == "nothing" else "0"})
     S["visor"] = {"url": f"http://127.0.0.1:7875/{q}", "titulo": "Nothing Weather", "id": time.time()}
 
 

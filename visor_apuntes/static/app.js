@@ -16,8 +16,36 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 // Constantes espaciales en Puntos PDF (72 pt/pulgada)
 const MARGIN_LEFT_PT = 220;    // Ancho del margen lateral izquierdo (sellos, marcas, llaves)
 const MARGIN_RIGHT_PT = 380;   // Ancho del margen lateral derecho (esquemas Dagre, notas de estudio)
-const CELL_WIDTH = 50;         // Ancho de celda alfanumérica
-const CELL_HEIGHT = 50;        // Alto de celda alfanumérica
+let CELL_WIDTH = 55;          // Ancho de columna alfanumérica
+let CELL_HEIGHT = 20;         // Alto base adaptado a la separación de líneas del texto
+
+// Mapeo amigable de nombres de colores a valores HEX
+const COLOR_MAP = {
+  'amarillo': '#fef08a',
+  'yellow': '#fef08a',
+  'verde': '#bbf7d0',
+  'green': '#bbf7d0',
+  'azul': '#bae6fd',
+  'blue': '#bae6fd',
+  'rojo': '#ef4444',
+  'red': '#ef4444',
+  'rosa': '#fbcfe8',
+  'pink': '#fbcfe8',
+  'naranja': '#fed7aa',
+  'orange': '#fed7aa',
+  'morado': '#e9d5ff',
+  'purple': '#e9d5ff',
+  'turquesa': '#a5f3fc',
+  'cyan': '#a5f3fc',
+  'gris': '#94a3b8',
+  'gray': '#94a3b8'
+};
+
+function resolveColor(col, defaultColor = '#fef08a') {
+  if (!col) return defaultColor;
+  const lower = String(col).trim().toLowerCase();
+  return COLOR_MAP[lower] || col;
+}
 
 // Estado reactivo global
 const state = {
@@ -43,8 +71,13 @@ const state = {
   },
   historyStack: [],
   ws: null,
-  pageViewports: {} // Metadatos de dimensiones por página
+  pageViewports: {},  // Metadatos de dimensiones por página
+  pageLineSpacing: {} // Separación exacta de líneas detectada por página
 };
+
+function getPageRowHeight(pageNum = 1) {
+  return state.pageLineSpacing[pageNum] || CELL_HEIGHT;
+}
 
 // Canvas auxiliar para medición exacta de texto
 const measureCanvas = document.createElement('canvas');
@@ -56,15 +89,15 @@ function measureText(text, font = '11px "Plus Jakarta Sans"') {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sistema de Coordenadas y Conversión de Celdas
+// Sistema de Coordenadas y Conversión de Celdas (Adaptado a Líneas)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Convierte un nombre de celda alfanumérica (ej: "A1", "F4", "J2", "R5") a coordenadas (X, Y) en puntos.
+ * Convierte un nombre de celda alfanumérica (ej: "A1", "F4", "J2", "R16") a coordenadas (X, Y) en puntos.
  * Si isMarginTarget es true y la columna cae dentro del texto original del PDF,
  * auto-proyecta la X al comienzo del margen derecho manteniendo la fila Y.
  */
-function cellToCoords(cellStr, pdfPtWidth = 595, isMarginTarget = false) {
+function cellToCoords(cellStr, pdfPtWidth = 595, isMarginTarget = false, pageNum = 1) {
   const rightMarginStart = MARGIN_LEFT_PT + pdfPtWidth;
   if (!cellStr || typeof cellStr !== 'string') {
     return { x: isMarginTarget ? rightMarginStart + 15 : 20, y: 20 };
@@ -76,6 +109,7 @@ function cellToCoords(cellStr, pdfPtWidth = 595, isMarginTarget = false) {
 
   const letters = match[1];
   const row = Math.max(1, parseInt(match[2], 10)) - 1;
+  const rowH = getPageRowHeight(pageNum);
 
   // Convertir columna alfanumérica (A=0, B=1 ... Z=25, AA=26)
   let col = 0;
@@ -85,7 +119,7 @@ function cellToCoords(cellStr, pdfPtWidth = 595, isMarginTarget = false) {
   col -= 1;
 
   let x = col * CELL_WIDTH;
-  const y = row * CELL_HEIGHT;
+  const y = Math.round(row * rowH);
 
   if (isMarginTarget && x < rightMarginStart && x >= MARGIN_LEFT_PT) {
     x = rightMarginStart + 15;
@@ -95,11 +129,13 @@ function cellToCoords(cellStr, pdfPtWidth = 595, isMarginTarget = false) {
 }
 
 /**
- * Convierte coordenadas (X, Y) en puntos PDF a su etiqueta alfanumérica correspondiente.
+ * Convierte coordenadas (X, Y) en puntos PDF a su etiqueta alfanumérica correspondiente,
+ * adaptada a la altura de línea de texto de la página.
  */
-function coordsToCell(x, y) {
+function coordsToCell(x, y, pageNum = 1) {
+  const rowH = getPageRowHeight(pageNum);
   const col = Math.max(0, Math.floor(x / CELL_WIDTH));
-  const row = Math.max(0, Math.floor(y / CELL_HEIGHT)) + 1;
+  const row = Math.max(0, Math.floor(y / rowH)) + 1;
 
   let letters = '';
   let tempCol = col + 1;
@@ -218,33 +254,9 @@ async function loadDocument(docId) {
       document.body.appendChild(progressBadge);
     }
 
-    // 3. Renderizar páginas de forma progresiva sin bloquear la interfaz
-    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-      if (renderToken !== currentRenderToken) {
-        if (progressBadge) progressBadge.remove();
-        return;
-      }
-      await renderPage(pageNum);
-      if (progressBadge) {
-        progressBadge.textContent = `Páginas: ${pageNum} de ${numPages}...`;
-      }
-      // Ceder el hilo de ejecución para mantener fluidez e interactividad
-      if (pageNum < numPages) {
-        await new Promise(resolve => setTimeout(resolve, 8));
-      }
-    }
-
-    if (progressBadge) {
-      progressBadge.textContent = `✓ ${numPages} páginas listas`;
-      setTimeout(() => {
-        if (progressBadge && progressBadge.parentNode) {
-          progressBadge.style.opacity = '0';
-          setTimeout(() => progressBadge.remove(), 300);
-        }
-      }, 1200);
-    }
-
-    console.log(`PDF '${docId}' cargado correctamente con ${numPages} páginas.`);
+    // 3. Renderizar solo la página actual
+    await renderPage(state.currentPage);
+    console.log(`PDF '${docId}' cargado correctamente en la página ${state.currentPage}.`);
   } catch (error) {
     if (renderToken !== currentRenderToken) return;
     console.error('Error cargando PDF:', error);
@@ -330,12 +342,15 @@ async function renderPage(pageNum) {
   pageDiv.appendChild(textLayerDiv);
 
   const textContent = await page.getTextContent();
-  pdfjsLib.renderTextLayer({
+  const textLayerRender = pdfjsLib.renderTextLayer({
     textContentSource: textContent,
     container: textLayerDiv,
     viewport: renderViewport,
     textDivs: []
   });
+  if (textLayerRender && textLayerRender.promise) {
+    await textLayerRender.promise;
+  }
 
   // Capa 3: Capa Vectorial SVG Superior (Cubre el 100% del contenedor: PDF + Margen)
   // El viewBox está fijado en puntos nativos (totalPtWidth x pdfPtHeight),
@@ -388,8 +403,8 @@ async function renderPage(pageNum) {
   container.appendChild(pageDiv);
   if (pageObserver) pageObserver.observe(pageDiv);
 
-  // Renderizar la cuadrícula alfanumérica de esta página
-  renderGrid(gridGroup, totalPtWidth, pdfPtHeight);
+  // Renderizar la cuadrícula alfanumérica adaptada exactamente a las líneas de esta página
+  renderGrid(gridGroup, totalPtWidth, pdfPtHeight, pageDiv, pageNum);
 
   // Renderizar todas las anotaciones persistidas de la página
   renderPageAnnotations(pageNum, svg, pdfPtWidth);
@@ -402,13 +417,61 @@ async function renderPage(pageNum) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cuadrícula Alfanumérica de Referencia
+// Cuadrícula Alfanumérica Adaptada a la Separación de Líneas
 // ─────────────────────────────────────────────────────────────────────────────
 
-function renderGrid(group, width, height) {
+function calculateLineSeparation(pageContainer, pdfPtHeight) {
+  const textLayer = pageContainer.querySelector('.textLayer');
+  if (!textLayer) return 20;
+  const spans = Array.from(textLayer.querySelectorAll('span'));
+  if (spans.length < 2) return 20;
+
+  const pageRect = pageContainer.getBoundingClientRect();
+  const scaleY = pageRect.height > 0 ? (pageRect.height / pdfPtHeight) : state.scale;
+
+  const yPositions = [];
+  spans.forEach(s => {
+    const cr = s.getBoundingClientRect();
+    if (cr.width > 2 && cr.height > 2) {
+      const ptY = (cr.top - pageRect.top) / scaleY;
+      yPositions.push(Math.round(ptY));
+    }
+  });
+
+  yPositions.sort((a, b) => a - b);
+  const clusters = [];
+  yPositions.forEach(y => {
+    if (clusters.length === 0 || y - clusters[clusters.length - 1].avg > 5) {
+      clusters.push({ sum: y, count: 1, avg: y });
+    } else {
+      const last = clusters[clusters.length - 1];
+      last.sum += y;
+      last.count += 1;
+      last.avg = Math.round(last.sum / last.count);
+    }
+  });
+
+  const lineYs = clusters.map(c => c.avg);
+  const diffs = [];
+  for (let i = 0; i < lineYs.length - 1; i++) {
+    const d = lineYs[i+1] - lineYs[i];
+    if (d >= 12 && d <= 32) diffs.push(d);
+  }
+  diffs.sort((a, b) => a - b);
+  if (diffs.length > 0) {
+    const median = diffs[Math.floor(diffs.length / 2)];
+    if (median >= 14 && median <= 28) return Math.round(median);
+  }
+  return 20;
+}
+
+function renderGrid(group, width, height, pageContainer, pageNum) {
   group.innerHTML = '';
+  const rowH = calculateLineSeparation(pageContainer, height);
+  state.pageLineSpacing[pageNum] = rowH;
+
   const cols = Math.ceil(width / CELL_WIDTH);
-  const rows = Math.ceil(height / CELL_HEIGHT);
+  const rows = Math.ceil(height / rowH);
 
   // Líneas verticales
   for (let c = 0; c <= cols; c++) {
@@ -422,30 +485,47 @@ function renderGrid(group, width, height) {
     group.appendChild(line);
   }
 
-  // Líneas horizontales
+  // Líneas horizontales adaptadas a las líneas de texto
   for (let r = 0; r <= rows; r++) {
-    const y = Math.min(height, r * CELL_HEIGHT);
+    const y = Math.min(height, r * rowH);
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', 0);
     line.setAttribute('y1', y);
     line.setAttribute('x2', width);
     line.setAttribute('y2', y);
-    line.setAttribute('class', 'grid-line');
+    line.setAttribute('class', 'grid-line grid-line-row');
     group.appendChild(line);
+
+    // Gutter izquierdo: Indicador de línea/fila
+    if (r < rows) {
+      const numLeft = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      numLeft.setAttribute('x', 6);
+      numLeft.setAttribute('y', y + rowH - 4);
+      numLeft.setAttribute('class', 'grid-gutter-num');
+      numLeft.textContent = `L${r + 1}`;
+      group.appendChild(numLeft);
+
+      // Gutter derecho: Indicador de línea/fila
+      const numRight = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      numRight.setAttribute('x', width - 24);
+      numRight.setAttribute('y', y + rowH - 4);
+      numRight.setAttribute('class', 'grid-gutter-num');
+      numRight.textContent = `L${r + 1}`;
+      group.appendChild(numRight);
+    }
   }
 
   // Celdas y etiquetas alfanuméricas
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const cellX = c * CELL_WIDTH;
-      const cellY = r * CELL_HEIGHT;
+      const cellY = r * rowH;
       const cellW = Math.min(CELL_WIDTH, width - cellX);
-      const cellH = Math.min(CELL_HEIGHT, height - cellY);
+      const cellH = Math.min(rowH, height - cellY);
       if (cellW <= 0 || cellH <= 0) continue;
 
-      const cellLabel = coordsToCell(cellX, cellY);
+      const cellLabel = coordsToCell(cellX, cellY, pageNum);
 
-      // Caja interactiva de la celda
       const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       box.setAttribute('x', cellX);
       box.setAttribute('y', cellY);
@@ -455,12 +535,15 @@ function renderGrid(group, width, height) {
       box.dataset.cell = cellLabel;
       group.appendChild(box);
 
-      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      text.setAttribute('x', cellX + 5);
-      text.setAttribute('y', cellY + 13);
-      text.setAttribute('class', 'grid-label');
-      text.textContent = cellLabel;
-      group.appendChild(text);
+      // Etiqueta alfanumérica sutil
+      if (c === 0 || c === 4 || c === Math.floor(cols / 2) || c === cols - 1 || (r + 1) % 5 === 0) {
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', cellX + 4);
+        text.setAttribute('y', cellY + Math.min(13, rowH - 3));
+        text.setAttribute('class', 'grid-label');
+        text.textContent = cellLabel;
+        group.appendChild(text);
+      }
     }
   }
 }
@@ -695,7 +778,17 @@ function renderSchemaTree(schemasGroup, schema, pdfPtWidth) {
   }
 
   // 4. Anclaje espacial (si cae en el texto, se auto-proyecta al margen extendido)
-  const anchor = cellToCoords(schema.anchor_cell || 'E1', pdfPtWidth, true);
+  const isLeft = schema.side === 'left';
+  const defaultX = isLeft ? 15 : (MARGIN_LEFT_PT + pdfPtWidth + 15);
+  let anchor;
+  if (schema.anchor_y !== undefined) {
+    anchor = { x: defaultX, y: schema.anchor_y };
+  } else if (schema.anchor_cell) {
+    anchor = cellToCoords(schema.anchor_cell, pdfPtWidth, true);
+    if (isLeft) anchor.x = 15;
+  } else {
+    anchor = { x: defaultX, y: 60 };
+  }
   const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   group.setAttribute('class', `schema-tree ${schema.id || ''}`);
   group.setAttribute('transform', `translate(${anchor.x}, ${anchor.y})`);
@@ -813,33 +906,71 @@ function renderPageAnnotations(pageNum, svg, pdfPtWidth) {
   if (schemasGroup) schemasGroup.innerHTML = '';
   if (notesGroup) notesGroup.innerHTML = '';
 
-  // 1. Resaltados
+  // 1. Resaltados, Subrayados, Recuadros y Tachados
   if (highlightsGroup && Array.isArray(pdata.highlights)) {
     pdata.highlights.forEach(hl => {
       if (Array.isArray(hl.rects)) {
+        const style = hl.style || 'solid_highlight';
+        const color = resolveColor(hl.color, '#fef08a');
+
         hl.rects.forEach(r => {
           if (!Array.isArray(r) || r.length < 4) return;
-          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          rect.setAttribute('x', r[0]);
-          rect.setAttribute('y', r[1]);
-          rect.setAttribute('width', Math.max(0, r[2] - r[0]));
-          rect.setAttribute('height', Math.max(0, r[3] - r[1]));
-          rect.setAttribute('fill', hl.color || '#fef08a');
-          rect.setAttribute('class', 'highlight-rect');
-          rect.dataset.hlId = hl.id;
-          rect.addEventListener('click', (e) => {
+          const x1 = r[0], y1 = r[1], x2 = r[2], y2 = r[3];
+          const w = Math.max(0, x2 - x1);
+          const h = Math.max(0, y2 - y1);
+          if (w <= 0 || h <= 0) return;
+
+          let el;
+          if (style === 'underline') {
+            el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            el.setAttribute('x1', x1);
+            el.setAttribute('y1', y2 + 1);
+            el.setAttribute('x2', x2);
+            el.setAttribute('y2', y2 + 1);
+            el.setAttribute('stroke', color);
+            el.setAttribute('class', 'highlight-underline');
+          } else if (style === 'strikethrough') {
+            const midY = (y1 + y2) / 2;
+            el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            el.setAttribute('x1', x1);
+            el.setAttribute('y1', midY);
+            el.setAttribute('x2', x2);
+            el.setAttribute('y2', midY);
+            el.setAttribute('stroke', color);
+            el.setAttribute('class', 'highlight-strikethrough');
+          } else if (style === 'box' || style === 'rounded_box') {
+            el = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            el.setAttribute('x', x1 - 1);
+            el.setAttribute('y', y1 - 1);
+            el.setAttribute('width', w + 2);
+            el.setAttribute('height', h + 2);
+            el.setAttribute('stroke', color);
+            el.setAttribute('class', 'highlight-box');
+          } else {
+            // solid_highlight tradicional
+            el = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            el.setAttribute('x', x1);
+            el.setAttribute('y', y1);
+            el.setAttribute('width', w);
+            el.setAttribute('height', h);
+            el.setAttribute('fill', color);
+            el.setAttribute('class', 'highlight-rect');
+          }
+
+          el.dataset.hlId = hl.id;
+          el.addEventListener('click', (e) => {
             e.stopPropagation();
             if (state.activeTool === 'eraser' || e.shiftKey || e.altKey) {
               deleteHighlight(hl.id, pageNum);
             }
           });
-          highlightsGroup.appendChild(rect);
+          highlightsGroup.appendChild(el);
         });
       }
     });
   }
 
-  // 2. Llaves de agrupación
+  // 2. Llaves y Barras de agrupación vertical
   if (bracketsGroup && Array.isArray(pdata.brackets)) {
     pdata.brackets.forEach(br => {
       renderBracketGroup(bracketsGroup, br, pdfPtWidth);
@@ -853,14 +984,14 @@ function renderPageAnnotations(pageNum, svg, pdfPtWidth) {
     });
   }
 
-  // 4. Notas del margen
+  // 4. Notas del margen con conectores a términos clave
   if (notesGroup && Array.isArray(pdata.annotations)) {
     pdata.annotations.forEach(note => {
-      renderMarginNote(notesGroup, note, pdfPtWidth);
+      renderMarginNote(notesGroup, note, pdfPtWidth, pageNum);
     });
   }
 
-  // 5. Esquemas
+  // 5. Esquemas Dagre
   if (schemasGroup && Array.isArray(pdata.schemas)) {
     pdata.schemas.forEach(schema => {
       if (schema) renderSchemaTree(schemasGroup, schema, pdfPtWidth);
@@ -868,17 +999,46 @@ function renderPageAnnotations(pageNum, svg, pdfPtWidth) {
   }
 }
 
-function renderMarginNote(notesGroup, note, pdfPtWidth) {
-  const coords = cellToCoords(note.cell, pdfPtWidth, true);
-  note.x = coords.x;
-  note.y = coords.y;
+function renderMarginNote(notesGroup, note, pdfPtWidth, pageNum = 1) {
+  const coords = cellToCoords(note.cell, pdfPtWidth, true, pageNum);
+  const nx = note.x !== undefined ? note.x : coords.x;
+  const ny = note.y !== undefined ? note.y : coords.y;
+
+  note.x = nx;
+  note.y = ny;
+
+  const w = note.width || 250;
+  const h = note.height || 64;
+
+  // Conector sutil discontinuo hacia el término destacado en el PDF
+  if (note.connector_to && note.connector_to.x !== undefined) {
+    const isRight = nx >= (MARGIN_LEFT_PT + pdfPtWidth);
+    const startX = isRight ? nx : (nx + w);
+    const startY = ny + 20;
+    const targetX = note.connector_to.x;
+    const targetY = note.connector_to.y;
+
+    const midX = (startX + targetX) / 2;
+    const d = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${targetY}, ${targetX} ${targetY}`;
+
+    const conn = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    conn.setAttribute('d', d);
+    conn.setAttribute('stroke', note.highlight_color || '#ef4444');
+    conn.setAttribute('stroke-width', '1.3');
+    conn.setAttribute('class', 'note-connector-line');
+    notesGroup.appendChild(conn);
+
+    const anchorDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    anchorDot.setAttribute('cx', targetX);
+    anchorDot.setAttribute('cy', targetY);
+    anchorDot.setAttribute('r', '2.5');
+    anchorDot.setAttribute('fill', note.highlight_color || '#ef4444');
+    notesGroup.appendChild(anchorDot);
+  }
 
   const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   group.setAttribute('class', 'margin-note');
-  group.setAttribute('transform', `translate(${coords.x}, ${coords.y})`);
-
-  const w = note.width || 250;
-  const h = note.height || 62;
+  group.setAttribute('transform', `translate(${nx}, ${ny})`);
 
   const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   rect.setAttribute('width', w);
@@ -898,8 +1058,19 @@ function renderMarginNote(notesGroup, note, pdfPtWidth) {
   body.setAttribute('x', 10);
   body.setAttribute('y', 36);
   body.setAttribute('class', 'note-body');
-  body.textContent = note.text;
+
+  const noteText = note.text || '';
+  body.textContent = noteText.length > 80 ? noteText.substring(0, 80) + '…' : noteText;
   group.appendChild(body);
+
+  if (noteText.length > 80) {
+    const body2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    body2.setAttribute('x', 10);
+    body2.setAttribute('y', 52);
+    body2.setAttribute('class', 'note-body');
+    body2.textContent = noteText.substring(80, 160);
+    group.appendChild(body2);
+  }
 
   notesGroup.appendChild(group);
 }
@@ -915,21 +1086,34 @@ function renderBracketGroup(bracketsGroup, br, pdfPtWidth) {
   const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   group.setAttribute('class', 'bracket-group');
 
-  // Trazado de llave vertical {
-  const d = `
-    M ${x} ${yStart}
-    Q ${x + w} ${yStart} ${x + w} ${yStart + r}
-    L ${x + w} ${yMid - r}
-    Q ${x + w} ${yMid} ${x + 2 * w} ${yMid}
-    Q ${x + w} ${yMid} ${x + w} ${yMid + r}
-    L ${x + w} ${yEnd - r}
-    Q ${x + w} ${yEnd} ${x} ${yEnd}
-  `.replace(/\s+/g, ' ').trim();
+  if (br.bracket_type === 'bar') {
+    // Barra lateral sólida de agrupación
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x + w);
+    line.setAttribute('y1', yStart);
+    line.setAttribute('x2', x + w);
+    line.setAttribute('y2', yEnd);
+    line.setAttribute('stroke', '#2563eb');
+    line.setAttribute('stroke-width', '3');
+    line.setAttribute('stroke-linecap', 'round');
+    group.appendChild(line);
+  } else {
+    // Trazado de llave vertical {
+    const d = `
+      M ${x} ${yStart}
+      Q ${x + w} ${yStart} ${x + w} ${yStart + r}
+      L ${x + w} ${yMid - r}
+      Q ${x + w} ${yMid} ${x + 2 * w} ${yMid}
+      Q ${x + w} ${yMid} ${x + w} ${yMid + r}
+      L ${x + w} ${yEnd - r}
+      Q ${x + w} ${yEnd} ${x} ${yEnd}
+    `.replace(/\s+/g, ' ').trim();
 
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', d);
-  path.setAttribute('class', 'bracket-path');
-  group.appendChild(path);
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('class', 'bracket-path');
+    group.appendChild(path);
+  }
 
   // Etiqueta en la punta
   const label = br.label || '';
@@ -945,6 +1129,17 @@ function renderBracketGroup(bracketsGroup, br, pdfPtWidth) {
     badgeRect.setAttribute('height', badgeH);
     badgeRect.setAttribute('class', 'bracket-badge');
     group.appendChild(badgeRect);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', x + 2 * w + 14);
+    text.setAttribute('y', yMid + 4);
+    text.setAttribute('class', 'bracket-text');
+    text.textContent = label;
+    group.appendChild(text);
+  }
+
+  bracketsGroup.appendChild(group);
+}
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', x + 2 * w + 14);
@@ -989,10 +1184,157 @@ function renderStampSymbol(stampsGroup, st) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Ejecutor de Comandos y Herramientas (Function Calling)
+// Localizador de Texto Preciso Multi-Span con Normalización Fonética y Puntuación
+// ─────────────────────────────────────────────────────────────────────────────
+
+function findTextRectsInPage(pageNum, query, options = {}) {
+  const pageContainer = document.getElementById(`page-container-${pageNum}`);
+  if (!pageContainer) return [];
+
+  const textLayer = pageContainer.querySelector('.textLayer');
+  if (!textLayer) return [];
+
+  const spanElements = Array.from(textLayer.querySelectorAll('span'));
+  if (spanElements.length === 0) return [];
+
+  // Construir índice lineal de caracteres y mapeo inverso a nodos DOM
+  let fullRaw = '';
+  let mapRaw = [];
+
+  spanElements.forEach((el, sIdx) => {
+    const textNode = el.firstChild || el;
+    const txt = el.textContent || '';
+    for (let cIdx = 0; cIdx < txt.length; cIdx++) {
+      mapRaw.push({ node: textNode, offset: cIdx });
+      fullRaw += txt[cIdx];
+    }
+    // Separador sintético entre spans para permitir concordancias entre saltos de bloque
+    mapRaw.push({ node: textNode, offset: txt.length });
+    fullRaw += ' ';
+  });
+
+  // Normalización: elimina tildes, convierte puntuación en espacio y colapsa blancos
+  let normStr = '';
+  let normToRaw = [];
+  let prevWasSpace = false;
+  for (let rIdx = 0; rIdx < fullRaw.length; rIdx++) {
+    const ch = fullRaw[rIdx];
+    const nch = ch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const isPunctOrSpace = /[.,\/#!$%\^&\*;:{}=\-_`~()\"'\''«»\s]/.test(nch);
+
+    if (isPunctOrSpace) {
+      if (!prevWasSpace) {
+        normStr += ' ';
+        normToRaw.push(rIdx);
+        prevWasSpace = true;
+      }
+    } else {
+      normStr += nch;
+      normToRaw.push(rIdx);
+      prevWasSpace = false;
+    }
+  }
+
+  function findMatchIndices(searchStr, startAfter = 0) {
+    if (!searchStr) return null;
+    const normSearch = searchStr
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()\"'\''«»\s]+/g, ' ')
+      .trim();
+
+    if (!normSearch) return null;
+    const idx = normStr.indexOf(normSearch, startAfter);
+    if (idx === -1) return null;
+    return {
+      start: normToRaw[idx],
+      end: normToRaw[idx + normSearch.length - 1],
+      nextStart: idx + normSearch.length
+    };
+  }
+
+  let startRaw = null;
+  let endRaw = null;
+
+  if (options.fromText && options.toText) {
+    const mFrom = findMatchIndices(options.fromText);
+    if (mFrom) {
+      const mTo = findMatchIndices(options.toText, mFrom.nextStart) || findMatchIndices(options.toText);
+      if (mTo) {
+        startRaw = mFrom.start;
+        endRaw = mTo.end;
+      }
+    }
+  } else if (query) {
+    const m = findMatchIndices(query);
+    if (m) {
+      startRaw = m.start;
+      endRaw = m.end;
+    }
+  }
+
+  if (startRaw === null || endRaw === null) {
+    console.warn(`[findTextRectsInPage] Texto no localizado en pág ${pageNum}: "${query || options.fromText}"`);
+    return [];
+  }
+
+  const startMap = mapRaw[startRaw];
+  const endMap = mapRaw[endRaw];
+  if (!startMap || !endMap) return [];
+
+  const range = document.createRange();
+  try {
+    const maxStartOffset = startMap.node.length !== undefined ? Math.min(startMap.offset, startMap.node.length) : startMap.offset;
+    const maxEndOffset = endMap.node.length !== undefined ? Math.min(endMap.offset + 1, endMap.node.length) : (endMap.offset + 1);
+    range.setStart(startMap.node, maxStartOffset);
+    range.setEnd(endMap.node, maxEndOffset);
+  } catch (e) {
+    console.warn('Error configurando DOM Range:', e);
+    return [];
+  }
+
+  const clientRects = range.getClientRects();
+  const pageRect = pageContainer.getBoundingClientRect();
+  const viewportInfo = state.pageViewports[pageNum] || { totalPtWidth: 1195, pdfPtHeight: 842 };
+  const totalPtWidth = viewportInfo.totalPtWidth || (MARGIN_LEFT_PT + 595 + MARGIN_RIGHT_PT);
+  const pdfPtHeight = viewportInfo.pdfPtHeight || 842;
+
+  const scaleX = pageRect.width > 0 ? (pageRect.width / totalPtWidth) : state.scale;
+  const scaleY = pageRect.height > 0 ? (pageRect.height / pdfPtHeight) : state.scale;
+
+  const rects = [];
+  for (let i = 0; i < clientRects.length; i++) {
+    const cr = clientRects[i];
+    if (cr.width < 1 || cr.height < 1) continue;
+    const x1 = Math.round((cr.left - pageRect.left) / scaleX);
+    const y1 = Math.round((cr.top - pageRect.top) / scaleY);
+    const x2 = Math.round((cr.right - pageRect.left) / scaleX);
+    const y2 = Math.round((cr.bottom - pageRect.top) / scaleY);
+    rects.push([x1, y1, x2, y2]);
+  }
+
+  return rects;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ejecutor de Comandos y Herramientas (Function Calling & Pipeline de Voz)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function executeVoiceCommand(command, args = {}) {
+  // Soporte de payloads con 'action' directo o 'command'
+  if (!command && args.action) {
+    command = args.action;
+  }
+  if (typeof args !== 'object' || args === null) {
+    args = {};
+  }
+  if (!command && args.command) {
+    command = args.command;
+    args = args.args || args;
+  }
+  if (!command) return;
+
   console.log(`🎙️ Ejecutando herramienta de voz: [${command}]`, args);
 
   // Registrar estado previo para deshacer
@@ -1011,6 +1353,9 @@ function executeVoiceCommand(command, args = {}) {
   const pageNotes = state.notes.pages[curPage];
   if (!pageNotes.brackets) pageNotes.brackets = [];
   if (!pageNotes.stamps) pageNotes.stamps = [];
+  if (!pageNotes.highlights) pageNotes.highlights = [];
+  if (!pageNotes.annotations) pageNotes.annotations = [];
+  if (!pageNotes.schemas) pageNotes.schemas = [];
 
   const viewportInfo = state.pageViewports[curPage] || { pdfPtWidth: 595 };
   const pdfPtWidth = viewportInfo.pdfPtWidth;
@@ -1029,6 +1374,178 @@ function executeVoiceCommand(command, args = {}) {
       state.activeRecall = args.enabled !== undefined ? args.enabled : !state.activeRecall;
       document.body.classList.toggle('active-recall-enabled', state.activeRecall);
       document.getElementById('btn-toggle-recall').classList.toggle('active', state.activeRecall);
+      break;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Opción 1: Comandos atómicos de marcado visual (Subrayar, Resaltar, Rango)
+    // ─────────────────────────────────────────────────────────────────────────
+    case 'highlight_passage':
+    case 'mark_text': {
+      const color = resolveColor(args.color, '#fef08a');
+      const style = args.style || 'solid_highlight';
+      let rects = [];
+
+      if (args.from_text && args.to_text) {
+        rects = findTextRectsInPage(curPage, null, { fromText: args.from_text, toText: args.to_text });
+      } else {
+        const target = args.target_text || args.text || '';
+        rects = findTextRectsInPage(curPage, target);
+      }
+
+      if (rects.length === 0) {
+        console.warn(`No se encontraron coincidencias para marcar: ${args.target_text || args.from_text}`);
+        break;
+      }
+
+      pageNotes.highlights.push({
+        id: `hl_${Date.now()}`,
+        text: args.target_text || `${args.from_text} → ${args.to_text}`,
+        color: color,
+        style: style,
+        rects: rects
+      });
+
+      refreshCurrentPageSvg(curPage);
+      saveNotesToServer();
+      break;
+    }
+
+    case 'frame_text':
+    case 'box_text': {
+      const color = resolveColor(args.color, '#2563eb');
+      const target = args.target_text || args.text || '';
+      const rects = findTextRectsInPage(curPage, target);
+      if (rects.length === 0) break;
+
+      pageNotes.highlights.push({
+        id: `box_${Date.now()}`,
+        text: target,
+        color: color,
+        style: 'box',
+        rects: rects
+      });
+
+      refreshCurrentPageSvg(curPage);
+      saveNotesToServer();
+      break;
+    }
+
+    case 'strikethrough_text':
+    case 'tacha_text': {
+      const color = resolveColor(args.color, '#ef4444');
+      const target = args.target_text || args.text || '';
+      const rects = findTextRectsInPage(curPage, target);
+      if (rects.length === 0) break;
+
+      pageNotes.highlights.push({
+        id: `strike_${Date.now()}`,
+        text: target,
+        color: color,
+        style: 'strikethrough',
+        rects: rects
+      });
+
+      refreshCurrentPageSvg(curPage);
+      saveNotesToServer();
+      break;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Pipeline Doble: Nota marginal con subrayado automático en rojo y conector
+    // ─────────────────────────────────────────────────────────────────────────
+    case 'margin_note_with_highlights': {
+      const anchorText = args.anchor_text || '';
+      const anchorRects = findTextRectsInPage(curPage, anchorText);
+      const anchorY = anchorRects.length > 0 ? anchorRects[0][1] : (state.cursorContext.pos[1] || 150);
+
+      const rules = args.highlight_rules || {};
+      const hlColor = resolveColor(rules.color, '#ef4444');
+      const hlStyle = rules.style || 'underline';
+
+      let firstMatchPt = null;
+      (rules.terms_to_match || []).forEach(term => {
+        const tRects = findTextRectsInPage(curPage, term);
+        if (tRects.length > 0) {
+          if (!firstMatchPt) {
+            firstMatchPt = {
+              x: tRects[0][0],
+              y: Math.round((tRects[0][1] + tRects[0][3]) / 2)
+            };
+          }
+          pageNotes.highlights.push({
+            id: `hl_sub_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+            text: term,
+            color: hlColor,
+            style: hlStyle,
+            rects: tRects
+          });
+        }
+      });
+
+      const side = args.margin || 'right';
+      const noteX = side === 'left' ? 15 : (MARGIN_LEFT_PT + pdfPtWidth + 15);
+      const noteY = anchorY;
+
+      pageNotes.annotations.push({
+        id: `note_${Date.now()}`,
+        type: 'exam',
+        text: args.note_content || 'Nota marginal de estudio',
+        highlight_terms: rules.terms_to_match || [],
+        highlight_color: hlColor,
+        x: noteX,
+        y: noteY,
+        width: 250,
+        height: 65,
+        connector_to: firstMatchPt
+      });
+
+      refreshCurrentPageSvg(curPage);
+      saveNotesToServer();
+      break;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Opción 2: Montar esquema jerárquico al margen (Dagre con auto-layout)
+    // ─────────────────────────────────────────────────────────────────────────
+    case 'create_margin_diagram': {
+      const anchorText = args.anchor_text || '';
+      const anchorRects = findTextRectsInPage(curPage, anchorText);
+      const anchorY = anchorRects.length > 0 ? anchorRects[0][1] : (state.cursorContext.pos[1] || 100);
+
+      const content = args.content || {};
+      const rootLabel = content.root || args.root_title || 'Jerarquía';
+      const rawNodes = content.nodes || [];
+
+      const dagreNodes = [
+        { id: 'root', label: rootLabel, isRoot: true }
+      ];
+      const dagreEdges = [];
+
+      rawNodes.forEach((item, pIdx) => {
+        const pId = `node_${pIdx}`;
+        dagreNodes.push({
+          id: pId,
+          label: item.title || `Rama ${pIdx + 1}`,
+          details: Array.isArray(item.children) ? item.children : []
+        });
+        dagreEdges.push({ from: 'root', to: pId });
+      });
+
+      const newSchema = {
+        id: args.schema_id || `schema_${Date.now()}`,
+        anchor_text: anchorText,
+        anchor_y: anchorY,
+        side: args.side || 'right',
+        diagram_type: args.diagram_type || 'tree',
+        orientation: 'TB',
+        nodes: dagreNodes,
+        edges: dagreEdges
+      };
+
+      pageNotes.schemas.push(newSchema);
+      refreshCurrentPageSvg(curPage);
+      saveNotesToServer();
       break;
     }
 
@@ -1054,63 +1571,47 @@ function executeVoiceCommand(command, args = {}) {
       const schema = pageNotes.schemas.find(s => s.id === schema_id) || pageNotes.schemas[pageNotes.schemas.length - 1];
       if (schema && new_node) {
         schema.nodes.push(new_node);
-        schema.edges.push({ from: parent_node_id, to: new_node.id });
+        schema.edges.push({ from: parent_node_id || 'root', to: new_node.id });
         refreshCurrentPageSvg(curPage);
         saveNotesToServer();
       }
       break;
     }
 
-    case 'highlight_passage': {
-      const targetText = (args.target_text || '').toLowerCase().trim();
-      const color = args.color || '#fef08a';
-      if (!targetText) break;
-
-      const pageContainer = document.getElementById(`page-container-${curPage}`);
-      if (!pageContainer) break;
-
-      const textLayer = pageContainer.querySelector('.textLayer');
-      const spans = textLayer ? textLayer.querySelectorAll('span') : [];
-      let candidateMatches = [];
-
-      spans.forEach(span => {
-        const spanText = span.textContent.toLowerCase();
-        if (spanText.includes(targetText)) {
-          const sLeft = MARGIN_LEFT_PT + ((parseFloat(span.style.left) || 0) / state.scale);
-          const sTop = (parseFloat(span.style.top) || 0) / state.scale;
-          const sWidth = ((parseFloat(span.style.width) || (span.textContent.length * 7))) / state.scale;
-          const sHeight = ((parseFloat(span.style.fontSize) || 12)) / state.scale;
-
-          const cx = sLeft + sWidth / 2;
-          const cy = sTop + sHeight / 2;
-          const dist = Math.hypot(state.cursorContext.pos[0] - cx, state.cursorContext.pos[1] - cy);
-
-          candidateMatches.push({
-            rect: [sLeft, sTop, sLeft + sWidth, sTop + sHeight],
-            dist: dist
-          });
+    // ─────────────────────────────────────────────────────────────────────────
+    // Opción 3: Comandos de control, ajuste y corrección (Rollback, Mover, Borrar)
+    // ─────────────────────────────────────────────────────────────────────────
+    case 'move_schema': {
+      const targetSide = args.side || 'left';
+      if (pageNotes.schemas.length > 0) {
+        const targetSchema = args.schema_id ? pageNotes.schemas.find(s => s.id === args.schema_id) : pageNotes.schemas[pageNotes.schemas.length - 1];
+        if (targetSchema) {
+          targetSchema.side = targetSide;
+          refreshCurrentPageSvg(curPage);
+          saveNotesToServer();
         }
-      });
-
-      let matchedRects = [];
-      if (candidateMatches.length > 0) {
-        // Desambiguar eligiendo el pasaje más cercano al cursor del ratón
-        candidateMatches.sort((a, b) => a.dist - b.dist);
-        matchedRects.push(candidateMatches[0].rect);
-      } else {
-        // Fallback aproximado a la altura del cursor dentro del área de texto central
-        const mx = Math.max(MARGIN_LEFT_PT + 20, Math.min(state.cursorContext.pos[0] || (MARGIN_LEFT_PT + 50), MARGIN_LEFT_PT + pdfPtWidth - 220));
-        const my = state.cursorContext.pos[1] || 120;
-        matchedRects.push([mx, my - 4, mx + 220, my + 14]);
       }
+      break;
+    }
 
-      pageNotes.highlights.push({
-        id: `hl_${Date.now()}`,
-        text: targetText,
-        color: color,
-        rects: matchedRects
-      });
+    case 'undo':
+    case 'undo_last_action': {
+      if (state.historyStack.length > 0) {
+        state.notes = state.historyStack.pop();
+        for (let p = 1; p <= (state.pdfDoc?.numPages || 1); p++) {
+          refreshCurrentPageSvg(String(p));
+        }
+        saveNotesToServer();
+      }
+      break;
+    }
 
+    case 'clear_page_annotations': {
+      pageNotes.highlights = [];
+      pageNotes.annotations = [];
+      pageNotes.schemas = [];
+      pageNotes.brackets = [];
+      pageNotes.stamps = [];
       refreshCurrentPageSvg(curPage);
       saveNotesToServer();
       break;
@@ -1123,7 +1624,6 @@ function executeVoiceCommand(command, args = {}) {
       if (targetText && targetText !== 'esto' && targetText !== 'aqui' && targetText !== 'aquí') {
         pageNotes.highlights = pageNotes.highlights.filter(h => !(h.text || '').toLowerCase().includes(targetText));
       } else {
-        // Eliminar el más cercano al cursor
         let bestIdx = -1;
         let minDist = Infinity;
         pageNotes.highlights.forEach((h, idx) => {
@@ -1169,28 +1669,40 @@ function executeVoiceCommand(command, args = {}) {
     }
 
     case 'add_bracket_group': {
-      const startCell = args.start_cell || 'B5';
-      const endCell = args.end_cell || 'B10';
-      const startCoords = cellToCoords(startCell, pdfPtWidth, false);
-      const endCoords = cellToCoords(endCell, pdfPtWidth, false);
-      const defaultX = MARGIN_LEFT_PT + pdfPtWidth - 12;
+      let yStart = 100;
+      let yEnd = 250;
 
+      if (args.from_text && args.to_text) {
+        const rFrom = findTextRectsInPage(curPage, args.from_text);
+        const rTo = findTextRectsInPage(curPage, args.to_text);
+        if (rFrom.length > 0 && rTo.length > 0) {
+          yStart = rFrom[0][1];
+          yEnd = rTo[rTo.length - 1][3];
+        }
+      } else {
+        const startCoords = cellToCoords(args.start_cell || 'B5', pdfPtWidth, false, curPage);
+        const endCoords = cellToCoords(args.end_cell || 'B10', pdfPtWidth, false, curPage);
+        yStart = startCoords.y;
+        yEnd = endCoords.y + getPageRowHeight(curPage);
+      }
+
+      const defaultX = MARGIN_LEFT_PT + pdfPtWidth - 12;
       pageNotes.brackets.push({
         id: `br_${Date.now()}`,
-        start_cell: startCell,
-        end_cell: endCell,
-        y_start: startCoords.y,
-        y_end: endCoords.y + CELL_HEIGHT,
+        y_start: yStart,
+        y_end: yEnd,
         x: args.x !== undefined ? Number(args.x) : defaultX,
-        label: args.label || 'Grupo temático'
+        label: args.label || '',
+        bracket_type: args.bracket_type || 'bracket'
       });
+
       refreshCurrentPageSvg(curPage);
       saveNotesToServer();
       break;
     }
 
     case 'add_stamp_symbol': {
-      const cellCoords = cellToCoords(args.cell || 'B2', pdfPtWidth, false);
+      const cellCoords = cellToCoords(args.cell || 'B2', pdfPtWidth, false, curPage);
       pageNotes.stamps.push({
         id: `stamp_${Date.now()}`,
         cell: args.cell || 'B2',
@@ -1204,17 +1716,6 @@ function executeVoiceCommand(command, args = {}) {
       break;
     }
 
-    case 'undo_last_action': {
-      if (state.historyStack.length > 0) {
-        state.notes = state.historyStack.pop();
-        for (let p = 1; p <= (state.pdfDoc?.numPages || 1); p++) {
-          refreshCurrentPageSvg(String(p));
-        }
-        saveNotesToServer();
-      }
-      break;
-    }
-
     case 'open_document': {
       if (args.doc_id) {
         loadDocument(args.doc_id);
@@ -1224,11 +1725,12 @@ function executeVoiceCommand(command, args = {}) {
 
     case 'go_to_page': {
       const targetPage = parseInt(args.page, 10) || 1;
-      const el = document.getElementById(`page-container-${targetPage}`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (targetPage >= 1 && targetPage <= state.pdfDoc.numPages) {
         state.currentPage = targetPage;
         state.cursorContext.page = targetPage;
+        const container = document.getElementById('pdf-container');
+        container.innerHTML = '';
+        await renderPage(targetPage);
         updateHUD();
       }
       break;
@@ -1283,7 +1785,9 @@ function setupWebSocket() {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'voice_command') {
-          executeVoiceCommand(data.command, data.args);
+          executeVoiceCommand(data.command || data.action, data.args || data);
+        } else if (data.action) {
+          executeVoiceCommand(data.action, data);
         } else if (data.type === 'notes_saved') {
           console.log('Persistencia sidecar confirmada por el servidor.');
         }
@@ -1369,10 +1873,38 @@ function setupUIListeners() {
     executeVoiceCommand('undo_last_action');
   });
 
+  // Navegación
+  document.getElementById('btn-prev').addEventListener('click', () => {
+    if (state.currentPage > 1) {
+      executeVoiceCommand('go_to_page', { page: state.currentPage - 1 });
+    }
+  });
+
+  document.getElementById('btn-next').addEventListener('click', () => {
+    if (state.currentPage < state.pdfDoc.numPages) {
+      executeVoiceCommand('go_to_page', { page: state.currentPage + 1 });
+    }
+  });
+
   // Guardar notas
   document.getElementById('btn-save').addEventListener('click', () => {
     saveNotesToServer();
     alert('Notas guardadas en el archivo sidecar JSON.');
+  });
+
+  // Navegación de páginas
+  document.getElementById('btn-prev').addEventListener('click', async () => {
+    if (state.currentPage > 1) {
+      state.currentPage--;
+      await loadDocument(state.docId);
+    }
+  });
+
+  document.getElementById('btn-next').addEventListener('click', async () => {
+    if (state.pdfDoc && state.currentPage < state.pdfDoc.numPages) {
+      state.currentPage++;
+      await loadDocument(state.docId);
+    }
   });
 
   // Exportar PDF
@@ -1423,6 +1955,90 @@ function setupUIListeners() {
     chip.addEventListener('click', () => {
       const cmdKey = chip.dataset.cmd;
       switch (cmdKey) {
+        case 'highlight_un_mes':
+          executeVoiceCommand('highlight_passage', {
+            target_text: 'un mes si el acto fuera expreso',
+            color: '#fef08a',
+            style: 'solid_highlight'
+          });
+          break;
+
+        case 'highlight_range_plazo':
+          executeVoiceCommand('highlight_passage', {
+            from_text: 'El plazo',
+            to_text: 'tres meses',
+            color: '#bbf7d0',
+            style: 'solid_highlight'
+          });
+          break;
+
+        case 'margin_note_double':
+          executeVoiceCommand('margin_note_with_highlights', {
+            anchor_text: 'plazo de interposición',
+            margin: 'right',
+            note_content: 'Recurso: 1 mes natural (improrrogable) tras notificación.',
+            highlight_rules: {
+              color: 'red',
+              style: 'underline',
+              terms_to_match: [
+                'improrrogable',
+                'un mes',
+                'notificación expresa'
+              ]
+            }
+          });
+          break;
+
+        case 'schema_jerarquia':
+          executeVoiceCommand('create_margin_diagram', {
+            anchor_text: 'órgano competente',
+            side: 'right',
+            diagram_type: 'tree',
+            content: {
+              root: 'Jerarquía',
+              nodes: [
+                {
+                  title: 'Superior',
+                  children: ['Ministro', 'Secretario']
+                },
+                {
+                  title: 'Inferior',
+                  children: ['Subdirector']
+                }
+              ]
+            }
+          });
+          break;
+
+        case 'bracket_text_anchor':
+          executeVoiceCommand('add_bracket_group', {
+            from_text: 'Iniciación',
+            to_text: 'Finalización',
+            label: 'Fases Art. 53-86',
+            bracket_type: 'bracket'
+          });
+          break;
+
+        case 'box_fases':
+          executeVoiceCommand('frame_text', {
+            target_text: 'FASES',
+            color: '#2563eb'
+          });
+          break;
+
+        case 'strike_oficio':
+          executeVoiceCommand('strikethrough_text', {
+            target_text: 'de oficio',
+            color: '#ef4444'
+          });
+          break;
+
+        case 'move_schema_left':
+          executeVoiceCommand('move_schema', {
+            side: 'left'
+          });
+          break;
+
         case 'schema_procedimiento':
           executeVoiceCommand('create_schema', {
             schema_id: 'schema_fases',
@@ -1506,16 +2122,20 @@ function setupUIListeners() {
         case 'undo':
           executeVoiceCommand('undo_last_action');
           break;
+
+        case 'clear_page':
+          executeVoiceCommand('clear_page_annotations');
+          break;
       }
     });
   });
 
-  // Envío manual desde input del simulador
+  // Envío manual desde input del simulador (soporta tanto { command, args } como { action, ... })
   document.getElementById('btn-send-sim').addEventListener('click', () => {
     const input = document.getElementById('sim-input');
     try {
       const payload = JSON.parse(input.value.trim());
-      executeVoiceCommand(payload.command, payload.args || {});
+      executeVoiceCommand(payload.command || payload.action, payload.args || payload);
       input.value = '';
     } catch (e) {
       alert(`JSON no válido: ${e.message}`);

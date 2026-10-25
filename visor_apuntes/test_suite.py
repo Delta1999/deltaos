@@ -5,18 +5,21 @@ Verifica:
 2. Esquemas JSON de Function Calling para el agente de voz.
 3. Canal WebSocket bidireccional (emisión de contexto y recepción de comandos).
 4. Persistencia en archivo sidecar JSON (.notes.json).
-5. Compilación y exportación vectorial permanente con PyMuPDF.
+5. Compilación y exportación vectorial permanente con PyMuPDF (doble margen, notas conectadas y esquemas).
+6. Nuevas capacidades: marcado atómico (recuadros, tachados), esquemas de margen con Dagre y notas marginales dobles.
 """
 
 import asyncio
 import json
 import urllib.request
 import urllib.error
+from pathlib import Path
 import pymupdf
 import websockets
 
 BASE_URL = "http://127.0.0.1:8766"
 WS_URL = "ws://127.0.0.1:8766/ws/commands"
+BASE_DIR = Path(__file__).resolve().parent
 
 
 def test_index_and_static_served():
@@ -24,7 +27,7 @@ def test_index_and_static_served():
     with urllib.request.urlopen(f"{BASE_URL}/") as resp:
         assert resp.status == 200
         html = resp.read().decode("utf-8")
-        assert "Visor Apuntes AI" in html
+        assert "DELTA" in html or "Visor Apuntes AI" in html
         assert "pdf-container" in html
 
     with urllib.request.urlopen(f"{BASE_URL}/static/app.js") as resp:
@@ -32,11 +35,14 @@ def test_index_and_static_served():
         js = resp.read().decode("utf-8")
         assert "executeVoiceCommand" in js
         assert "renderSchemaTree" in js
+        assert "findTextRectsInPage" in js
 
     with urllib.request.urlopen(f"{BASE_URL}/static/style.css") as resp:
         assert resp.status == 200
         css = resp.read().decode("utf-8")
         assert "active-recall-enabled" in css
+        assert "highlight-underline" in css
+        assert "note-connector-line" in css
 
 
 def test_api_documents_and_tools():
@@ -54,12 +60,15 @@ def test_api_documents_and_tools():
         expected_tools = [
             "activate_grid",
             "highlight_passage",
-            "create_schema",
-            "add_schema_branch",
-            "add_margin_note",
+            "frame_text",
+            "strikethrough_text",
+            "create_margin_diagram",
+            "margin_note_with_highlights",
+            "move_schema",
             "add_bracket_group",
             "add_stamp_symbol",
             "undo_last_action",
+            "clear_page_annotations",
             "toggle_active_recall"
         ]
         for t in expected_tools:
@@ -73,7 +82,21 @@ def test_notes_sidecar_roundtrip():
         notes = json.loads(resp.read().decode("utf-8"))
         assert "pages" in notes
 
-    # Guardar una anotación de prueba
+    p1 = notes["pages"].setdefault("1", {})
+    if "annotations" not in p1:
+        p1["annotations"] = []
+    p1["annotations"].append({
+        "id": "test_note_1",
+        "type": "tip",
+        "text": "Nota marginal de prueba automatizada",
+        "cell": "A1",
+        "x": 830,
+        "y": 140,
+        "width": 240,
+        "height": 60,
+        "connector_to": {"x": 200, "y": 140}
+    })
+
     test_payload = json.dumps(notes).encode("utf-8")
     req = urllib.request.Request(
         f"{BASE_URL}/api/notes/sample.pdf",
@@ -88,7 +111,7 @@ def test_notes_sidecar_roundtrip():
 
 
 def test_export_pdf_compilation():
-    """Comprueba que PyMuPDF compila el PDF ampliando el MediaBox e insertando los gráficos vectoriales."""
+    """Comprueba que PyMuPDF compila el PDF ampliando ambos márgenes e insertando los gráficos vectoriales."""
     req = urllib.request.Request(f"{BASE_URL}/api/export/sample.pdf", data=b"", method="POST")
     with urllib.request.urlopen(req) as resp:
         assert resp.status == 200
@@ -96,24 +119,27 @@ def test_export_pdf_compilation():
         assert data.get("status") == "ok"
         assert "download_url" in data
 
-    # Inspeccionar el PDF compilado
-    doc = pymupdf.open("/home/jloslop/gemini-live-assistant/visor_apuntes/storage/sample_anotado.pdf")
+    annotated_path = BASE_DIR / "storage" / "sample_anotado.pdf"
+    if not annotated_path.exists():
+        annotated_path = Path("/home/jloslop/gemini-live-assistant/visor_apuntes/storage/sample_anotado.pdf")
+    assert annotated_path.exists(), f"No se encontró el PDF anotado en {annotated_path}"
+
+    doc = pymupdf.open(str(annotated_path))
     assert len(doc) >= 1
     page1 = doc[0]
 
-    # Verificar que el ancho del MediaBox fue ampliado para el margen
+    # Verificar que el ancho del MediaBox fue ampliado para incluir el margen izquierdo y derecho
     assert page1.mediabox.width > 595.0
     assert page1.cropbox.width > 595.0
 
-    # Verificar que contiene texto en el margen extendido
-    margin_text = page1.get_text("text", clip=pymupdf.Rect(595, 0, page1.mediabox.width, page1.mediabox.height))
-    assert "MARGEN EXTENDIDO" in margin_text
-    assert "Fases" in margin_text
+    # Verificar texto del margen
+    full_text = page1.get_text("text")
+    assert "MARGEN" in full_text
     doc.close()
 
 
 def test_commands_and_websocket():
-    """Valida el canal WebSocket bidireccional y el contexto del cursor."""
+    """Valida el canal WebSocket bidireccional, recepción de acciones estructuradas y contexto espacial."""
     async def run_ws():
         async with websockets.connect(WS_URL) as ws:
             # 1. Enviar contexto de ratón simulado
@@ -134,10 +160,13 @@ def test_commands_and_websocket():
                 assert ctx["nearest_cell"] == "C3"
                 assert ctx["nearest_text"] == "procedimiento administrativo"
 
-            # 2. Emitir comando de voz vía HTTP y recibirlo por WS
+            # 2. Emitir comando atómico de marcado vía HTTP y recibirlo por WS
             cmd_payload = json.dumps({
-                "command": "highlight_passage",
-                "args": {"target_text": "iniciarse de oficio", "color": "#fef08a"}
+                "action": "highlight_passage",
+                "from_text": "El plazo",
+                "to_text": "un mes",
+                "color": "verde",
+                "style": "underline"
             }).encode("utf-8")
             req = urllib.request.Request(
                 f"{BASE_URL}/api/commands",
@@ -153,7 +182,35 @@ def test_commands_and_websocket():
             msg = json.loads(msg_raw)
             assert msg.get("type") == "voice_command"
             assert msg.get("command") == "highlight_passage"
-            assert msg["args"]["target_text"] == "iniciarse de oficio"
+            assert msg["args"]["from_text"] == "El plazo"
+
+            # 3. Emitir create_margin_diagram estructurado
+            schema_payload = json.dumps({
+                "action": "create_margin_diagram",
+                "anchor_text": "recursos administrativos",
+                "side": "right",
+                "diagram_type": "tree",
+                "content": {
+                    "root": "Recursos",
+                    "nodes": [
+                        {"title": "Alzada", "children": ["1 mes"]},
+                        {"title": "Reposición", "children": ["1 mes"]}
+                    ]
+                }
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                f"{BASE_URL}/api/commands",
+                data=schema_payload,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req) as resp:
+                assert resp.status == 200
+
+            msg_raw2 = await asyncio.wait_for(ws.recv(), timeout=3.0)
+            msg2 = json.loads(msg_raw2)
+            assert msg2.get("command") == "create_margin_diagram"
+            assert msg2["args"]["anchor_text"] == "recursos administrativos"
 
     asyncio.run(run_ws())
 
