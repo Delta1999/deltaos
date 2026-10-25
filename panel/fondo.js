@@ -367,10 +367,12 @@ const Sis = (() => {
   function dibujar(j) {
     const r = j.ram, usada = r.total - r.disp, sw = j.swap.reduce((a, z) => ({mb: a.mb + z.mb, usado: a.usado + z.usado}), {mb: 0, usado: 0});
     const big = (n, v, rojo) => `<div><span class="lbl">${n}</span><b class="${rojo ? 'r' : ''}">${v}</b></div>`;
-    $('fs-top').innerHTML = big('RAM', Math.round(usada / r.total * 100) + '%', usada / r.total > .9) +
-      big('Swap', sw.mb ? Math.round(sw.usado / sw.mb * 100) + '%' : '—', sw.mb && sw.usado / sw.mb > .8) +
-      big('CPU', (j.cpu ?? '—') + '%', j.cpu > 85) + big('Temp', j.temp != null ? j.temp + '°' : '—', j.temp >= 85) +
-      big('Carga', j.carga[0].toFixed(1), j.carga[0] > j.nucleos);
+    const pr = Math.round(usada / r.total * 100), ps = sw.mb ? Math.round(sw.usado / sw.mb * 100) : null;
+    const al = (m, v) => !!(window.alerta && window.alerta(m, v, {umbrales: D.umbrales, sistema: {swap: ps}}));  // mismos umbrales que el panel
+    $('fs-top').innerHTML = big('RAM', pr + '%', al('ram', pr)) +
+      big('Swap', ps != null ? ps + '%' : '—', al('swap', ps)) +
+      big('CPU', (j.cpu ?? '—') + '%', false) + big('Temp', j.temp != null ? j.temp + '°' : '—', al('temp', j.temp)) +
+      big('Carga', j.carga[0].toFixed(1), false);
     const up = j.arranque, libre = j.grupos.filter(g => g.tipo === 'si').reduce((a, g) => a + g.mb, 0);
     $('fs-pie').textContent = [`${(usada / 1024).toFixed(1)} de ${(r.total / 1024).toFixed(1)} GB en uso · ${(r.disp / 1024).toFixed(1)} GB disponibles (caché ${(r.cache / 1024).toFixed(1)} GB)`,
       sw.mb ? `swap ${(sw.usado / 1024).toFixed(1)} / ${(sw.mb / 1024).toFixed(1)} GB` : '', `${j.nproc} procesos · ${j.nucleos} núcleos`,
@@ -379,7 +381,7 @@ const Sis = (() => {
     const max = Math.max(...j.grupos.map(g => g.mb), 1);
     $('fs-tabla').innerHTML = '<span class="h">Programa</span><span class="h">RAM real (PSS)</span><span class="h n">MB</span><span class="h n">CPU</span><span class="h n">Proc.</span><span class="h">¿Se puede cerrar?</span>' +
       j.grupos.slice(0, Math.max(6, Math.floor((innerHeight * .62) / 27))).map(g =>
-        `<span class="${g.tipo}">${esc(g.nombre)}</span><div class="bar${g.tipo === 'si' ? ' r' : ''}" style="--p:${g.mb / max * 100}%"></div>` +
+        `<span class="${g.tipo}">${esc(g.nombre)}</span><div class="bar" style="--p:${g.mb / max * 100}%"></div>` +
         `<span class="n">${g.mb}</span><span class="n">${g.cpu}%</span><span class="n">${g.n}</span><span class="${g.tipo}">${TIPO[g.tipo]}${g.por ? ' · ' + esc(g.por) : ''}</span>`).join('');
   }
   return {

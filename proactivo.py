@@ -23,14 +23,12 @@ from pathlib import Path
 import acciones
 import panel
 from acciones import _s
+from umbrales import CALOR, RAM_ALTA, SWAP_ALTA
 
 RONDA = 20          # s entre rondas; los umbrales son lentos, no hace falta más
 NOCHE = (23, 8)     # de 23:00 a 08:00 solo pasan las urgencias
 MAX_HORA = 4        # veces que puede interrumpir por su cuenta en una hora (las urgencias no cuentan)
 
-CALOR = 88          # °C; el panel avisa a 85, hablar es un escalón por encima
-RAM_ALTA = 95       # % (8 GB: el 86 % es lo normal en esta máquina)
-SWAP_ALTA = 70      # % — con la RAM llena pero sin swap tocada no pasa nada
 DISCO_MIN = 4.0     # GB libres en casa
 BAT_BAJA = 15       # %
 

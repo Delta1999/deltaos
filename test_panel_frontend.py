@@ -300,6 +300,29 @@ def test_render_headless():
       pintar(d);
       if (ow.dataset.estado !== esperado) {{ console.error('#orbe-wrap sin data-estado «' + esperado + '» en «' + nombre + '»'); process.exit(1); }}
     }}
+    // El rojo solo para avisos reales: alerta(metrica, valor, d) con los umbrales del snapshot
+    const sis = (ram, swap, temp) => Object.assign({{}}, base, {{ sistema: {{ ram, swap, cpu: 99, temp }} }});
+    const quien = d => ['ram', 'swap', 'temp'].filter(m => alerta(m, d.sistema[m], d)).join('+');
+    const casosAlerta = [
+      ['normal (ram 91, swap 57, temp 84)', sis(91, 57, 84), ''],
+      ['ram llena sin swap', sis(96, 57, 50), ''],
+      ['ram 96 y swap 71', sis(96, 71, 50), 'ram+swap'],
+      ['swap sola', sis(50, 71, 50), 'swap'],
+      ['temp 85', sis(50, 10, 85), 'temp'],
+      ['sin datos', sis(null, null, null), '']
+    ];
+    for (const [nombre, d, esperado] of casosAlerta) {{
+      if (quien(d) !== esperado) {{ console.error('alerta() mal en «' + nombre + '»: «' + quien(d) + '» en vez de «' + esperado + '»'); process.exit(1); }}
+    }}
+    if (alerta('cpu', 100, sis(0, 0, 0))) {{ console.error('la CPU no debe ponerse roja'); process.exit(1); }}
+    if (!base.umbrales || base.umbrales.temp !== 85) {{ console.error('el snapshot no trae los umbrales'); process.exit(1); }}
+    // en la pantalla las barras de RAM/SWAP/TEMP llevan muesca y solo se ponen rojas con alerta
+    pintar(sis(91, 57, 84));
+    let sisHtml = document.getElementById('sis').innerHTML;
+    if (/class="bar r"/.test(sisHtml) || (sisHtml.match(/class="mu"/g) || []).length !== 3) {{ console.error('#sis sin muescas o con rojo de más:', sisHtml); process.exit(1); }}
+    pintar(sis(96, 71, 85));
+    sisHtml = document.getElementById('sis').innerHTML;
+    if ((sisHtml.match(/class="bar r"/g) || []).length !== 3) {{ console.error('#sis debería tener RAM, SWAP y TEMP en rojo:', sisHtml); process.exit(1); }}
     console.log('✓ Headless Node.js: pintar(d) ejecutó con éxito todas las variantes de estado');
     process.exit(0);
     """

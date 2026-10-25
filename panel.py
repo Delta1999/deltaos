@@ -19,6 +19,7 @@ import httpx
 from aiohttp import web
 
 import acciones
+import umbrales
 from google.genai import types
 
 PORT = 7876
@@ -190,7 +191,7 @@ def snapshot(ST):
     return {
         **S,
         "v": _panel_version(),
-        "mic": mic, "salud": _salud(ST, mic), "lat": ST.get("lat"), "priv": bool(ST.get("privacidad")),
+        "mic": mic, "salud": _salud(ST, mic), "lat": ST.get("lat"), "priv": bool(ST.get("privacidad")), "umbrales": umbrales.para_panel(),
         "vista": _vista_actual(), "nomol": ST.get("no_molestar", 0) > ahora,
         "vivo": ST.get("vivo", 0) > ahora,  # directo de pantalla: el panel enciende el REC
         "tarjeta": _tarjeta_viva(ahora),
