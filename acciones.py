@@ -956,14 +956,17 @@ DECLARATIONS = [
         {"peticion": _s("lo que el usuario pide que haga Cherry, completo y detallado")}, req=["peticion"]),
 ]
 
-TOOLS = [types.Tool(google_search=types.GoogleSearch()),
-         types.Tool(function_declarations=DECLARATIONS)]
+# Sin google_search (2026-10-25): la búsqueda integrada tiene cuota aparte de la del modelo, y
+# cuando se agota el servidor no falla la búsqueda: rechaza el setup entero con un 1011 «exceeded
+# your current quota» y Delta no llega a abrir sesión. Buscar sigue estando, pero por la herramienta
+# `buscar`/`investigar` de deltaos, donde un fallo de cuota es un error de herramienta y nada más.
+TOOLS = [types.Tool(function_declarations=DECLARATIONS)]
 
 def registrar(declaraciones, handlers):
     """Añade herramientas desde otros módulos y reconstruye TOOLS (que copia la lista al crearse)."""
     DECLARATIONS.extend(declaraciones)
     HANDLERS.update({f.__name__: f for f in handlers})
-    TOOLS[1] = types.Tool(function_declarations=DECLARATIONS)
+    TOOLS[0] = types.Tool(function_declarations=DECLARATIONS)
 
 
 HANDLERS = {f.__name__: f for f in (
@@ -1137,7 +1140,7 @@ def fusionar():
         async def explica(*_, _n=nombre, _r=ramas, **__):
             return f"Error: {_n} necesita accion = {' | '.join(_r)}"
         HANDLERS[nombre] = explica
-    TOOLS[1] = types.Tool(function_declarations=DECLARATIONS)
+    TOOLS[0] = types.Tool(function_declarations=DECLARATIONS)
 
 
 def _real(nombre, args):
