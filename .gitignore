@@ -30,6 +30,7 @@ modelos/
 
 # Cachés y logs
 *.log
+*.log.1
 *.wav
 capturas/
 out/

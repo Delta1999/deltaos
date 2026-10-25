@@ -10,6 +10,15 @@ case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$P
 exec 9>"${XDG_RUNTIME_DIR:-/tmp}/delta.lock"
 flock -n 9 || { echo "Delta ya está en marcha."; exit 0; }
 
+# Rotación de logs (2026-10-25): sin ella assistant.log crecía sin tope. Al arrancar, el que pase
+# del límite pasa a .1 (y el .1 anterior se pierde): queda el arranque de ahora y el historial justo
+# de antes, que es lo que se mira cuando algo ha fallado.
+LOG_MAX=$((2 * 1024 * 1024))
+for l in assistant.log panel_error.log vision.log; do
+  f="$DIR/$l"
+  if [ -f "$f" ] && [ "$(stat -c %s "$f")" -gt "$LOG_MAX" ]; then mv -f "$f" "$f.1"; fi
+done
+
 # Si no corre en una terminal interactiva (p.ej. inicio automático), guardar log.
 # Cada línea con su hora (2026-10-19: sin ella no se sabía cuándo pasó un fallo). 9>&-: el filtro no se queda el candado.
 if [ ! -t 1 ]; then
@@ -26,7 +35,7 @@ fi
 # Guardar el dispositivo de salida original
 ORIG_SINK="$(pactl get-default-sink 2>/dev/null)"
 
-# Rutina: que estén en marcha los servicios que necesita (audio, escritorio, móvil, red); arranca los que pueda.
+# Rutina: que estén en marcha los servicios que necesita (audio, escritorio, red); arranca los que pueda.
 "$DIR/comprobar_servicios.sh"
 
 # Rutina: perfil, micro, ganancia y altavoces como funcionaban (corrige y lo anota en el log).
