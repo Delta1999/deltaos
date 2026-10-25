@@ -128,14 +128,15 @@ def test_render_headless():
     const elements = new Map();
 
     function createElementMock(id) {{
-      return {{
+      const el = {{
+        clases: {{}},
         id: id,
         textContent: '',
         innerHTML: '',
         className: '',
         style: {{}},
         classList: {{
-          toggle: function() {{}},
+          toggle: function(c, on) {{ el.clases[c] = on === undefined ? !el.clases[c] : !!on; }},
           add: function() {{}},
           remove: function() {{}}
         }},
@@ -165,6 +166,7 @@ def test_render_headless():
           }};
         }}
       }};
+      return el;
     }}
 
     domIds.forEach(id => {{
@@ -240,6 +242,44 @@ def test_render_headless():
         console.error('Fallo en test payload #' + i, err);
         process.exit(1);
       }}
+    }}
+
+    // Reposo: dormido, sin conversación, sin permiso, sin herramienta ni pasos en curso, en modo chat
+    const base = Object.assign({{}}, {json.dumps(snapshot)}, {{
+      estado: 'dormido', frases: [], confirma: null, herramienta: null, modo: 'chat',
+      pasos: [], trabajos: {{}}, claude: null, priv: false,
+      avisos: [{{ t: '2099-01-01T09:30:00', texto: 'Llamar al dentista', tipo: 'aviso' }}],
+      arreglos: [{{ id: 1, t: '10:00', txt: 'Arreglar la tele', estado: 'pendiente' }}]
+    }});
+    const der = document.getElementById('der'), fr = document.getElementById('frases');
+    const casos = [
+      ['reposo', base, true],
+      ['escuchando', Object.assign({{}}, base, {{ estado: 'escuchando' }}), false],
+      ['con frases', Object.assign({{}}, base, {{ frases: [{{ rol: 'tú', t: 'hola', h: '12:00' }}] }}), false],
+      ['permiso pendiente', Object.assign({{}}, base, {{ confirma: 'apagar' }}), false],
+      ['herramienta', Object.assign({{}}, base, {{ herramienta: 'buscar' }}), false],
+      ['modo alertas', Object.assign({{}}, base, {{ modo: 'alertas', notifs: [] }}), false],
+      ['paso en curso', Object.assign({{}}, base, {{ pasos: [{{ h: '12:00:00', t: 'x', e: 'en curso' }}] }}), false],
+      ['reposo otra vez', base, true]
+    ];
+    for (const [nombre, d, esperado] of casos) {{
+      pintar(d);
+      if (der.clases.reposo !== esperado) {{
+        console.error('Reposo mal en «' + nombre + '»: esperado ' + esperado + ', hay ' + der.clases.reposo);
+        process.exit(1);
+      }}
+      if (REPOSO !== esperado) {{ console.error('REPOSO no sigue al estado en «' + nombre + '»'); process.exit(1); }}
+    }}
+    pintar(base);
+    if (!/Lo próximo/.test(fr.innerHTML) || !/Llamar al dentista/.test(fr.innerHTML)) {{
+      console.error('La vista de reposo no enseña lo próximo de la agenda:', fr.innerHTML); process.exit(1);
+    }}
+    if (!/Por arreglar · 1 en cola/.test(fr.innerHTML)) {{
+      console.error('La vista de reposo no enseña los arreglos en cola:', fr.innerHTML); process.exit(1);
+    }}
+    pintar(Object.assign({{}}, base, {{ avisos: [], arreglos: [] }}));
+    if (/Lo próximo|Por arreglar/.test(fr.innerHTML)) {{
+      console.error('La vista de reposo pinta bloques vacíos:', fr.innerHTML); process.exit(1);
     }}
     console.log('✓ Headless Node.js: pintar(d) ejecutó con éxito todas las variantes de estado');
     process.exit(0);
