@@ -1,0 +1,6 @@
+{
+ "fuentes": [
+  {"nombre": "portatil", "url": "/dev/video0", "rotar": 180, "fps": 5,
+   "analisis": ["presencia", "gestos", "postura"]}
+ ]
+}

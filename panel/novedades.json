@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-25",
+  "t": "Vuelve la visión por cámara (fase 5.1, en prueba): la webcam ve si estás delante, si miras, gestos sostenidos y la postura, todo en local y sin guardar ni una imagen; el modo privacidad suelta la cámara y apaga su luz",
+  "como": "«enciende la visión», «¿me ves?», «¿cómo estoy sentado?», «apaga la visión»"
+ },
+ {
+  "f": "2026-10-25",
   "t": "Punto de seguridad v5: el botón del menú de la hora vuelve ahora a la versión de hoy (diseño dual Nothing y Apple iOS, visor de apuntes con Gemini Live, visión Lanczos, imágenes al móvil y plan B con Cherry), no a la v4 del 21; lo que se cambie después queda guardado en git",
   "como": "toca la hora y «↺ Volver a v5» si algo se rompe"
  },
