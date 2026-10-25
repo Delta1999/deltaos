@@ -54,7 +54,9 @@ assert panel.snapshot(ST)["vivo"] is True, "el panel tiene que ver el directo pa
 
 h = Path("panel/index.html").read_text()
 assert '<div id="rec"><i></i>REC</div>' in h, "falta el testigo"
-assert "$('rec').className=d.vivo?'on':''" in h, "el REC no está enganchado a d.vivo"
+# El blindaje null-safe del panel lo envolvió en un elRec: basta con que sea $('rec') quien
+# mire d.vivo, en la misma línea.
+assert re.search(r"\$\('rec'\)[^\n]*d\.vivo\?'on'", h), "el REC no está enganchado a d.vivo"
 assert 'd.vivo?`<b class="r">● REC</b>`' in h, "falta el REC en la tira del modo invisible"
 # Fuera de #dock-pista a propósito: un testigo de grabación no se busca con la rueda.
 pista = h.split('<div id="dock-pista">')[1].split('<div id="rec">')[0]
@@ -63,7 +65,8 @@ assert "rec" not in pista, "el REC no puede estar dentro de los huecos del dock"
 # ---------- el dock ----------
 assert h.count('class="slot"') == 6, "la hora + 5 huecos"
 assert "DOCK_N=6" in h and 'id="hora"' in h.split('class="slot"')[1][:200], "la hora es el hueco 0"
-assert re.search(r"translateY\(\$\{-DK\*\$\('dock'\)\.clientHeight\}px\)", h), "la pista no se desliza"
+# El dock se mide por su propia altura; el blindaje null-safe lo guardó antes en una variable.
+assert re.search(r"translateY\(\$\{-DK\*[^}]*clientHeight\}px\)", h), "la pista no se desliza"
 assert "DK=0;dkpinta()},12000" in h, "el dock tiene que volver solo a ser un reloj"
 
 # Sin herramienta plana nueva: el directo entra por la fusión «pantalla».
