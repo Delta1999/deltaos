@@ -64,7 +64,7 @@ window.onunhandledrejection = function(e) {
   --red: var(--accent);
   --line: var(--border-visible);
 
-  --dockh: 120px;
+  --dockh: 96px;
   --dot: -apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",sans-serif;
   --mono: "SF Mono",ui-monospace,Menlo,Monaco,monospace;
   --sans: -apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",sans-serif;
@@ -382,7 +382,7 @@ window.onunhandledrejection = function(e) {
   --red:var(--accent);
   --line:var(--border-visible);
 
-  --dockh:120px;
+  --dockh:96px;
   --dot:"Doto","Space Mono",monospace;
   --mono:"Space Mono",ui-monospace,monospace;
   --sans:"Space Grotesk",ui-sans-serif,sans-serif
@@ -393,7 +393,7 @@ body{display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:minmax(
 .dot{font-family:var(--dot);font-weight:900;letter-spacing:.02em}
 .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--text-secondary);text-transform:uppercase}
 header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
-#hora{font-size:92px;line-height:.9;color:var(--text-display)}
+#hora{font-size:56px;line-height:.9;color:var(--text-display)}
 #fecha{margin-top:8px}
 /* El dock ocupa el sitio del reloj: la hora es la posición 0 y la rueda trae las demás desde
    abajo, como los rodillos de una tragaperras. Sin iconos: el panel habla en matriz de puntos,
@@ -401,7 +401,7 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:24p
 #dock{position:relative;height:var(--dockh);overflow:hidden;flex:1;min-width:0}
 #dock-pista{transition:transform .42s cubic-bezier(.22,1,.36,1)}
 .slot{height:var(--dockh);display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding-bottom:12px;box-sizing:border-box}
-.slot .v{font-size:72px;line-height:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-display)}
+.slot .v{font-size:44px;line-height:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-display)}
 .slot .c{margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #dock-pips{position:absolute;left:1px;bottom:3px;display:flex;gap:5px}  /* debajo de la hora: a la derecha va el mini orbe */
 #dock-pips i{width:5px;height:5px;border-radius:50%;background:var(--border-visible)}
@@ -421,7 +421,7 @@ main{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(
 .card{background:var(--surface);border:1px solid var(--border-visible);border-radius:16px;padding:22px 26px;position:relative;overflow:hidden;min-height:0}
 #hero{display:flex;flex-direction:column;justify-content:space-between}
 canvas{width:100%;flex:1;min-height:0;display:block}
-#estado{font-size:56px;line-height:1;margin-top:10px;color:var(--text-display)}
+#estado{font-size:22px;line-height:1;margin-top:10px;color:var(--text-display)}
 #sub{font-family:var(--mono);color:var(--text-secondary);font-size:13px;margin-top:8px;height:18px}
 #frases{display:flex;flex-direction:column;gap:14px;overflow-y:auto;overscroll-behavior:contain}
 /* Barra visible Nothing */
@@ -524,7 +524,21 @@ body.visor{grid-template-rows:auto 1fr}body.visor main,body.visor footer{display
 #cel p{font-family:var(--mono);position:relative;font-size:22px;margin-top:18px;color:var(--text-primary)}
 /* gadget oculto: tocar la hora abre la chuleta de capacidades */
 #hora{cursor:pointer}
-.cab{display:flex;align-items:center;gap:16px}#miniorbe{width:120px;height:120px;flex:none;cursor:pointer}
+.cab{display:flex;align-items:center;gap:16px}
+/* El orbe es el único indicador de estado: se dice con movimiento y forma (aro), no solo con color */
+#orbe-wrap{position:relative;width:clamp(112px,16vh,170px);height:clamp(112px,16vh,170px);flex:none}
+#miniorbe{width:100%;height:100%;display:block;cursor:pointer}
+#orbe-wrap::before{content:"";position:absolute;inset:1px;border-radius:50%;pointer-events:none;border:0 solid transparent}
+#orbe-wrap[data-estado=reposo] #miniorbe{animation:orbe-respira 7s ease-in-out infinite}
+#orbe-wrap[data-estado=escuchando]::before{border:1px solid var(--text-secondary)}
+#orbe-wrap[data-estado=trabajando]::before{border:2px solid transparent;border-top-color:var(--text-display);border-right-color:var(--text-display);animation:orbe-gira 3.2s linear infinite}
+#orbe-wrap[data-estado=privacidad] #miniorbe{opacity:.18}
+#orbe-wrap[data-estado=privacidad]::before{border:2px dashed var(--text-secondary)}
+#orbe-wrap[data-estado=error]::before{border:2px solid var(--red);animation:orbe-error 2.4s ease-in-out infinite}
+@keyframes orbe-respira{0%,100%{opacity:.55}50%{opacity:.85}}
+@keyframes orbe-gira{to{transform:rotate(360deg)}}
+@keyframes orbe-error{0%,100%{opacity:1}50%{opacity:.2}}
+@media (prefers-reduced-motion:reduce){#orbe-wrap::before,#orbe-wrap #miniorbe{animation:none!important}#orbe-wrap[data-estado=reposo] #miniorbe{opacity:.7}}
 #chuleta{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9;padding:40px 48px;overflow:auto;display:none}
 body.chuleta #chuleta{display:block}
 #chuleta h2{font-size:44px;margin-bottom:6px;color:var(--text-display)}
@@ -698,7 +712,7 @@ body.widget :is(#t-card,#t-web).on{display:flex;flex-direction:column;min-height
 @media (max-height:820px){
   body{gap:14px;padding:16px 24px}main,footer,#der{gap:14px}
   .card{padding:14px 18px;border-radius:14px}
-  :root{--dockh:86px}#hora{font-size:60px}.slot .v{font-size:48px}#estado{font-size:40px}.fr{font-size:17px}.bub{font-size:16px;padding:9px 13px}
+  :root{--dockh:72px}#hora{font-size:38px}.slot .v{font-size:30px}#estado{font-size:18px}.fr{font-size:17px}.bub{font-size:16px;padding:9px 13px}
   #clima #ic0{width:66px!important;height:66px!important}.hs canvas{width:44px!important;height:44px!important}
   .hs{margin:8px 0 2px}.row{margin-top:5px}.big{font-size:40px}
   .mando{padding-top:8px}.g canvas{height:52px}
@@ -1001,10 +1015,8 @@ body.widget :is(#t-card,#t-web).on{display:flex;flex-direction:column;min-height
 </head>
 <body>
 <header>
-  <div class="cab"><div id="dock" title="Rueda del ratón: gira el dock. Vuelve sola a la hora."><div id="dock-pista"><div class="slot"><div id="hora" class="dot">--:--</div><div id="fecha" class="lbl"></div></div><div class="slot" id="k1"></div><div class="slot" id="k2"></div><div class="slot" id="k3"></div><div class="slot" id="k4"></div><div class="slot" id="k5"></div></div><div id="rec"><i></i>REC</div><div id="dock-pips"></div></div><canvas id="miniorbe" title="Clic: orbe 2 · clic derecho: salvapantallas"></canvas><button id="lapiz" title="Pegar texto como contexto para Delta"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/><path d="M14.5 5.5l3 3"/></svg></button></div>
+  <div class="cab"><div id="dock" title="Rueda del ratón: gira el dock. Vuelve sola a la hora."><div id="dock-pista"><div class="slot"><div id="hora" class="dot">--:--</div><div id="fecha" class="lbl"></div></div><div class="slot" id="k1"></div><div class="slot" id="k2"></div><div class="slot" id="k3"></div><div class="slot" id="k4"></div><div class="slot" id="k5"></div></div><div id="rec"><i></i>REC</div><div id="dock-pips"></div></div><div id="orbe-wrap" data-estado="reposo"><canvas id="miniorbe" title="Clic: orbe 2 · clic derecho: salvapantallas"></canvas></div><button id="lapiz" title="Pegar texto como contexto para Delta"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/><path d="M14.5 5.5l3 3"/></svg></button></div>
   <div class="meta">
-    <div><span class="lbl">Sesión</span><b id="conexion">—</b></div>
-    <div><span class="lbl">Voz</span><b id="voz">—</b></div>
     <div><span class="lbl">Dispositivos</span><b id="dispos">—</b></div>
     <div><span class="lbl">Memoria</span><b id="memoria">—</b></div>
     <div><span class="lbl">Última actividad</span><b id="ultima">—</b></div>
@@ -1014,7 +1026,7 @@ body.widget :is(#t-card,#t-web).on{display:flex;flex-direction:column;min-height
   <section class="card" id="hero">
     <canvas id="cv"></canvas>
     <div id="pasos"></div>
-    <div id="pie"><div><div id="estado" class="dot">CARGANDO</div><div id="sub"></div></div><div id="uso" class="lbl"></div></div>
+    <div id="pie"><div aria-live="polite" aria-atomic="true"><div id="estado" class="dot">CARGANDO</div><div id="sub"></div></div><div id="uso" class="lbl"></div></div>
   </section>
   <div id="der">
     <section class="card" id="consola">
@@ -1088,6 +1100,13 @@ if(WIDGET){document.documentElement.classList.add('widget');document.body.classL
 const bar=(p,r)=>`<div class="bar${r?' r':''}" style="--p:${Math.max(0,Math.min(100,p))}%"></div>`;
 const mmss=s=>s==null?'—':s<90?`${Math.round(s)} s`:s<5400?`${Math.round(s/60)} min`:`${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
 
+// Única fuente de verdad del estado de Delta: lo usan el orbe, #estado y la tira (#t-est).
+// error = el enlace con Gemini o el micro fallan; las demás lámparas (eco, impresora…) no son error de Delta.
+function estadoOrbe(d){const s=d.salud||{};
+  if(s.enlace==='mal'||s.mic==='mal'||d.sinPanel)return 'error';
+  if(d.priv)return 'privacidad';
+  return d.estado==='escuchando'||d.estado==='trabajando'||d.estado==='hablando'?d.estado:'reposo'}
+const ETIQ_ORBE={reposo:'STAND-BY',escuchando:'ESCUCHANDO',trabajando:'TRABAJANDO',hablando:'HABLANDO',privacidad:'PRIVACIDAD',error:'ERROR'};
 // reposo: frases de ejemplo («como» de novedades.json) que rotan cada ~20 s; solo se cambia el nodo .ej, nunca el HTML que compara FH
 let EJ=[],EJI=0,REPOSO=false,REPOSO_DESDE=0;
 const faltaDe=(t,ahora=Date.now())=>{const m=Math.round((new Date(t)-ahora)/6e4);return m<1?'ya':m<60?m+' min':m<1440?Math.floor(m/60)+' h '+m%60+' min':Math.floor(m/1440)+' d'};
@@ -1148,8 +1167,6 @@ function _pintar(d){
     btm.title=tm==='ios'?'Diseño activo: Apple iOS (clic para cambiar a Nothing)':'Diseño activo: Nothing (clic para cambiar a Apple iOS)';
   }
   $txt('hora',d.hora); $txt('fecha',d.fecha);
-  const c=$('conexion');if(c){c.textContent=d.conexion.toUpperCase();c.className=d.conexion==='conectado'?'ok':d.conexion==='en reposo'?'':'mal';c.style.color=d.conexion==='en reposo'?'var(--dim)':'';}
-  $txt('voz',d.voz);
   const elDisp=$('dispos');
   if(elDisp){
     elDisp.innerHTML=d.dispos.length?d.dispos.map(x=>{const n=esc(x.nombre.split(' ')[0]).toUpperCase(),
@@ -1159,9 +1176,11 @@ function _pintar(d){
   }
   $txt('memoria',`${d.memoria.n} notas`+(d.memoria.ultima?` · ${d.memoria.ultima}`:''));
   $txt('ultima',d.ultima<5?'ahora':`hace ${mmss(d.ultima)}`);
-  const est=d.estado==='dormido'?'STAND-BY':d.estado.toUpperCase(),elEst=$('estado');
-  if(elEst){elEst.textContent=est;elEst.style.color=d.estado==='dormido'?'var(--dim)':'var(--fg)';}
-  $txt('sub',d.confirma?`¿PERMITIR? ${d.confirma}`:d.priv?'PRIVACIDAD · el micro se ignora, ni «Delta»'
+  const eo=estadoOrbe(d),est=ETIQ_ORBE[eo],elEst=$('estado');
+  if(elEst){elEst.textContent=est;elEst.style.color=eo==='reposo'||eo==='privacidad'?'var(--dim)':eo==='error'?'var(--red)':'var(--fg)';}
+  const ow=$('orbe-wrap');if(ow)ow.dataset.estado=eo;
+  const mo=$('miniorbe');if(mo)mo.title=`${est} · voz ${d.voz} · clic: orbe 2 · clic derecho: salvapantallas`;
+  $txt('sub',d.confirma?`¿PERMITIR? ${d.confirma}`:eo==='error'?(d.sinPanel?'PANEL SIN ENLACE · reconectando':(d.salud||{}).enlace==='mal'?'SIN ENLACE con Gemini · reintentando':'micro con problemas (sin señal, saturado o ruido)'):d.priv?'PRIVACIDAD · el micro se ignora, ni «Delta»'
    :d.nomol?'NO MOLESTAR · no aviso por mi cuenta; tus alarmas siguen sonando':d.herramienta?`usando: ${d.herramienta}`:d.sueno!=null?`duerme en ${d.sueno} s`:'di «Delta» o pulsa Enter');
   const fe=$('frases');
   // reposo: dormido, sin conversación, sin permiso pendiente, sin herramienta ni pasos en curso, en modo chat
@@ -1253,7 +1272,7 @@ function _pintar(d){
   if(WIDGET)tiraWidget(d); else document.body.classList.toggle('minimizado',['invisible','oculto'].includes((d.vista||'').split('-')[0]));
   if(inv){
     if(d.hora){const p=d.hora.split(':');if(p.length===2){const th=$('t-h'),tm=$('t-m');if(th&&tm){if(th.textContent!==p[0])th.textContent=p[0];if(tm.textContent!==p[1])tm.textContent=p[1]}else{$html('t-hora',`<span id="t-h">${esc(p[0])}</span><i>:</i><span id="t-m">${esc(p[1])}</span>`)}}else if($('t-hora')&&$('t-hora').textContent!==d.hora){$txt('t-hora',d.hora)}}
-    const elTest=$('t-est');if(elTest){elTest.textContent=est;elTest.style.color=d.estado==='dormido'?'var(--dim)':'var(--fg)';}
+    const elTest=$('t-est');if(elTest){elTest.textContent=est;elTest.style.color=eo==='reposo'||eo==='privacidad'?'var(--dim)':eo==='error'?'var(--red)':'var(--fg)';}
     $txt('t-sub',($('sub')||{}).textContent||'');
     for(const k in d.salud){const l=$('t-l-'+k);if(l)l.className='lamp '+d.salud[k]}
     const act=ps.find(x=>x.e==='en curso')||ps[ps.length-1],
@@ -1507,7 +1526,7 @@ const elClima=$('clima'); if(elClima){elClima.style.cursor='pointer';elClima.tit
 [['p-card-cerrar','quitar_tarjeta'],['b-cerrar','cerrar_visor'],['b-priv','privacidad'],['b-modo','modo'],['b-tema','cambiar_tema'],['b-dormir','dormir'],['b-si','permitir'],['b-no','denegar']].forEach(([i,c])=>{const el=$(i);if(el)el.addEventListener('click',()=>cmd(c))});
 function ws(){const w=WS=new WebSocket(`ws://${location.host}/ws`);w.onopen=()=>geo(w);
   w.onmessage=m=>{try{const d=JSON.parse(m.data);if(d.v){if(window._v===undefined){window._v=d.v}else if(d.v!==window._v){window._v=d.v;location.reload();return}}pintar(d);const lp=$('lapiz');if(lp)lp.classList.toggle('lleno',!!d.pegado);window.fondoEspera&&window.fondoEspera(d)}catch(err){console.error('Error ws onmessage:',err);if(window.__reportError)window.__reportError(err.message,'index.html',err.lineNumber||0,0,err)}};
-  w.onclose=()=>{const cx=$('conexion');if(cx){cx.textContent='PANEL SIN ENLACE';cx.className='mal'};setTimeout(ws,2000)}}
+  w.onclose=()=>{if(S.conexion){S.sinPanel=true;pintar(S)}setTimeout(ws,2000)}}
 fit();ws();requestAnimationFrame(t=>dibuja(t/1000));
 </script>
 <script type="module" src="/fondo.js"></script>

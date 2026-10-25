@@ -74,7 +74,7 @@ def test_required_dom_ids():
     existing_ids = set(re.findall(r'id=["\']([^"\'>\s]+)["\']', no_scripts))
 
     critical_ids = [
-        "hora", "fecha", "conexion", "voz", "dispos", "memoria", "ultima", "estado",
+        "hora", "fecha", "dispos", "orbe-wrap", "miniorbe", "memoria", "ultima", "estado",
         "sub", "frases", "impd", "agenda", "sis", "clima", "uso", "k1", "k2", "k3",
         "k4", "k5", "rec", "pasos", "t-hora", "t-est", "t-sub", "t-vivo", "t-pie",
         "t-card", "p-card", "p-card-cerrar", "pegar-cerrar", "b-priv", "b-modo",
@@ -280,6 +280,25 @@ def test_render_headless():
     pintar(Object.assign({{}}, base, {{ avisos: [], arreglos: [] }}));
     if (/Lo próximo|Por arreglar/.test(fr.innerHTML)) {{
       console.error('La vista de reposo pinta bloques vacíos:', fr.innerHTML); process.exit(1);
+    }}
+    // Un único foco de estado: estadoOrbe(d) y el orbe de la cabecera
+    const ow = document.getElementById('orbe-wrap');
+    const sano = {{ enlace: 'ok', mic: 'ok', aec: 'ok', claude: 'ok', impresora: 'ok' }};
+    const orbes = [
+      ['dormido', {{ estado: 'dormido' }}, 'reposo'],
+      ['escuchando', {{ estado: 'escuchando' }}, 'escuchando'],
+      ['trabajando', {{ estado: 'trabajando' }}, 'trabajando'],
+      ['hablando', {{ estado: 'hablando' }}, 'hablando'],
+      ['privacidad', {{ estado: 'dormido', priv: true }}, 'privacidad'],
+      ['enlace mal', {{ estado: 'escuchando', salud: Object.assign({{}}, sano, {{ enlace: 'mal' }}) }}, 'error'],
+      ['mic mal', {{ estado: 'dormido', salud: Object.assign({{}}, sano, {{ mic: 'mal' }}) }}, 'error'],
+      ['impresora mal no es error', {{ estado: 'dormido', salud: Object.assign({{}}, sano, {{ impresora: 'mal', aec: 'mal' }}) }}, 'reposo']
+    ];
+    for (const [nombre, extra, esperado] of orbes) {{
+      const d = Object.assign({{}}, base, {{ salud: sano }}, extra);
+      if (estadoOrbe(d) !== esperado) {{ console.error('estadoOrbe mal en «' + nombre + '»: ' + estadoOrbe(d)); process.exit(1); }}
+      pintar(d);
+      if (ow.dataset.estado !== esperado) {{ console.error('#orbe-wrap sin data-estado «' + esperado + '» en «' + nombre + '»'); process.exit(1); }}
     }}
     console.log('✓ Headless Node.js: pintar(d) ejecutó con éxito todas las variantes de estado');
     process.exit(0);
