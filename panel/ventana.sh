@@ -1,9 +1,9 @@
 #!/bin/bash
 # Abre el panel en una ventana sin marcos y le aplica la vista.
 # Vista (fichero $VISTA, lo escriben Delta y el panel): «panel» = panel a pantalla completa en la
-# pantalla secundaria; «invisible» = el panel encogido a una barra de estado en la esquina superior derecha,
-# siempre encima y sin robar el foco; «invisible-grande» = esa misma barra con una tarjeta desplegada;
-# «oculto» = ni barra ni panel, todo minimizado (Delta sigue escuchando).
+# pantalla secundaria; «invisible» = el panel minimizado y, en su lugar, el ORBE FLOTANTE
+# (orbe_flotante.py: ventana transparente con el orbe 2, que enseña la barra de estado al clicarlo);
+# «oculto» = ni orbe ni panel, nada en pantalla (Delta sigue escuchando).
 # Al cambiar las pantallas se elige sola: con HDMI, panel; solo el portátil, la barra.
 # Uso: ventana.sh [NOMBRE_SALIDA]   p.ej. eDP-1 o HDMI-A-1
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -11,8 +11,7 @@ URL="http://127.0.0.1:7876"
 SALIDA="${1:-$PANEL_PANTALLA}"
 VISTA="${XDG_RUNTIME_DIR:-/tmp}/delta-vista"
 PANT="${XDG_RUNTIME_DIR:-/tmp}/delta-pantalla-panel"  # la pantalla elegida por voz (deltaos.mover_a_pantalla)
-TIRA_AN=700 TIRA_AL=152 TIRA_M=24  # la tira del modo invisible: ancho, alto y margen con la esquina
-TIRA_ALTA=470  # «invisible-grande»: la misma tira con una tarjeta desplegada (Fase 8)
+ORBE_AN=700 ORBE_AL=850 ORBE_M=24  # la ventana del orbe flotante (medidas en orbe_flotante.py) y su margen
 
 # Imprime «x y ancho alto vista_por_defecto firma» de la pantalla del panel según las pantallas encendidas:
 # la elegida por voz si está encendida, si no $SALIDA, si no la que no es la principal. La firma es el juego
@@ -31,21 +30,10 @@ destino() {
 }
 aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
   read -r X Y AN AL _ <<<"$2"
-  if [ "$3" = oculto ]; then
-    # «quita la barra»: nada en pantalla. Delta sigue escuchando; esto es solo la ventana.
+  if [ "${3%%-*}" = invisible ] || [ "$3" = oculto ]; then
+    # En invisible el panel no se ve: lo que queda en pantalla es el orbe flotante, que es otra
+    # ventana (orbe()). En oculto no queda nada. Delta sigue escuchando en los dos casos.
     kdotool windowminimize "$1"
-  elif [ "${3%%-*}" = invisible ]; then
-    # «invisible-grande» es la misma tira con la tarjeta abierta: solo cambia el alto, así que
-    # no hace falta otra ventana, otra regla de KWin ni otro proceso al que perseguir.
-    H=$TIRA_AL; [ "$3" = invisible-grande ] && H=$TIRA_ALTA
-    # sin windowactivate: la tira no debe robarle el teclado a lo que esté haciendo el usuario
-    TX=$((X + AN - TIRA_AN - TIRA_M)) TY=$((Y + TIRA_M))
-    kdotool windowstate --remove FULLSCREEN --remove MINIMIZED "$1"
-    # ABOVE, no KEEP_ABOVE: kdotool rechaza el nombre largo y con él se caía el comando entero,
-    # así que la tira se quedaba con marco, en la barra de tareas y DEBAJO de las demás ventanas.
-    kdotool windowstate --add NO_BORDER --add SKIP_TASKBAR --add ABOVE "$1"
-    kdotool windowmove "$1" "$TX" "$TY"; kdotool windowsize "$1" "$TIRA_AN" "$H"
-    sleep 1; kdotool windowmove "$1" "$TX" "$TY"; kdotool windowsize "$1" "$TIRA_AN" "$H"
   else
     kdotool windowactivate "$1"
     kdotool windowstate --remove FULLSCREEN --remove KEEP_ABOVE "$1"
@@ -54,6 +42,34 @@ aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
     sleep 1; kdotool windowmove "$1" "$X" "$Y"
   fi
 }
+
+# El orbe flotante del modo invisible: otra ventana y otro proceso (orbe_flotante.py, GTK+WebKit,
+# que es lo único que sabe hacer una ventana transparente aquí). Se arranca al entrar en invisible,
+# se coloca en la misma esquina donde estaba la barra de estado, y se mata al salir.
+# Nace invisible (KWin lo pone donde quiere, no donde le decimos) y se muestra con SIGUSR1 cuando ya está colocado.
+ORBE_PID= ORBE_PUESTO=
+lanzar_orbe() {  # no espera: su arranque (~6 s) va en paralelo al de Chromium
+  kill -0 "$ORBE_PID" 2>/dev/null && return
+  /usr/bin/python3 "$DIR/orbe_flotante.py" "$URL" >/dev/null 2>&1 &   # python del sistema: PyGObject y WebKit no están en el .venv
+  ORBE_PID=$! ORBE_PUESTO=
+}
+orbe() {  # $1 = destino, $2 = vista
+  if [ "${2%%-*}" = invisible ]; then
+    lanzar_orbe
+    [ -n "$ORBE_PUESTO" ] && return
+    read -r X Y AN AL _ <<<"$1"
+    local W=
+    for i in $(seq 40); do W=$(kdotool search --name "Delta orbe" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep .5; done
+    [ -z "$W" ] && return
+    sleep 1  # igual que el panel: KWin recoloca la ventana al mostrarla, y mover antes no se respeta
+    kdotool windowstate --add NO_BORDER --add SKIP_TASKBAR --add ABOVE "$W"
+    kdotool windowmove "$W" $((X + AN - ORBE_AN - ORBE_M)) $((Y + ORBE_M))
+    kill -USR1 "$ORBE_PID" 2>/dev/null; ORBE_PUESTO=1
+  elif [ -n "$ORBE_PID" ]; then
+    kill "$ORBE_PID" 2>/dev/null; ORBE_PID=
+  fi
+}
+trap 'kill $ORBE_PID 2>/dev/null' EXIT INT TERM
 
 # Regla de KWin: la ventana nace ya en su pantalla, sin aparecer antes en la otra y saltar
 regla() {
@@ -83,15 +99,21 @@ preparar_chromium() {
 D=$(destino); [ -n "$D" ] && regla "$D"
 for i in $(seq 30); do curl -sf "$URL" >/dev/null && break; sleep 1; done
 preparar_chromium
+V0=$(cat "$VISTA" 2>/dev/null)
+[ "${V0%%-*}" = invisible ] && lanzar_orbe
 # Chromium y no Chrome: Chrome ya no admite --load-extension, y sinmarcos/ deja incrustar webs en el panel
 chromium-browser --user-data-dir="$DIR/.chromium" --load-extension="$DIR/sinmarcos" --app="$URL/" --no-first-run \
   --hide-crash-restore-bubble --disable-session-crashed-bubble --no-recovery-component --no-default-browser-check \
   --disable-features=Translate,OptimizationGuideOnDeviceModel --autoplay-policy=no-user-gesture-required &
 CH=$!
 # Wayland ignora --window-position: se coloca con KWin una vez aparece la ventana
-for i in $(seq 40); do W=$(kdotool search --class "chrome.*127.0.0.1|127.0.0.1" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep .5; done
+for i in $(seq 200); do W=$(kdotool search --class "chrome.*127.0.0.1|127.0.0.1" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep .1; done
 [ -z "$W" ] && { wait $CH; exit; }
-sleep 2  # KWin recoloca la ventana al mostrarla; mover antes no se respeta
+if [ "${V0%%-*}" = invisible ] || [ "$V0" = oculto ]; then
+  kdotool windowminimize "$W"  # el panel no se ve en estas vistas: fuera ya, sin dejar ver su CSS ni su sitio de nacimiento
+else
+  sleep 2  # KWin recoloca la ventana al mostrarla; mover antes no se respeta
+fi
 ANT= FANT= VANT=
 while kill -0 $CH 2>/dev/null; do
   D=$(destino)
@@ -109,6 +131,6 @@ while kill -0 $CH 2>/dev/null; do
   fi
   # contenido + fecha: repetir la vista tras mover el panel a mano (o con «ventanas») también se aplica
   V=$(cat "$VISTA" 2>/dev/null); T=$(stat -c %.9Y "$VISTA" 2>/dev/null)
-  [ -n "$D" ] && [ "$V$T" != "$VANT" ] && { aplicar "$W" "$D" "$V"; VANT=$V$T; }
+  [ -n "$D" ] && [ "$V$T" != "$VANT" ] && { orbe "$D" "$V"; aplicar "$W" "$D" "$V"; VANT=$V$T; }
   sleep 1
 done

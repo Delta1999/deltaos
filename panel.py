@@ -187,7 +187,6 @@ def _panel_version():
 def snapshot(ST):
     ahora = time.monotonic()
     mic = _mic(ST)
-    _ajustar_tira()  # el visor puede haber aparecido o cerrado sin pasar por tarjeta()
     return {
         **S,
         "v": _panel_version(),
@@ -341,17 +340,17 @@ def vista(modo):
     VISTA.write_text(modo)
 
 
-TARJETA_MAX = 180      # s como mucho con la tira crecida; se encoge sola
+TARJETA_MAX = 180      # s como mucho con la tarjeta puesta; se quita sola
 _TARJETA = None        # estado del panel, no de la sesión: ST es de acciones y aquí no pinta nada
 
 
 def tarjeta(titulo, texto, segundos=40, imagen=""):
-    """Fase 8: la tira crece y enseña algo concreto, en vez de abrir otra ventana.
+    """Fase 8: Delta enseña algo concreto escrito, en vez de abrir otra ventana.
 
-    Se eligió hacerla crecer y no una ventana aparte porque bajo Wayland cada ventana nueva es
-    otra regla de KWin y otro baile de kdotool; aquí solo cambia el alto de la que ya está.
-    Quien la encoge es la propia caducidad, no una orden: si Delta se cae con la tarjeta puesta,
-    el siguiente snapshot la quita igual.
+    En el panel completo flota sobre él; en modo invisible la enseña el orbe flotante, que abre la
+    barra de estado y la deja abierta mientras dure la tarjeta (el orbe mira `tarjeta` y `visor` en
+    cada snapshot). Quien la quita es la propia caducidad, no una orden: si Delta se cae con la
+    tarjeta puesta, el siguiente snapshot la quita igual.
 
     `imagen` es una URL ya servible (`/archivo?...` o https://): quien la convierte desde una
     ruta del disco es deltaos, que es quien sabe qué carpetas se dejan mirar."""
@@ -361,29 +360,12 @@ def tarjeta(titulo, texto, segundos=40, imagen=""):
                 "lineas": [l.strip() for l in str(texto or "").splitlines() if l.strip()][:14],
                 "img": str(imagen or "").strip(),
                 "hasta": time.monotonic() + seg}
-    _ajustar_tira()
     return seg
 
 
 def quitar_tarjeta():
     global _TARJETA
     _TARJETA = None
-    _ajustar_tira()
-
-
-def _ajustar_tira():
-    """La tira crecida es otra vista para ventana.sh («invisible-grande»), no un modo nuevo: así
-    reutiliza el bucle que ya recoloca la ventana cuando cambia el fichero, sin más carreras.
-
-    Crece por dos motivos: una tarjeta que ha puesto Delta, o el visor. El visor estaba muerto en
-    modo invisible —se escribía en S y no había dónde pintarlo—, y es justo donde caen la búsqueda,
-    el mapa, la web y el informe; en la tira es su versión reducida."""
-    v = _vista_actual()
-    if not v.startswith("invisible"):
-        return
-    quiere = "invisible-grande" if (_TARJETA or S.get("visor")) else "invisible"
-    if v != quiere:
-        VISTA.write_text(quiere)
 
 
 def _tarjeta_viva(ahora):

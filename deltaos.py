@@ -715,8 +715,12 @@ async def cambiar_vista(modo):
         return "Error: el modo es panel, invisible u oculto."
     panel.vista(modo)
     if modo == "oculto":
-        return ("Hecho: quitada la barra de estado. Sigo escuchando igual; dile que para recuperarla "
-                "basta con pedirla («enséñame la barra»).")
+        return ("Hecho: quitado el orbe. Sigo escuchando igual; dile que para recuperarlo basta con "
+                "pedir el modo invisible.")
+    if modo == "invisible":
+        return ("Hecho: modo invisible. En pantalla solo queda el orbe flotando: un clic encima le "
+                "enseña la barra de estado 5 segundos, doble clic abre el panel y arrastrándolo lo "
+                "cambia de sitio.")
     return f"Hecho: vista {modo}."
 
 
@@ -771,13 +775,14 @@ def _pantalla_de(cual, ps):
 
 
 async def mover_a_pantalla(cual, donde="otra"):
-    """Fija en qué pantalla va la interfaz (panel y barra de estado son la misma ventana).
+    """Fija en qué pantalla va la interfaz (el panel; el orbe del modo invisible va con él).
     No mueve la ventana por su cuenta: ventana.sh vigila su fichero y la recoloca él,
     así un cambio de vista posterior no la devuelve a la pantalla de antes."""
     c = str(cual or "").strip().lower()
-    cuales = {"interfaz": ["panel"], "panel": ["panel"], "barra": ["panel"], "todo": ["panel"]}.get(c)
+    cuales = {"interfaz": ["panel"], "panel": ["panel"], "barra": ["panel"], "orbe": ["panel"],
+              "todo": ["panel"]}.get(c)
     if not cuales:
-        return "Error: cual es interfaz (también la barra de estado) o todo."
+        return "Error: cual es interfaz (también el orbe del modo invisible) o todo."
     ps = _pantallas((await _run(["kscreen-doctor", "-o"], timeout=10))[1])
     if len(ps) < 2:
         return "Solo hay una pantalla encendida: no hay otra a la que llevarlo. Díselo al usuario."
@@ -794,14 +799,14 @@ async def mover_a_pantalla(cual, donde="otra"):
 
 
 async def mostrar_en_tira(texto="", titulo="", segundos="", imagen=""):
-    """Fase 8: enseña algo concreto en una tarjeta que se quita sola. Con la barra puesta, la barra
-    crece en ella; en panel completo (21/10) flota sobre el panel. Con `imagen` enseña además una
-    foto, una captura o un plano del disco."""
+    """Fase 8: enseña algo concreto en una tarjeta que se quita sola. En modo invisible la abre el
+    orbe flotante debajo de él (y se queda mientras dure, no 5 s como el clic); en panel completo
+    (21/10) flota sobre el panel. Con `imagen` enseña además una foto, una captura o un plano."""
     if not str(texto or "").strip() and not str(imagen or "").strip():
         return "Error: no hay nada que enseñar."
     vista = panel._vista_actual()
     if not (vista.startswith("invisible") or vista == "panel"):
-        return ("Error: ahora no hay ni panel ni barra de estado en pantalla. "
+        return ("Error: ahora no hay ni panel ni orbe en pantalla. "
                 "Dilo en voz alta, o pon el panel o el modo invisible antes.")
     url = ""
     if str(imagen or "").strip():
@@ -817,20 +822,20 @@ async def mostrar_en_tira(texto="", titulo="", segundos="", imagen=""):
     except ValueError:
         return 'Error: segundos tiene que ser un número, p.ej. "30".'
     puesto = panel.tarjeta(titulo or "DELTA", texto, seg, imagen=url)
-    donde = "en el panel" if vista == "panel" else "en la barra"
+    donde = "en el panel" if vista == "panel" else "en la barra del orbe"
     return f"Hecho: lo tiene {donde} {puesto:g} segundos. Dile en una frase qué le has puesto."
 
 
 async def quitar_de_tira():
-    """«Quita eso de la barra»: solo la tarjeta y el visor; la barra se queda donde estaba. Antes no había
-    con qué y Delta ponía el panel completo (21/10, «quita el informe meteorológico de la barra»).
+    """«Quita eso de la barra»: solo la tarjeta y el visor; el orbe (o el panel) se queda donde estaba.
+    Antes no había con qué y Delta ponía el panel completo (21/10, «quita el informe de la barra»).
     En panel completo, si hay tarjeta, «quita eso» es la tarjeta: el visor grande se deja."""
     if panel._vista_actual() == "panel" and panel._TARJETA:
         panel.quitar_tarjeta()
         return "Hecho: tarjeta quitada del panel."
     panel.S["visor"] = None
     panel.quitar_tarjeta()
-    return "Hecho: quitada de la barra; la barra sigue puesta, en pequeño."
+    return "Hecho: quitada la barra; el orbe se queda donde estaba."
 
 
 ESCENAS = ("auto", "orbe1", "orbe2", "reloj", "impresion", "tiempo")
@@ -972,7 +977,7 @@ acciones.registrar([
                  "diga «pasar C.O.S.», «pasa las COS», «comprobaciones operativas», «¿está todo bien?». Contesta breve: "
                  "si sale OK, que todo está operativo (y las notas sin ⚠️ en una frase); si hay ⚠️, di cada fallo."),
     acciones._fn("mostrar_en_tira",
-        "Enseña un texto corto en una tarjeta que se quita sola: en el panel completo flota sobre él; en modo invisible la barra crece en ella. Para cifras, listas o resultados que se leen mejor escritos que dichos («apúntamelo ahí», «ponlo en pantalla»).",
+        "Enseña un texto corto en una tarjeta que se quita sola: en el panel completo flota sobre él; en modo invisible la abre el orbe flotante debajo de sí. Para cifras, listas o resultados que se leen mejor escritos que dichos («apúntamelo ahí», «ponlo en pantalla»).",
         {"texto": acciones._s("lo que enseñar, una cosa por línea"),
          "titulo": acciones._s("rótulo de la tarjeta (opcional)"),
          "segundos": acciones._s("cuánto dejarla puesta, 5-180 (por defecto 40)")}, req=["texto"]),
@@ -1008,8 +1013,9 @@ acciones.registrar([
                  {"nombre": acciones._s("nombre de la skill")}),
     acciones._fn("sincronizar_skills", "Actualiza todas las skills instaladas desde su origen."),
     acciones._fn("cambiar_vista",
-                 "Cambia la interfaz: panel completo o invisible (sin panel, solo una tira de estado flotando en "
-                 "una esquina). Úsalo cuando el usuario diga «panel completo», «abre el panel», «modo invisible», "
+                 "Cambia la interfaz: panel completo o invisible (sin panel: solo el orbe flotando en una "
+                 "esquina del escritorio; un clic encima enseña la barra de estado 5 s y el doble clic abre el "
+                 "panel). Úsalo cuando el usuario diga «panel completo», «abre el panel», «modo invisible», "
                  "«quítate de en medio»…",
                  {"modo": acciones._s("panel | invisible")}),
     acciones._fn("fondo",
@@ -1040,10 +1046,10 @@ acciones.registrar([
                  "Hace falta para que se apliquen los cambios de tu código. No la uses si dice «reinicia el ordenador»: "
                  "eso es energia accion=reiniciar. Es inmediato: no le preguntes «¿seguro?», llama directamente."),
     acciones._fn("mover_a_pantalla",
-                 "Lleva la interfaz (panel o barra de estado, que son la misma ventana) a otra pantalla, y se queda ahí.",
+                 "Lleva la interfaz (el panel, y con él el orbe del modo invisible) a otra pantalla, y se queda ahí.",
                  {"cual": acciones._s("interfaz | todo"),
                   "donde": acciones._s("otra | arriba | abajo | izquierda | derecha | principal | ultrawide")}, req=["cual"]),
-    acciones._fn("quitar_de_tira", "Quita la tarjeta (o la web, mapa o informe) de la barra de estado y la deja en pequeño."),
+    acciones._fn("quitar_de_tira", "Quita la tarjeta (o la web, mapa o informe) de la barra de estado y deja solo el orbe."),
     acciones._fn("cambiar_tema",
                  "Cambia el estilo visual de DeltaOS entre Nothing Design System e iOS / Apple Design (Human Interface Guidelines / Liquid Glass). "
                  "Úsalo cuando diga «pon el diseño ios», «activa el tema apple», «pon el diseño nothing», «cambia al estilo apple», «cambia de tema»…",

@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-25",
+  "t": "El modo invisible ya no es una tira: es el orbe flotando solo en una esquina del escritorio, sin ventana ni marco. Un clic enseña la barra de estado 5 s, el doble clic abre el panel entero y arrastrándolo lo cambias de sitio. Además arranca sin saltos: ya no se ve el panel ni el orbe moviéndose antes de quedarse quieto.",
+  "como": "«Modo invisible» · «quítate de en medio»"
+ },
+ {
+  "f": "2026-10-25",
   "t": "Al investigar, Delta avisa de que va a hacer hasta 8 búsquedas en Google antes de empezar: esas tienen cuota aparte de la del modelo. La segunda ronda ya no se pasa del tope (hacía hasta 5 en vez de 3).",
   "como": "Investiga a fondo qué filamento aguanta mejor el sol"
  },

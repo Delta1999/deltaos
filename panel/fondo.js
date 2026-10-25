@@ -64,6 +64,7 @@ window.fondoEspera = d => {
   // igual que siempre: doble clic, Esc o la rueda.
   const pegado = on && (escena === 'orbe' || escena === 'blob');
   const quiere = (forzado || pegado || d.estado === 'dormido') && !d.visor && !d.confirma && !document.body.classList.contains('chuleta') && !document.body.classList.contains('invisible')
+    && !document.body.classList.contains('widget')  // el orbe flotante es su propia ventana: ahí no hay salvapantallas
     && !$('cel').classList.contains('on') && performance.now() > fuera;
   if (!quiere) desde = null; else if (desde === null) desde = performance.now();
   mostrar(quiere && (forzado || pegado || performance.now() - desde >= ESPERA));

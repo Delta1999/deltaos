@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+"""El orbe flotante del modo invisible: el orbe 2 solo, encima del escritorio, sin ventana a la vista.
+
+Por qué otra ventana y no la del panel: Chromium NO sabe hacer una ventana transparente bajo Wayland
+(probado el 2026-10-25 con --enable-transparent-visuals, --default-background-color=00000000 y
+--ozone-platform=x11: siempre sale un cuadrado blanco detrás). GTK4 + WebKitGTK sí, y además trae
+WebGL 2.0, que es lo que necesita el orbe. Así que el modo invisible pasa a ser esta ventana y el
+panel de Chromium se queda minimizado.
+
+La página es la MISMA del panel (`index.html?widget=1`): el mismo WebSocket, el mismo orbe y la misma
+barra de estado, sin duplicar nada. Aquí solo está la ventana:
+  · transparente y sin marco, siempre encima (la coloca ventana.sh con kdotool);
+  · solo el orbe —y la barra cuando está abierta— reciben el ratón: el resto de la ventana es hueco
+    y los clics caen en lo que haya debajo (región de entrada);
+  · un clic enseña la barra de estado 5 s, otro clic la quita, el doble clic abre el panel entero y
+    arrastrando se mueve de sitio (lo mueve el propio KWin, con begin_move).
+
+Usa el Python del sistema (PyGObject y WebKit 6 son paquetes del sistema), no el .venv de Delta.
+"""
+import json
+import math
+import signal
+import sys
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("WebKit", "6.0")
+from gi.repository import Gdk, GLib, Gtk, WebKit  # noqa: E402
+
+import cairo  # noqa: E402
+
+URL = (sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:7876") + "/?widget=1"
+
+# Las medidas van con las del CSS (body.widget en index.html): el orbe arriba a la derecha y la
+# barra debajo. La ventana es grande y casi toda hueco transparente; lo que recibe clics lo decide
+# la región de entrada, no el tamaño.
+ORBE = 360          # tres veces el mini orbe del panel, como pidió el usuario
+ANCHO, ALTO = 700, 850
+TIRA_Y = 368        # dónde empieza la barra dentro de la ventana
+CLIC_MS = 260       # espera antes de dar un clic por simple: si no, el doble clic abre antes la barra
+ARRASTRE = 8        # px a partir de los cuales un clic es un arrastre
+
+
+def region(alto_tira):
+    """Lo único que recibe ratón: el círculo del orbe y, si está abierta, la barra."""
+    r = cairo.Region()
+    rad = ORBE / 2
+    cx = ANCHO - rad          # el orbe va pegado arriba a la derecha: su centro, en la ventana
+    paso = 4
+    for y in range(0, ORBE, paso):
+        dy = y + paso / 2 - rad
+        if abs(dy) >= rad:
+            continue
+        semi = math.sqrt(rad * rad - dy * dy)
+        r.union_rectangle(cairo.RectangleInt(int(cx - semi), y, int(2 * semi), paso))
+    if alto_tira > 0:
+        r.union_rectangle(cairo.RectangleInt(0, TIRA_Y, ANCHO, min(alto_tira, ALTO - TIRA_Y)))
+    return r
+
+
+class Orbe(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id="es.delta.orbe")
+        self.win = None
+        self.vista = None
+        self.alto_tira = 0
+        self.mostrado = False
+        self.clic_id = 0
+        self.arrastrando = False
+
+    # -------- ventana --------
+    def do_activate(self):
+        if self.win:
+            self.win.present()
+            return
+        css = Gtk.CssProvider()
+        css.load_from_string("window, window > *, webkitwebview { background: transparent; }")
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css, 900)
+
+        ucm = WebKit.UserContentManager()
+        ucm.register_script_message_handler("orbe", None)
+        ucm.connect("script-message-received::orbe", self._del_navegador)
+
+        self.vista = WebKit.WebView(user_content_manager=ucm)
+        transparente = Gdk.RGBA()
+        transparente.red = transparente.green = transparente.blue = transparente.alpha = 0.0
+        self.vista.set_background_color(transparente)
+        self.vista.connect("load-failed", self._fallo)
+        self.vista.load_uri(URL)
+
+        self.win = Gtk.ApplicationWindow(application=self, title="Delta orbe")
+        self.win.set_decorated(False)
+        self.win.set_default_size(ANCHO, ALTO)
+        self.win.set_child(self.vista)
+        self.win.connect("realize", lambda *_: GLib.timeout_add(150, self._region))
+        self._gestos()
+        # Nace invisible y sin ratón: KWin lo coloca donde quiere y ventana.sh lo mueve después, y ese
+        # salto se veía. ventana.sh avisa con SIGUSR1 cuando ya está en su sitio; si no avisa, a los 15 s
+        # se muestra igual para no perder el orbe (p. ej. si se lanza a mano).
+        self.win.set_opacity(0.0)
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, self._mostrar)
+        GLib.timeout_add_seconds(15, lambda: (self._mostrar(), False)[1])
+        self.win.present()
+
+    def _fallo(self, _v, _ev, uri, error):
+        # el panel puede tardar en levantar (o estar reiniciándose): reintentar sin ruido
+        GLib.timeout_add_seconds(2, lambda: (self.vista.load_uri(URL), False)[1])
+        return True
+
+    def _mostrar(self):
+        self.mostrado = True
+        self.win.set_opacity(1.0)
+        self._region()
+        return GLib.SOURCE_CONTINUE
+
+    def _region(self):
+        s = self.win.get_surface()
+        if s:
+            s.set_input_region(region(self.alto_tira) if self.mostrado else cairo.Region())
+        return False
+
+    # -------- lo que cuenta la página: si la barra está abierta y cuánto ocupa --------
+    def _del_navegador(self, _ucm, js):
+        try:
+            d = json.loads(js.to_json(0)) if hasattr(js, "to_json") else {}
+            if isinstance(d, str):
+                d = json.loads(d)
+        except Exception:
+            return
+        self.alto_tira = int(d.get("alto") or 0) if d.get("barra") else 0
+        self._region()
+
+    # -------- ratón: clic, doble clic y arrastre --------
+    def _gestos(self):
+        clic = Gtk.GestureClick()
+        clic.set_button(1)
+        clic.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        clic.connect("pressed", self._pulsado)
+        self.win.add_controller(clic)
+
+        arr = Gtk.GestureDrag()
+        arr.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        arr.connect("drag-begin", lambda *_: setattr(self, "arrastrando", False))
+        arr.connect("drag-update", self._arrastre)
+        self.win.add_controller(arr)
+
+    def _pulsado(self, _g, n, _x, _y):
+        if n >= 2:                      # doble clic: el panel entero
+            self._cancelar_clic()
+            self._js("window.deltaWidget && window.deltaWidget.panel()")
+            return
+        self._cancelar_clic()
+        self.clic_id = GLib.timeout_add(CLIC_MS, self._clic_simple)
+
+    def _clic_simple(self):
+        self.clic_id = 0
+        if not self.arrastrando:
+            self._js("window.deltaWidget && window.deltaWidget.clic()")
+        return False
+
+    def _cancelar_clic(self):
+        if self.clic_id:
+            GLib.source_remove(self.clic_id)
+            self.clic_id = 0
+
+    def _arrastre(self, gesto, dx, dy):
+        if self.arrastrando or math.hypot(dx, dy) < ARRASTRE:
+            return
+        self.arrastrando = True
+        self._cancelar_clic()
+        ok, ini_x, ini_y = gesto.get_start_point()
+        sup = self.win.get_surface()
+        if not ok or not sup:
+            return
+        # lo mueve KWin, no nosotros: bajo Wayland una ventana no puede colocarse sola
+        sup.begin_move(gesto.get_current_event_device(), 1, ini_x, ini_y, gesto.get_current_event_time())
+        gesto.set_state(Gtk.EventSequenceState.DENIED)
+
+    def _js(self, codigo):
+        self.vista.evaluate_javascript(codigo, -1, None, None, None, None, None)
+
+
+if __name__ == "__main__":
+    Orbe().run([])
