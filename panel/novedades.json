@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-25",
+  "t": "La luz del orbe dice cómo está Delta: azul en stand-by, roja cuando te escucha y apagada en modo privacidad. Además el orbe flotante recuerda dónde lo dejaste y se va con la interfaz si la cambias de pantalla",
+  "como": "«Activa la privacidad» y mira cómo se apaga la luz del orbe"
+ },
+ {
+  "f": "2026-10-25",
   "t": "El modo invisible ya no es una tira: es el orbe flotando solo en una esquina del escritorio, sin ventana ni marco. Un clic enseña la barra de estado 5 s, el doble clic abre el panel entero y arrastrándolo lo cambias de sitio. Además arranca sin saltos: ya no se ve el panel ni el orbe moviéndose antes de quedarse quieto.",
   "como": "«Modo invisible» · «quítate de en medio»"
  },

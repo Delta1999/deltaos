@@ -63,7 +63,7 @@ window.fondoEspera = d => {
   // el orbe y la gota son su propio sistema: puesto, se queda aunque le hables (pedido el 2026-10-21). Se quita
   // igual que siempre: doble clic, Esc o la rueda.
   const pegado = on && (escena === 'orbe' || escena === 'blob');
-  const quiere = (forzado || pegado || d.estado === 'dormido') && !d.visor && !d.confirma && !document.body.classList.contains('chuleta') && !document.body.classList.contains('invisible')
+  const quiere = (forzado || pegado || d.estado === 'dormido') && !d.visor && !d.confirma && !document.body.classList.contains('chuleta') && !document.body.classList.contains('minimizado')
     && !document.body.classList.contains('widget')  // el orbe flotante es su propia ventana: ahí no hay salvapantallas
     && !$('cel').classList.contains('on') && performance.now() > fuera;
   if (!quiere) desde = null; else if (desde === null) desde = performance.now();
@@ -113,7 +113,7 @@ function bucle(ms) {
 // la impresión también en su tarjeta del panel, a pocos fps (no gasta si no se imprime o el panel está tapado)
 (function mini(ms) {
   $('imp3d').style.display = imprime(D) ? '' : 'none';
-  if (!on && imprime(D) && !document.hidden && !document.body.classList.contains('visor') && !document.body.classList.contains('invisible')) Imp.pintar(ms / 1000, $('imp3d'), true);
+  if (!on && imprime(D) && !document.hidden && !document.body.classList.contains('visor') && !document.body.classList.contains('minimizado')) Imp.pintar(ms / 1000, $('imp3d'), true);
   requestAnimationFrame(mini);
 })(0);
 

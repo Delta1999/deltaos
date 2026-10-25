@@ -44,31 +44,62 @@ aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
 }
 
 # El orbe flotante del modo invisible: otra ventana y otro proceso (orbe_flotante.py, GTK+WebKit,
-# que es lo único que sabe hacer una ventana transparente aquí). Se arranca al entrar en invisible,
-# se coloca en la misma esquina donde estaba la barra de estado, y se mata al salir.
+# que es lo único que sabe hacer una ventana transparente aquí). Se arranca con la interfaz y se coloca en
+# la esquina de la pantalla del panel, o donde lo dejó el usuario (orbe_guardar); sigue a la interfaz si cambia de pantalla.
 # Nace invisible (KWin lo pone donde quiere, no donde le decimos) y se muestra con SIGUSR1 cuando ya está colocado.
 # NO se mata al salir de invisible: arrancarlo de cero tarda ~10 s (WebKit + WebGL) y era lo que se notaba al volver
 # al modo invisible. Se queda vivo y oculto (SIGUSR2: ni se ve, ni recibe ratón, ni pinta) hasta la próxima vez.
-ORBE_PID= ORBE_PUESTO= ORBE_NUEVO=
+ORBE_PID= ORBE_PUESTO= ORBE_NUEVO= ORBE_W= ORBE_EN=
+ORBE_POS="${XDG_RUNTIME_DIR:-/tmp}/delta-orbe-pos"  # una línea «pantalla x y» por pantalla: dónde lo dejó el usuario al arrastrarlo
 lanzar_orbe() {  # no espera: su arranque (~6-10 s) va en paralelo al de Chromium
   kill -0 "$ORBE_PID" 2>/dev/null && return
   /usr/bin/python3 "$DIR/orbe_flotante.py" "$URL" >/dev/null 2>&1 &   # python del sistema: PyGObject y WebKit no están en el .venv
-  ORBE_PID=$! ORBE_PUESTO= ORBE_NUEVO=1
+  ORBE_PID=$! ORBE_PUESTO= ORBE_W= ORBE_EN= ORBE_NUEVO=1
+}
+orbe_sitio() {  # $1 = destino. Imprime «x y»: donde lo dejó el usuario en esa pantalla, y si no, la esquina de siempre
+  local X Y AN AL pan px py
+  read -r X Y AN AL _ <<<"$1"
+  read -r pan px py <<<"$(grep -F "$X,$Y,$AN,$AL " "$ORBE_POS" 2>/dev/null | tail -1)"
+  # vale si es la misma pantalla y el orbe (el círculo, arriba a la derecha de su ventana) sigue dentro de ella
+  if [ "$pan" = "$X,$Y,$AN,$AL" ] && [ -n "$px" ] && [ -n "$py" ] \
+     && [ $((px + ORBE_AN - 180)) -ge "$X" ] && [ $((px + ORBE_AN - 180)) -lt $((X + AN)) ] \
+     && [ $((py + 180)) -ge "$Y" ] && [ $((py + 180)) -lt $((Y + AL)) ]; then
+    echo "$px $py"
+  else
+    echo "$((X + AN - ORBE_AN - ORBE_M)) $((Y + ORBE_M))"
+  fi
+}
+orbe_guardar() {  # apunta dónde está ahora, para volver ahí tras el panel
+  local pos x y
+  pos=$(kdotool getwindowgeometry "$ORBE_W" 2>/dev/null | sed -n 's/^ *Position: *//p')
+  x=${pos%,*}; y=${pos#*,}; x=${x%.*}; y=${y%.*}
+  [[ $x =~ ^-?[0-9]+$ && $y =~ ^-?[0-9]+$ ]] || return
+  { grep -vF "$ORBE_EN " "$ORBE_POS" 2>/dev/null; echo "$ORBE_EN $x $y"; } > "$ORBE_POS.nuevo" && mv "$ORBE_POS.nuevo" "$ORBE_POS"
 }
 orbe() {  # $1 = destino, $2 = vista
+  local X Y AN AL px py W= clave
   if [ "${2%%-*}" = invisible ]; then
     lanzar_orbe
-    [ -n "$ORBE_PUESTO" ] && return
-    read -r X Y AN AL _ <<<"$1"
-    local W=
+    read -r X Y AN AL _ <<<"$1"; clave="$X,$Y,$AN,$AL"
+    if [ -n "$ORBE_PUESTO" ]; then
+      # ya a la vista: solo hace falta moverlo si la interfaz ha cambiado de pantalla («pásala al otro monitor»)
+      [ "$clave" = "$ORBE_EN" ] && return
+      orbe_guardar  # apunta dónde estaba en la pantalla que deja, por si vuelve
+      read -r px py <<<"$(orbe_sitio "$1")"
+      kdotool windowmove "$ORBE_W" "$px" "$py"; ORBE_EN=$clave
+      return
+    fi
     for i in $(seq 40); do W=$(kdotool search --name "Delta orbe" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep .5; done
     [ -z "$W" ] && return
     [ -n "$ORBE_NUEVO" ] && sleep 1  # igual que el panel: KWin recoloca la ventana al mostrarla, y mover antes no se respeta
     ORBE_NUEVO=
+    read -r px py <<<"$(orbe_sitio "$1")"
     kdotool windowstate --add NO_BORDER --add SKIP_TASKBAR --add ABOVE "$W"
-    kdotool windowmove "$W" $((X + AN - ORBE_AN - ORBE_M)) $((Y + ORBE_M))
+    kdotool windowmove "$W" "$px" "$py"
+    ORBE_W=$W ORBE_EN=$clave
     kill -USR1 "$ORBE_PID" 2>/dev/null; ORBE_PUESTO=1
   elif [ -n "$ORBE_PUESTO" ]; then  # solo si estaba a la vista: recién lanzado ya nace oculto y aún no escucha la señal
+    orbe_guardar
     kill -USR2 "$ORBE_PID" 2>/dev/null; ORBE_PUESTO=
   fi
 }

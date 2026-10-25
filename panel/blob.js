@@ -190,6 +190,10 @@ function montar(cv, dirR, seg) {
   return {ren, escena, cam, malla, u, mat, contra};
 }
 
+const ROJO = new THREE.Color(0xd71921), AZUL = new THREE.Color(0x007aff);   // el acento de Nothing y el de iOS
+const SHEEN_ROJO = new THREE.Color(0xffd9d4), SHEEN_AZUL = new THREE.Color(0xdde8ff);
+const CONTRA_I = 1.1, SHEEN_I = .2;
+
 export const pintar = (cv, d) => dibujar(cv, d, false);
 export const mini = (cv, d) => dibujar(cv, d, true);
 
@@ -199,9 +203,6 @@ function dibujar(cv, d, peque) {
   const g = de(cv);
   if (!g.r3) g.r3 = montar(cv, g.dirR, peque ? 64 : SEG);
   const {ren, escena, cam, malla, u, mat, contra} = g.r3;
-  const ios = document.documentElement.dataset.tema === 'ios';
-  mat.sheenColor.set(ios ? 0xdde8ff : 0xffd9d4);
-  contra.color.set(ios ? 0x007aff : 0xd71921);
   if (cv.width !== Math.round(w * ren.getPixelRatio()) || cv.height !== Math.round(h * ren.getPixelRatio())) {
     ren.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
   }
@@ -210,6 +211,16 @@ function dibujar(cv, d, peque) {
   const est = d.estado || 'dormido', hablando = est === 'hablando';
   const t = ms / 1000 - g.t0, nac = suave(t / ENTRA);
   const dt = g.ult ? Math.min(.1, (ms - g.ult) / 1000) : 0; g.ult = ms;
+
+  // El contraluz dice cómo está Delta, no qué tema hay puesto: azul en stand-by, rojo a la escucha
+  // (despierto: escuchando, hablando o trabajando) y apagado en privacidad, cuando no te oye.
+  // Cambia con un fundido de ~0,35 s; el primer fotograma nace ya con el color que toca.
+  const objC = est === 'dormido' ? AZUL : ROJO, objS = est === 'dormido' ? SHEEN_AZUL : SHEEN_ROJO;
+  const objI = d.priv ? 0 : CONTRA_I, kL = g.luzC ? 1 - Math.exp(-dt / .35) : 1;
+  if (!g.luzC) { g.luzC = new THREE.Color(); g.luzS = new THREE.Color(); g.luzI = objI; }
+  g.luzC.lerp(objC, kL); g.luzS.lerp(objS, kL); g.luzI += (objI - g.luzI) * kL;
+  contra.color.copy(g.luzC); contra.intensity = g.luzI;
+  mat.sheenColor.copy(g.luzS); mat.sheen = SHEEN_I * g.luzI / CONTRA_I;
 
   // La voz se sigue con constantes de tiempo, no con un factor por fotograma: el nivel llega a
   // saltos cada 0,4 s por el WebSocket y aquí interesa que la gota lo *acompañe*. Sube deprisa
