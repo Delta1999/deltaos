@@ -76,7 +76,7 @@ def test_required_dom_ids():
     critical_ids = [
         "hora", "fecha", "dispos", "orbe-wrap", "miniorbe", "memoria", "ultima", "estado",
         "sub", "frases", "impd", "agenda", "sis", "clima", "uso", "k1", "k2", "k3",
-        "k4", "k5", "rec", "pasos", "t-hora", "t-est", "t-sub", "t-vivo", "t-pie",
+        "k4", "k5", "k6", "rec", "pasos", "t-hora", "t-est", "t-sub", "t-vivo", "t-pie",
         "t-card", "p-card", "p-card-cerrar", "pegar-cerrar", "b-priv", "b-modo",
         "b-dormir", "b-si", "b-no", "b-tema", "vif", "pegar", "tdia"
     ]
@@ -389,7 +389,18 @@ def test_render_headless():
     pintar(Object.assign({{}}, base, {{ clima: null, impresora: {{ online: true, estado: 'printing', prog: 40, quedan: 3000, archivo: 'x', boquilla: [200, 200], cama: [60, 60] }},
       avisos: [{{ t: '2026-10-25 20:00', texto: 'llamar', tipo: 'aviso' }}] }}));
     pintar(Object.assign({{}}, base, {{ avisos: undefined, impresora: undefined, clima: undefined }}));
+    // Notas: el dock enseña SOLO el contador y la antigüedad de la última, nunca texto
+    const T0 = Date.UTC(2026, 9, 25, 12, 0, 0);
+    chkT(haceDe(T0 / 1000, T0) === 'ahora mismo' && haceDe(T0 / 1000 - 600, T0) === 'hace 10 min' &&
+      haceDe(T0 / 1000 - 7200, T0) === 'hace 2 h' && haceDe(T0 / 1000 - 3 * 86400, T0) === 'hace 3 d', 'haceDe');
+    const k6De = d => {{ pintar(Object.assign({{}}, base, d)); return document.getElementById('k6').innerHTML; }};
+    const k6a = k6De({{ priv: false, notas: {{ n: 12, ultima: Date.now() / 1000 - 7200 }}, texto_nota: 'secreto' }});
+    chkT(k6a.includes('12') && k6a.includes('Notas') && k6a.includes('hace 2 h') && !k6a.includes('secreto'), 'k6 contador: ' + k6a);
+    chkT(k6De({{ priv: false, notas: {{ n: 1, ultima: null }} }}).includes('Nota<') || k6De({{ priv: false, notas: {{ n: 1, ultima: null }} }}).includes('>Nota'), 'k6 singular');
+    chkT(k6De({{ priv: true, notas: {{ n: 12, ultima: 1 }} }}).includes('ocultas') && !k6De({{ priv: true, notas: {{ n: 12, ultima: 1 }} }}).includes('12'), 'k6 privacidad');
+    chkT(k6De({{ priv: false, notas: null }}).includes('sin datos'), 'k6 sin datos');
     console.log('✓ Tira del día: eventosDelDia y su dibujo');
+    console.log('✓ Notas: hueco del dock (solo contador)');
     console.log('✓ Headless Node.js: pintar(d) ejecutó con éxito todas las variantes de estado');
     process.exit(0);
     """

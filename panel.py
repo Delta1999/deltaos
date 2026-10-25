@@ -19,6 +19,7 @@ import httpx
 from aiohttp import web
 
 import acciones
+import notas
 import umbrales
 from google.genai import types
 
@@ -204,6 +205,7 @@ def snapshot(ST):
         "progreso": ST.get("progreso", {}),
         "claude": ST.get("claude"),
         "memoria": _memoria(),
+        "notas": None if ST.get("privacidad") else notas.resumen(),   # SOLO {n, ultima}: nunca el texto (el panel sale en la tele)
         "sueno": max(0, round(acciones.INACTIVIDAD - (ahora - ST["ultima"]))) if ST["activo"] else None,
         "ultima": round(ahora - ST["ultima"]),
         "nivel": S.get("nivel", 0) if time.monotonic() < _hablando_hasta else 0,

@@ -703,6 +703,7 @@ async def poner_tele(canal="cuatro"):
 # Vive en memoria.py (SQLite + FTS5). Antes era un .md que se leía entero en cada despertar:
 # con dos notas daba igual, con trescientas se come el contexto y además no había cómo buscar.
 import memoria as _mem
+import notas as _notas
 
 
 def leer_memoria():
@@ -731,6 +732,29 @@ async def buscar_memoria(consulta):
     if not r:
         return f"No tengo nada apuntado sobre «{consulta}» ({_mem.cuantas()} notas en total)."
     return "Encontrado:\n" + "\n".join(f"- {x['texto']}" for x in r)
+
+
+# Notas (notas.py): el cajón desastre del usuario, local y SIN conectar a nada. Entran en la fusión «memoria» como
+# acciones nota_*; sus textos no salen de aquí: ni al panel (solo el contador), ni a Claude Code, ni a los contextos.
+async def nota_guardar(texto, etiqueta=None):
+    return _notas.guardar(texto, etiqueta)
+
+
+async def nota_listar(cuando=None, n=None):
+    filas = _notas.listar(cuando, n if n not in (None, "") else _notas.LISTA_N)
+    return _notas.formato(filas) if filas else "No hay notas" + (f" de «{cuando}»" if cuando else "") + "."
+
+
+async def nota_buscar(consulta):
+    filas = _notas.buscar(consulta)
+    return _notas.formato(filas) if filas else f"No tengo ninguna nota sobre «{consulta}»."
+
+
+async def nota_borrar(fragmento=None):
+    return _notas.borrar(fragmento)
+
+
+NOTAS_PRIVADAS = {"nota_guardar", "nota_listar", "nota_buscar", "nota_borrar"}   # sus argumentos no se enseñan ni se registran
 
 
 MEJORAS_LOG = AQUI / "mejoras_pendientes.log"   # averías y mejoras de Delta, todas aquí: lo revisa Claude Code
@@ -928,6 +952,11 @@ DECLARATIONS = [
     _fn("olvidar", "Borra de la memoria las notas que contengan este texto.", {"fragmento": _s("texto a buscar")}),
     _fn("buscar_memoria", "Busca en TODO lo que el usuario te ha contado alguna vez. Úsalo cuando pregunte por algo que suene a dicho antes («¿qué te conté de…?», «¿cómo se llamaba…?») y no esté en las notas que ya tienes delante.",
         {"consulta": _s("qué buscar")}),
+    _fn("nota_guardar", "Apunta una nota en el cajón de notas del usuario.",
+        {"texto": _s("la nota, literal"), "etiqueta": _s("una palabra, opcional")}, req=["texto"]),
+    _fn("nota_listar", "Lista las notas del usuario.", {"cuando": _s("hoy | ayer | semana | mes"), "n": _s("cuántas")}, req=[]),
+    _fn("nota_buscar", "Busca en las notas del usuario.", {"consulta": _s("qué buscar")}),
+    _fn("nota_borrar", "Borra una nota del usuario.", {"fragmento": _s("parte de la nota; vacío = la última")}, req=[]),
     _fn("volumen", "Controla el volumen del sistema.",
         {"accion": _s("fijar | subir | bajar | silenciar | activar_sonido | consultar"),
          "valor": _s("porcentaje, si aplica")}, req=["accion"]),
@@ -972,6 +1001,7 @@ def registrar(declaraciones, handlers):
 HANDLERS = {f.__name__: f for f in (
     abrir, ejecutar_herramienta_wormhole, verificar_diseno, ejecutar_shell, preguntar_a_claude,
     ver_trabajos, estado_impresora, historial_impresora, programar_aviso_impresora, estado_proyectos, recordar, olvidar, buscar_memoria, anotar_mejora,
+    nota_guardar, nota_listar, nota_buscar, nota_borrar,
     volumen, brillo, modo_oscuro, notificar, poner_musica, controlar_musica, poner_tele, portapapeles, ventanas, dormir, mejorar_delta_cherry)}
 HANDLERS["cherry"] = mejorar_delta_cherry
 
@@ -982,6 +1012,8 @@ ETIQUETAS = {"estado_impresora": "Miro la impresora", "historial_impresora": "Le
              "usar_skill": "Leo la skill", "mirar_detalle": "Miro la pantalla en alta resolución",
              "hablar_con_claude": "Encargo a Claude Code", "ejecutar_shell": "Comando", "recordar": "Guardo en memoria",
              "buscar_memoria": "Rebusco en la memoria",
+             "nota_guardar": "Apunto en notas", "nota_listar": "Miro las notas", "nota_buscar": "Busco en las notas",
+             "nota_borrar": "Borro una nota",
              "cambiar_tema": "Cambio de diseño visual",
              "consultar_clima": "Consulto el tiempo", "abrir": "Abro", "dormir": "A dormir",
              "mejorar_delta_cherry": "Anoto para Cherry", "cherry": "Anoto para Cherry"}
@@ -1025,16 +1057,34 @@ FUSIONES = {
                 "cherry": _r("mejorar_delta_cherry", {"peticion": "mensaje"}),
                 "hablar": _r("hablar_con_claude"), "tarea_suelta": _r("preguntar_a_claude", {"tarea": "mensaje"}),
                 "estado": _r("estado_claude"), "cancelar": _r("cancelar_claude")}),
-    "memoria": ("Memoria persistente (sobrevive a reinicios). recordar: guarda una nota. buscar: rebusca en TODO lo "
-                "que te ha contado alguna vez; las notas que ves al despertar son solo las últimas, así que si "
-                "pregunta por algo dicho hace tiempo, BUSCA antes de decir que no lo sabes. olvidar: borra las notas "
-                "que contengan texto. anotar_mejora: el buzón para Claude Code de TODO lo que falle o falte en Delta, sea "
-                "avería o mejora (el usuario las confunde, da igual), y aunque diga «apúntalo», «recuérdalo», «para "
-                "mañana» o «díselo a Claude»: NUNCA con recordar. Si pide arreglarlo YA, claude accion=mejorar_delta.",
-                {"texto": "la nota, lo que buscar, el fragmento a borrar o la mejora descrita con claridad"},
+    "memoria": ("MEMORIA y NOTAS: dos cosas distintas. "
+                "MEMORIA = datos sobre el usuario que debes tener siempre presentes («recuerda que mi casco es talla M», "
+                "«olvida lo de…»). recordar: guarda ese DATO. buscar: rebusca en TODO lo que te ha contado alguna vez; "
+                "las que ves al despertar son solo las últimas, así que si pregunta por algo dicho hace tiempo, BUSCA antes "
+                "de decir que no lo sabes. olvidar: borra los datos que contengan texto. anotar_mejora: el buzón para "
+                "Claude Code de TODO lo que falle o falte en Delta, sea avería o mejora (el usuario las confunde, da igual), "
+                "y aunque diga «apúntalo», «recuérdalo», «para mañana» o «díselo a Claude»: NUNCA con recordar. Si pide "
+                "arreglarlo YA, claude accion=mejorar_delta. "
+                "NOTAS = el cajón desastre del usuario, privado y solo en este ordenador; solo las lees cuando te las pide. "
+                "nota_guardar: «apunta en notas que…», «anota en mis notas…», «nota rápida…», «guárdame esta idea…»; "
+                "el texto LITERAL, sin resumir ni corregir, y responde solo «Anotado». nota_listar: «¿qué tengo en notas "
+                "de esta semana?» (cuando = hoy | ayer | semana | mes; n = cuántas, 5 por defecto; si quiere verlas en "
+                "pantalla, pasa el resultado a vista accion=tarjeta). nota_buscar: «busca en mis notas lo del PETG». "
+                "nota_borrar: «borra la última nota», «borra la nota del PETG»; di cuál has borrado. "
+                "NO son notas: «avísame a las 10 de…» (avisos); «apunta como mejora…» (anotar_mejora); «apúntamelo ahí», "
+                "«ponlo en pantalla» (vista accion=tarjeta, que solo ENSEÑA); «pasa a apuntes la clase» (apuntes); "
+                "«hazme un documento» (documentos).",
+                {"texto": "recordar: el dato; buscar/nota_buscar: qué buscar; olvidar/nota_borrar: fragmento (nota_borrar sin texto, "
+                          "o «la última»: la más reciente); anotar_mejora: la mejora descrita con claridad; nota_guardar: la nota, literal",
+                 "etiqueta": "nota_guardar: una palabra opcional para clasificarla (p.ej. impresion)",
+                 "cuando": "nota_listar: hoy | ayer | semana | mes (vacío = las últimas)",
+                 "n": "nota_listar: cuántas notas (por defecto 5)"},
                 {"recordar": _r("recordar", {"nota": "texto"}), "olvidar": _r("olvidar", {"fragmento": "texto"}),
                  "buscar": _r("buscar_memoria", {"consulta": "texto"}),
-                 "anotar_mejora": _r("anotar_mejora", {"descripcion": "texto"})}),
+                 "anotar_mejora": _r("anotar_mejora", {"descripcion": "texto"}),
+                 "nota_guardar": _r("nota_guardar"), "nota_listar": _r("nota_listar"),
+                 "nota_buscar": _r("nota_buscar", {"consulta": "texto"}),
+                 "nota_borrar": _r("nota_borrar", {"fragmento": "texto"})}),
     "skills": ("Skills (capacidades con instrucciones). buscar: en las instaladas y en el catálogo skills.sh (en inglés "
                "da más resultados). instalar: descarga una del catálogo, pide permiso al usuario y devuelve sus "
                "instrucciones. usar: lee las instrucciones de una instalada para seguirlas. actualizar: todas desde su origen.",
@@ -1064,7 +1114,7 @@ FUSIONES = {
               "ultrawide»). Para el panel usa siempre esta y no ventanas. "
               "tarjeta: enseña algo escrito en una tarjeta que se quita sola: en el panel completo flota sobre el panel, y en modo invisible el orbe abre la barra debajo de sí y la deja abierta mientras dure. Para cifras, listas, "
               "resultados, lo que haya salido en la terminal o los datos de algo que te han pedido buscar: lo que se lee "
-              "mejor que se oye («apúntamelo ahí», «ponlo en pantalla», «enséñamelo»). Con imagen = ruta del disco (de "
+              "mejor que se oye («apúntamelo ahí», «ponlo en pantalla», «enséñamelo»); solo ENSEÑA, no guarda nada: «apunta en notas…» es memoria accion=nota_guardar. Con imagen = ruta del disco (de "
               "Imágenes, Descargas, Escritorio o Documentos/Delta) o URL, enseña además una foto, captura o plano. "
               "Para una web, un mapa, una búsqueda o un producto usa mostrar: en modo invisible el visor sale dentro de "
               "la barra que abre el orbe. "
@@ -1088,8 +1138,9 @@ FUSIONES = {
                "quitar_tarjeta": _r("quitar_de_tira"),
                "fondo": _r("fondo", {"escena": "cual"}), "pantalla_completa": _r("pantalla_completa", {"que": "cual"})}),
     "documentos": ("Secretario, en ~/Documentos/Delta/documentos. crear: redacta carta, instancia, reclamación, resumen, "
-                   "acta, lista, apuntes, dossier, notas dictadas… («hazme un PDF», «redáctame», «toma nota de esto en un "
-                   "archivo»); con buscar=sí busca antes en la web y cita fuentes; para investigar a fondo usa investigar y "
+                   "acta, lista, apuntes, dossier, notas dictadas… SOLO cuando pide un archivo o documento («hazme un PDF», "
+                   "«redáctame», «toma nota de esto en un archivo/documento»); «apunta en notas…» NO es esto, es memoria "
+                   "accion=nota_guardar; con buscar=sí busca antes en la web y cita fuentes; para investigar a fondo usa investigar y "
                    "luego convertir. convertir: un informe o documento ya hecho a pdf, docx u odt. enviar_al_movil: lo "
                    "manda al móvil por KDE Connect (los informes van en PDF).",
                    {"encargo": "crear: qué documento y para qué, con TODOS los datos; si dicta el texto, cópialo literal",
@@ -1121,7 +1172,7 @@ FUSIONES = {
               {"ruta": "enviar_imagen: ruta o nombre de la imagen; vacío o «captura» para hacer una captura de pantalla del monitor ahora mismo; «ultima» para la foto más reciente"},
               {"notificaciones": _r("notificaciones_movil"), "sonar": _r("sonar_movil"),
                "enviar_imagen": _r("enviar_imagen_movil", {"ruta": "ruta"})}),
-    "apuntes": ("Modo estudiante. clase: transcribe una clase grabada y la pasa a tema PDF anotado en "
+    "apuntes": ("Modo estudiante (solo clases de estudio; «apunta en notas…» NO es esto). clase: transcribe una clase grabada y la pasa a tema PDF anotado en "
                 "segundo plano, en Temario_Guardia_Civil/DeltaOs («descárgate el audio de esta clase y pásalo a "
                 "apuntes», «pasa a apuntes la última clase que bajé», «esta clase es de Paco Arriola»).",
                 {"tema": "clase: número de tema (1-23)",
@@ -1166,15 +1217,15 @@ def paso(texto, estado="en curso"):
 
 
 def _paso(nombre, args):
-    arg = next((str(v) for v in args.values() if v), "")
+    arg = "" if nombre in NOTAS_PRIVADAS else next((str(v) for v in args.values() if v), "")   # el panel sale en la tele
     return paso(ETIQUETAS.get(nombre, nombre.replace("_", " ").capitalize()) + (f" · {arg[:60]}" if arg else ""))
 
 
 async def atender(session, tool_call):
     ST["ultima"] = time.monotonic()
     for fc in tool_call.function_calls:
-        print(f"\n🔧 {fc.name}({dict(fc.args or {})})")
         nombre, args = _real(fc.name, dict(fc.args or {}))
+        print(f"\n🔧 {fc.name}({'…' if nombre in NOTAS_PRIVADAS else dict(fc.args or {})})")   # assistant.log no guarda las notas
         ST["herramienta"] = nombre
         paso = _paso(nombre, args)
         try:

@@ -44,6 +44,8 @@ panel/geo.json
 avisos.json
 memoria.md
 memoria.db
+# Las notas privadas del usuario (notas.py): solo en este ordenador. El patrón cubre también -wal, -shm y -journal.
+notas.db*
 tema_elegido.txt
 personalidad_elegida.txt
 cherry_pendientes.txt
