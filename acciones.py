@@ -1034,12 +1034,14 @@ FUSIONES = {
                    "avisar_antes": _r("programar_aviso_impresora")}),
     "avisos": ("Temporizadores, recordatorios y alarmas (sobreviven a reinicios). programar: «avísame en 20 minutos», "
                "«recuérdame a las 18:30 llamar a Juan», «despiértame a las 8» (tipo alarma: suena en bucle hasta "
-               "accion=parar_alarma). ver: los pendientes y la hora actual. cancelar: los que contengan texto, o «todos». "
+               "accion=parar_alarma). También es el CALENDARIO: «apunta en el calendario que el jueves tengo médico a las 17:30» "
+               "(texto «médico», a_las «jueves 17:30»; sale en la línea de la semana del panel). ver: los pendientes y la hora actual. cancelar: los que contengan texto, o «todos». "
                "no_molestar: deja de avisar por tu cuenta un rato («no me molestes», «déjame en paz», «silencio»); lo "
                "que él te pidió sigue sonando, y sin en_minutos (o con 0) vuelves a avisar.",
                {"texto": "programar: qué recordar («sacar la pizza»); cancelar: parte del texto o «todos»",
                 "en_minutos": "programar: dentro de cuántos minutos, p.ej. 20 o 1.5; no_molestar: cuántos callado",
-                "a_las": "programar: hora HH:MM (la próxima vez que llegue) o AAAA-MM-DD HH:MM",
+                "a_las": "programar: hora HH:MM (la próxima vez que llegue); con día, «jueves 17:30», «mañana 09:00», «pasado mañana 10:00» "
+                         "(tal cual lo dijo el usuario: tú no sabes qué día es hoy); o AAAA-MM-DD HH:MM",
                 "tipo": "programar: aviso (por defecto, suena una vez) | alarma (en bucle)",
                 "repetir": "programar: vacío | diario"},
                {"programar": _r("programar_aviso"), "ver": _r("ver_avisos"),

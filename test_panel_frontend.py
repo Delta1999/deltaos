@@ -404,6 +404,31 @@ def test_render_headless():
     pintar(Object.assign({{}}, base, {{ clima: null, impresora: {{ online: true, estado: 'printing', prog: 40, quedan: 3000, archivo: 'x', boquilla: [200, 200], cama: [60, 60] }},
       avisos: [{{ t: '2026-10-25 20:00', texto: 'llamar', tipo: 'aviso' }}] }}));
     pintar(Object.assign({{}}, base, {{ avisos: undefined, impresora: undefined, clima: undefined }}));
+    // avisos.json guarda «2026-10-25T20:00:00» (con T): tiene que salir en la tira igual que con espacio
+    chkT(eventosDelDia({{ avisos: [{{ t: '2026-10-25T20:00:00', texto: 'con T', tipo: 'aviso' }}] }}, A0).length === 1, 'hora con T');
+    chkT(eventosDelDia({{ semana: [{{ t: '2026-10-25 21:00', texto: 'de la semana', tipo: 'aviso' }}], avisos: [{{ t: '2026-10-25 20:00', texto: 'otro', tipo: 'aviso' }}] }}, A0).map(e => e.texto).join() === 'de la semana', 'la semana manda sobre avisos');
+    // La línea de la semana: hoy 00:00 → +7 días; x = minutos / 10080 · W
+    const sem = [{{ t: '2026-10-29T17:30:00', texto: 'médico', tipo: 'aviso' }}, {{ t: '2026-10-25 17:00', texto: 'pasado', tipo: 'aviso' }},
+      {{ t: '2026-11-01 10:00', texto: 'fuera', tipo: 'aviso' }}, {{ t: '2026-10-31 23:30', texto: 'último', tipo: 'alarma' }}];
+    const evs = eventosSemana({{ semana: sem, clima: clima0, impresora: {{ estado: 'printing', quedan: 600 }} }}, A0);
+    chkT(evs.map(e => e.texto).join() === 'médico,último', 'semana: ' + evs.map(e => e.texto) + ' (sin pasado, sin >7 días, sin sol ni impresora)');
+    const w1 = semanaHtml({{ semana: sem }}, A0, 1400);
+    // el 25/10/2026 cambia la hora (la semana dura 168 h + 1): se mide en milisegundos reales, no en minutos de reloj
+    const ms0 = new Date(2026, 9, 25).getTime(), spanS = new Date(2026, 9, 32).getTime() - ms0;
+    const pxS = t => Math.round((t - ms0) / spanS * 1400);
+    chkT(w1.html.includes('style="left:' + pxS(new Date(2026, 9, 29, 17, 30).getTime()) + 'px" aria-label="Aviso jue 29 17:30 · médico"'), 'hito del jueves ' + pxS(new Date(2026, 9, 29, 17, 30).getTime()));
+    chkT(w1.html.includes('class="td-ya" style="left:' + pxS(A0.getTime()) + 'px"') && w1.html.includes('>ahora<'), 'ahora en la semana');
+    chkT((w1.html.match(/class="td-sep"/g) || []).length === 6 && (w1.html.match(/class="td-h lbl dn/g) || []).length === 7, 'seis rayas y siete días');
+    chkT(w1.html.includes('>hoy</span>') && w1.html.includes('>lun 26</span>') && w1.html.includes('>sáb 31</span>'), 'nombres de los días');
+    const izqS = [...w1.html.matchAll(/class="td-p[^"]*" style="left:(\\d+)px/g)].map(m => +m[1]);
+    chkT(izqS.length > 30 && izqS.every(x => x > pxS(A0.getTime())), 'semana: nada detrás de ahora (' + izqS.length + ')');
+    chkT(w1.ev.length === 2 && (w1.html.match(/<button type="button" class="td-m /g) || []).length === 2 && w1.aria.startsWith('Próximos 7 días'), 'semana: hitos');
+    chkT(semanaHtml({{}}, A0, 1400).aria.includes('sin citas') && !semanaHtml(undefined, A0, 1400).html.includes('td-m'), 'semana vacía');
+    chkT(!semanaHtml({{}}, A0, 300).html.includes('>lun 26<') && semanaHtml({{}}, A0, 300).html.includes('>lun</span>'), 'semana estrecha: días sin número');
+    const popS = tdPopHtml(w1.ev[0], A0.getTime());
+    chkT(popS.includes('Aviso · jue 29 17:30') && popS.includes('dentro de 3 d'), 'ventanita de otro día: ' + popS);
+    chkT(tdPopHtml({{ t: new Date(2026, 9, 26, 7, 0), tipo: 'alarma', texto: 'x' }}, A0.getTime()).includes('Alarma · mañana 07:00'), 'ventanita de mañana');
+    tdVista('semana'); tdVista('dia');   // el cambio de vista no revienta (sin ancho en el mock no pinta)
     // Notas: el dock enseña SOLO el contador y la antigüedad de la última, nunca texto
     const T0 = Date.UTC(2026, 9, 25, 12, 0, 0);
     chkT(haceDe(T0 / 1000, T0) === 'ahora mismo' && haceDe(T0 / 1000 - 600, T0) === 'hace 10 min' &&

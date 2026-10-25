@@ -3,8 +3,10 @@ las sesiones de Claude Code que lanza el usuario avisan al terminar (hook Stop �
 import asyncio
 import json
 import os
+import re
 import subprocess
 import time
+import unicodedata
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -31,12 +33,37 @@ def _guardar(lista):
     FICHERO.write_text(json.dumps(lista, ensure_ascii=False, indent=1))
 
 
+_DIAS_SEM = {"lunes": 0, "martes": 1, "miercoles": 2, "jueves": 3, "viernes": 4, "sabado": 5, "domingo": 6}
+
+
+def _dia_y_hora(a, ahora):
+    """«jueves 17:30», «el jueves a las 17:30», «mañana 09:00», «pasado mañana 10:00», «hoy 18:00» → instante, o None.
+    Delta no sabe qué día es hoy: el día de la semana se resuelve aquí, no lo calcula el modelo. Un día de la semana es
+    siempre el próximo: si hoy es jueves y la hora aún no ha pasado es hoy; si ya pasó, el de la semana que viene."""
+    plano = "".join(c for c in unicodedata.normalize("NFD", a.lower()) if not unicodedata.combining(c))
+    m = re.fullmatch(r"(?:el |para el |para )?(hoy|pasado manana|manana|" + "|".join(_DIAS_SEM) + r")(?: a las| a la| sobre las)? ?(\d{1,2})(?:[:.h](\d{2}))?",
+                     plano.strip())
+    if not m:
+        return None
+    nombre, h, mi = m.group(1), int(m.group(2)), int(m.group(3) or 0)
+    if h > 23 or mi > 59:
+        return None
+    base = ahora.replace(hour=h, minute=mi, second=0, microsecond=0)
+    if nombre in _DIAS_SEM:
+        t = base + timedelta(days=(_DIAS_SEM[nombre] - ahora.weekday()) % 7)
+        return t if t > ahora else t + timedelta(days=7)
+    return base + timedelta(days={"hoy": 0, "manana": 1, "pasado manana": 2}[nombre])
+
+
 def cuando(en_minutos="", a_las="", ahora=None):
     """Instante del aviso: dentro de N minutos, o a una hora (HH:MM → la próxima vez que llegue; o AAAA-MM-DD HH:MM)."""
     ahora = ahora or datetime.now()
     if str(en_minutos).strip():
         return ahora + timedelta(minutes=float(str(en_minutos).replace(",", ".")))
     a = str(a_las).strip()
+    dia = _dia_y_hora(a, ahora)
+    if dia:
+        return dia
     for fmt in ("%Y-%m-%d %H:%M", "%H:%M", "%H.%M", "%H"):
         try:
             t = datetime.strptime(a, fmt)
@@ -69,6 +96,8 @@ async def programar_aviso(texto, en_minutos="", a_las="", tipo="aviso", repetir=
         t = cuando(en_minutos, a_las)
     except ValueError as e:
         return f"Error: {e}"
+    if t < datetime.now() - timedelta(minutes=1):
+        return f"Error: {t:%d/%m %H:%M} ya ha pasado. Ahora son las {datetime.now():%d/%m %H:%M}."
     tipo = "alarma" if "alarm" in str(tipo).lower() else "aviso"
     diario = str(repetir).lower().startswith("diar")
     lista = _cargar()
@@ -185,7 +214,8 @@ acciones.registrar([
         "«despiértame a las 8» (tipo alarma: suena en bucle hasta parar_alarma). Sobrevive a reinicios.",
         {"texto": _s("qué hay que recordar, p.ej. «sacar la pizza»"),
          "en_minutos": _s("dentro de cuántos minutos (para temporizadores), p.ej. 20 o 1.5"),
-         "a_las": _s("hora HH:MM (la próxima vez que llegue) o AAAA-MM-DD HH:MM para otro día"),
+         "a_las": _s("hora HH:MM (la próxima vez que llegue), o con día: «jueves 17:30», «mañana 09:00», «pasado mañana 10:00» "
+                     "(escríbelo tal cual lo dijo el usuario: tú no sabes qué día es hoy) o AAAA-MM-DD HH:MM"),
          "tipo": _s("aviso (por defecto: lo dices una vez con un sonido) | alarma (suena en bucle)"),
          "repetir": _s("vacío | diario")},
         req=["texto"]),

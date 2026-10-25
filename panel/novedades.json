@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-25",
+  "t": "Calendario: puedes apuntar citas de otros días («el jueves», «mañana», «pasado mañana») y se ven en la línea de la semana de la cabecera. Gira la rueda del ratón sobre la tira del día (o púlsala) para pasar de «hoy» a «semana»; vuelve sola a los 25 s. Los avisos que ya tenías también salen ahora en la tira.",
+  "como": "«Apunta en el calendario que el jueves tengo médico a las 17:30» · «Recuérdame mañana a las 9 llamar al banco»"
+ },
+ {
+  "f": "2026-10-25",
   "t": "La tira del día empieza en «ahora» (sin puntos por detrás), enseña las horas en gris y cada hito (aviso, alarma, amanecer, fin de impresión) se puede pulsar para ver qué es y cuánto falta.",
   "como": "Pulsa un hito de la tira de la cabecera",
   "voz": false

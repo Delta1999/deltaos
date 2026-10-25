@@ -288,6 +288,25 @@ async def _poll_dispositivos():
         await asyncio.sleep(30)
 
 
+def _semana(lista, ahora=None):
+    """Los avisos de los próximos 7 días (hoy incluido) para la línea de la semana: los «diarios» salen cada día.
+    La tarjeta Agenda sigue con S["avisos"] (los 4 más próximos); esto es aparte para no recortar la semana."""
+    from datetime import datetime, timedelta
+    hoy = (ahora or datetime.now()).replace(hour=0, minute=0, second=0, microsecond=0)
+    fin = hoy + timedelta(days=7)
+    out = []
+    for a in lista:
+        try:
+            t = datetime.fromisoformat(a["t"])
+        except (KeyError, ValueError, TypeError):
+            continue
+        for k in range(8 if a.get("diario") else 1):
+            u = t + timedelta(days=k)
+            if hoy <= u < fin:
+                out.append({"t": u.isoformat(sep=" ", timespec="minutes"), "texto": a.get("texto", ""), "tipo": a.get("tipo", "aviso")})
+    return sorted(out, key=lambda a: a["t"])[:60]
+
+
 async def _poll_agenda():
     """Próximos avisos (avisos.json, cada 5 s) y notificaciones del móvil (cada minuto) para la tarjeta Agenda."""
     import movil
@@ -296,8 +315,10 @@ async def _poll_agenda():
         try:
             lista = json.loads((AQUI / "avisos.json").read_text())
             S["avisos"] = sorted(({"t": a["t"], "texto": a["texto"], "tipo": a["tipo"]} for a in lista), key=lambda a: a["t"])[:4]
+            S["semana"] = _semana(lista)
         except Exception:
             S["avisos"] = []
+            S["semana"] = []
         if n % 12 == 0:
             try:
                 d = await movil._movil()
