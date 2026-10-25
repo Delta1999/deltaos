@@ -352,7 +352,7 @@ def test_render_headless():
     for (const m of [15 + 6, 15 + 50, 15 + 120]) chkT(h1.html.includes('class="td-m ') && h1.html.includes('style="left:' + px1(m) + 'px" aria-label'), 'posición ' + px1(m));
     chkT(h1.html.includes('class="td-ya" style="left:' + px1(15) + 'px"') && h1.html.includes('>ahora<'), 'ahora');
     // NADA detrás de «ahora»: ningún punto ni hora a la izquierda de la línea
-    const izq = [...h1.html.matchAll(/class="td-(?:p|h)[^"]*" style="left:(\d+)px/g)].map(m => +m[1]);
+    const izq = [...h1.html.matchAll(/class="td-(?:p|h)[^"]*" style="left:(\\d+)px/g)].map(m => +m[1]);
     chkT(izq.length > 40 && izq.every(x => x > px1(15)), 'puntos solo por delante de ahora');
     // los hitos son botones con su texto en el aria-label, y devuelve los eventos para la ventanita
     chkT((h1.html.match(/<button type="button" class="td-m /g) || []).length === 3 && h1.ev.length === 3 && h1.html.includes('data-i="2"'), 'hitos clicables');
