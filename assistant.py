@@ -432,6 +432,14 @@ async def receive_and_play_loop(session):
 
 REPOSO = 120  # s dormido con la sesión abierta antes de colgar; al despertar reconecta en ~1 s con el handle
 CADUCA_HANDLE = 90 * 60  # s; el servidor guarda la sesión ~2 h
+ESPERA_MAX = 30    # s; techo de la espera que crece entre reintentos (1, 2, 4… 30)
+ESPERA_CUOTA = 60  # s; si el fallo es de cuota, reintentar deprisa solo la empeora
+
+def _es_cuota(e):
+    """True si el error del servidor habla de cuota agotada, saldo o límite."""
+    t = str(e).lower()
+    return any(p in t for p in ("quota", "resource_exhausted", "resource exhausted",
+                                "billing", "credits", "rate limit", "too many requests"))
 
 async def centinela():
     """Termina tras REPOSO s dormido y sin nada pendiente: colgar ahorra cuota y evita sesiones zombis."""
@@ -551,6 +559,7 @@ async def main():
         # el handle caduca (~2 h en el servidor) y uno inválido da 1007 en bucle: tras 2 fallos seguidos, sesión nueva
         handle = SESSION_HANDLE.get("h") if fallos < 2 and time.monotonic() - SESSION_HANDLE.get("t", 0) < CADUCA_HANDLE else None
         t0 = time.monotonic()
+        espera = None  # la fija el except si el servidor dice que es la cuota
         try:
             async with client.aio.live.connect(model=model_id, config=make_config(handle)) as session:
                 acciones.ST.update(session=session, reposo=False)
@@ -574,9 +583,13 @@ async def main():
             print(f"\nError en la sesión Live: {e}")
             if handle and "not found or expired" in str(e):  # 1008: el handle ya no vale; reintentarlo eran 2 fallos más
                 SESSION_HANDLE.clear()
+            espera = ESPERA_CUOTA if _es_cuota(e) else None
         acciones.ST["session"] = None
         fallos = fallos + 1 if time.monotonic() - t0 < 15 else 0
-        await asyncio.sleep(1)
+        # Espera entre intentos (2026-10-25): antes era 1 s fijo, así que un problema de cuota se
+        # convertía en cientos de peticiones por minuto que lo empeoraban. Ahora sube 1, 2, 4… hasta
+        # 30 s, y si el servidor dice que es la cuota, un minuto: no se arregla reintentando deprisa.
+        await asyncio.sleep(espera if espera else min(ESPERA_MAX, 2 ** max(0, fallos - 1)))
 
 if __name__ == "__main__":
     try:
