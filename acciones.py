@@ -393,9 +393,6 @@ def _tapar(texto):
     """Último cinturón: si una clave conocida sale igualmente (comando aprobado sin mirar), Gemini no la ve.
     ponytail: solo tapa el valor exacto; troceado o codificado (cut, tr) pasaría: para eso está _solo_lectura."""
     claves = [v for k, v in os.environ.items() if re.search(r"KEY|TOKEN|SECRET|PASS", k) and len(v) >= 12]
-    f = Path(__file__).with_name("movil_clave.txt")
-    if f.exists():
-        claves.append(f.read_text().strip())
     for c in filter(None, claves):
         texto = texto.replace(c, "[secreto tapado]")
     return texto

@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-25",
+  "t": "Fuera el servidor del móvil (el 127.0.0.1:7877 con su web, su clave y sus avisos push): hablarle desde el móvil se va a enfocar de otra manera. Las notificaciones y las imágenes al móvil por KDE Connect siguen igual.",
+  "como": "«¿tengo notificaciones?» · «mándame esta foto al móvil»"
+ },
+ {
+  "f": "2026-10-25",
   "t": "Fuera el visor de apuntes PDF (el de 127.0.0.1:8766, con subrayados, esquemas y repaso activo): se quita entero. Pasar una clase grabada a tema anotado sigue igual.",
   "como": "«descárgate el audio de esta clase y pásalo a apuntes»"
  },

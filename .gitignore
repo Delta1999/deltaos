@@ -35,9 +35,7 @@ capturas/
 out/
 
 # Secretos y datos personales: claves, dónde vives, a qué estás suscrito.
-movil_clave.txt
 ubicacion_fija.json
-movil_suscripciones.json
 panel/geo.json
 
 # Estado en tiempo de ejecución: lo reescribe Delta solo, versionarlo es ruido
