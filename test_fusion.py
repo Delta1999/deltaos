@@ -21,8 +21,7 @@ assert a._real("musica", {"accion": "pausa"}) == ("controlar_musica", {"accion":
 assert a._real("musica", {"accion": "poner", "busqueda": "lofi"}) == ("poner_musica", {"busqueda": "lofi"})
 assert a._real("memoria", {"accion": "recordar", "texto": "x"}) == ("recordar", {"nota": "x"})
 assert a._real("avisos", {"accion": "cancelar", "texto": "pizza", "tipo": "alarma"}) == ("cancelar_aviso", {"cual": "pizza"})
-assert a._real("vista", {"accion": "mascota", "cual": "reloj"}) == ("cambiar_vista", {"modo": "mascota"})
-assert a._real("vista", {"accion": "elegir_mascota", "cual": "gato"}) == ("elegir_mascota", {"cual": "gato"})
+assert a._real("vista", {"accion": "invisible", "cual": "reloj"}) == ("cambiar_vista", {"modo": "invisible"})
 assert a._real("claude", {"accion": "tarea_suelta", "mensaje": "m"}) == ("preguntar_a_claude", {"tarea": "m"})
 assert a._real("volumen", {"accion": "subir"}) == ("volumen", {"accion": "subir"})  # las no fusionadas, igual
 assert a._real("apuntes", {"accion": "cuadricula", "tipo": "ver"}) == ("apuntes_cuadricula", {"estado": "ver"})

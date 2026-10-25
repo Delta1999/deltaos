@@ -838,9 +838,9 @@ async def portapapeles(accion, texto=""):
 
 async def ventanas(accion, nombre=""):
     propia = {"panel": "interfaz", "interfaz": "interfaz", "deltaos": "interfaz", "panel de delta": "interfaz", "delta": "interfaz",
-              "barra": "interfaz", "barra de estado": "interfaz", "mascota": "mascota", "mapache": "mascota", "gato": "mascota"}
+              "barra": "interfaz", "barra de estado": "interfaz"}
     if accion in ("mover_pantalla", "otra_pantalla", "ultrawide") and nombre.lower() in propia:
-        # ventana.sh y mascota.py recolocan las suyas a cada cambio de vista: moverlas a mano no dura
+        # ventana.sh recoloca la suya a cada cambio de vista: moverla a mano no dura
         return await HANDLERS["mover_a_pantalla"](propia[nombre.lower()], "ultrawide" if accion == "ultrawide" else "otra")
     if nombre.lower() in ("panel", "interfaz", "deltaos", "panel de delta"):
         nombre = "Delta"  # la ventana del panel se titula así
@@ -1013,7 +1013,7 @@ FUSIONES = {
                {"programar": _r("programar_aviso"), "ver": _r("ver_avisos"),
                 "cancelar": _r("cancelar_aviso", {"cual": "texto"}), "parar_alarma": _r("parar_alarma"),
                 "no_molestar": _r("no_molestar", {"minutos": "en_minutos"})}),
-    "claude": ("Claude Code y Cherry (Plan B). mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, mascota, fondos, voz, "
+    "claude": ("Claude Code y Cherry (Plan B). mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, fondos, voz, "
                "herramientas…) ya con Claude Code; si no corre prisa, memoria accion=anotar_mejora. "
                "cherry: Plan B cuando Claude no tenga tokens o el usuario pida expresamente usar Cherry («mejora esto con Cherry», «dile a Cherry que cambie esto»); "
                "hablar: el repo WORMHOLE (CAD, piezas, impresión), UNA conversación persistente que recuerda lo "
@@ -1050,17 +1050,16 @@ FUSIONES = {
                 "canal": "tele: qué canal, p.ej. «cuatro»"},
                {"poner": _r("poner_musica"), "tele": _r("poner_tele", {"canal": "canal"}),
                 **{a: _r("controlar_musica", fijo={"accion": a}) for a in _MUSICA}}),
-    "vista": ("Tu interfaz. panel / mascota / invisible: panel completo, solo el animal flotando («modo mascota»), o "
-              "ni animal ni panel y solo la barra de estado en una esquina («modo invisible», «enséñame / muéstrame / pon la barra de estado», «quítate de en medio», «esconde la mascota», «quita el bicho del escritorio», «no quiero verte»). "
+    "vista": ("Tu interfaz. panel / invisible: panel completo, o sin panel y solo la barra de estado en una esquina "
+              "(«modo invisible», «enséñame / muéstrame / pon la barra de estado», «quítate de en medio», «no quiero verte»). "
               "OJO: «la barra» es SIEMPRE invisible, nunca panel; panel es solo «panel completo», «abre la interfaz entera». "
               "tema: cambia el diseño visual de DeltaOS entre Nothing y Apple/iOS, cual = nothing | ios | alternar («diseño de apple», «pon el tema de ios», «diseño de nothing», «cambia el diseño»). "
               "quitar_tarjeta: quita la tarjeta que hayas puesto (en el panel o en la barra) y lo que haya en la barra (web, mapa, informe), sin cambiar de modo («quita eso», «quita eso de la barra», «quita el informe de la barra», «ya lo he visto»). "
               "oculto: quita también la barra de estado y no deja nada en pantalla («quita la barra», «fuera todo», «no dejes nada»); sigues escuchando igual, y con invisible vuelve. "
-              "elegir_mascota: cual = mapache | gato | ninguna, qué animal es la mascota del escritorio («pon el gato», «quiero el mapache»); ninguna la apaga («quita la mascota», «no quiero mascota»). OJO: ahora mismo está en ninguna, desactivada por el usuario, y volver a pedir un animal la enciende (hace falta reiniciar Delta para que salga). "
-              "pantalla: cual = interfaz (el panel y la barra de estado, que son la misma ventana) | mascota | todo, y donde = "
+              "pantalla: cual = interfaz (el panel y la barra de estado, que son la misma ventana) | todo, y donde = "
               "otra | arriba | abajo | izquierda | derecha | principal | ultrawide: la lleva a esa pantalla y se queda ahí aunque "
-              "cambies de modo («mueve la interfaz a la otra pantalla», «la barra a la pantalla de arriba», «la mascota a la de "
-              "abajo», «todo a la ultrawide»). Para el panel y la mascota usa siempre esta y no ventanas. "
+              "cambies de modo («mueve la interfaz a la otra pantalla», «la barra a la pantalla de arriba», «todo a la "
+              "ultrawide»). Para el panel usa siempre esta y no ventanas. "
               "tarjeta: enseña algo escrito en una tarjeta que se quita sola: en el panel completo flota sobre el panel, y en modo invisible la barra de estado crece en ella. Para cifras, listas, "
               "resultados, lo que haya salido en la terminal o los datos de algo que te han pedido buscar: lo que se lee "
               "mejor que se oye («apúntamelo ahí», «ponlo en pantalla», «enséñamelo»). Con imagen = ruta del disco (de "
@@ -1068,22 +1067,21 @@ FUSIONES = {
               "Para una web, un mapa, una búsqueda o un producto usa mostrar: en modo invisible el visor sale dentro de "
               "la propia barra. "
               "fondo: la pone YA a pantalla completa en el panel (y es la que sale al dormir), cual = auto (la de por defecto, el orbe 1; ya no rotan solas) | orbe1 (el ORBE 1: una esfera de "
-              "alambre que ondula con la voz; es la de por defecto y no se quita al hablarte) | orbe2 (el ORBE 2: la misma esfera pero sólida, una gota blanca con barniz que se deforma con la voz; tampoco se quita al hablarte) | reloj | mascota (desactivada de la rueda: solo si la piden) | impresion | tiempo (estación meteo a pantalla completa) («pon el reloj de fondo», «pon el orbe 1», «pon el orbe 2», «salvapantallas»). pantalla_completa: cual = impresora (la "
+              "alambre que ondula con la voz; es la de por defecto y no se quita al hablarte) | orbe2 (el ORBE 2: la misma esfera pero sólida, una gota blanca con barniz que se deforma con la voz; tampoco se quita al hablarte) | reloj | impresion | tiempo (estación meteo a pantalla completa) («pon el reloj de fondo», «pon el orbe 1», «pon el orbe 2», «salvapantallas»). pantalla_completa: cual = impresora (la "
               "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
               "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
               "«¿qué está comiendo RAM?»).",
-              {"cual": "tema: nothing | ios | alternar; fondo: auto | orbe1 | orbe2 | reloj | mascota | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
-                       "elegir_mascota: mapache | gato | ninguna; pantalla: interfaz | mascota | todo",
+              {"cual": "tema: nothing | ios | alternar; fondo: auto | orbe1 | orbe2 | reloj | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
+                       "pantalla: interfaz | todo",
                "donde": "pantalla: otra | arriba | abajo | izquierda | derecha | principal | ultrawide",
                "texto": "tarjeta: lo que enseñar, una cosa por línea",
                "titulo": "tarjeta: rótulo (opcional)",
                "imagen": "tarjeta: ruta de una imagen del disco o URL, para enseñarla en la tarjeta (opcional)"},
               {"tarjeta": _r("mostrar_en_tira", {"texto": "texto", "titulo": "titulo", "imagen": "imagen"}),
-               "panel": _r("cambiar_vista", fijo={"modo": "panel"}), "mascota": _r("cambiar_vista", fijo={"modo": "mascota"}),
+               "panel": _r("cambiar_vista", fijo={"modo": "panel"}),
                "invisible": _r("cambiar_vista", fijo={"modo": "invisible"}),
                "tema": _r("cambiar_tema", {"tema": "cual"}),
                "oculto": _r("cambiar_vista", fijo={"modo": "oculto"}),
-               "elegir_mascota": _r("elegir_mascota", {"cual": "cual"}),
                "pantalla": _r("mover_a_pantalla", {"cual": "cual", "donde": "donde"}),
                "quitar_tarjeta": _r("quitar_de_tira"),
                "fondo": _r("fondo", {"escena": "cual"}), "pantalla_completa": _r("pantalla_completa", {"que": "cual"})}),

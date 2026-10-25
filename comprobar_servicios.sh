@@ -15,7 +15,7 @@ for s in pipewire pipewire-pulse wireplumber; do
 done
 
 # Escritorio: ventanas, pantallas y capturas
-[ -n "$WAYLAND_DISPLAY" ] || { log "⚠️ sin sesión Wayland: no habrá panel, mascota ni pantalla"; MAL=1; }
+[ -n "$WAYLAND_DISPLAY" ] || { log "⚠️ sin sesión Wayland: no habrá panel ni pantalla"; MAL=1; }
 pgrep -x kwin_wayland >/dev/null || { log "⚠️ KWin no está en marcha"; MAL=1; }
 
 # Móvil (KDE Connect): el demonio se activa por D-Bus
@@ -44,8 +44,7 @@ if [ "$1" = cos ]; then
     || { log "⚠️ el micro no llega al cancelador de eco (Delta no oye bien)"; MAL=1; }
   [ "$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | grep -c MUTED)" = 0 ] || log "el sonido está silenciado"
   curl -s -m 2 -o /dev/null http://127.0.0.1:7876 || { log "⚠️ el panel (7876) no responde"; MAL=1; }
-  pgrep -f "/[v]entana.sh" >/dev/null || { log "⚠️ ventana.sh no está en marcha (vistas panel/mascota)"; MAL=1; }
-  pgrep -f "/[m]ascota.py" >/dev/null || { log "⚠️ la mascota no está en marcha"; MAL=1; }
+  pgrep -f "/[v]entana.sh" >/dev/null || { log "⚠️ ventana.sh no está en marcha (vistas del panel)"; MAL=1; }
   kdotool search --name '^Delta$' >/dev/null 2>&1 || { log "⚠️ no hay ventana del panel"; MAL=1; }
   pgrep -x kdeconnectd >/dev/null && ! kdeconnect-cli -a 2>/dev/null | grep -q . && log "el móvil no está conectado"
   read -r usado < <(df --output=pcent / | tail -1 | tr -dc 0-9)

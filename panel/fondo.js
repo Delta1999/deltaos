@@ -3,12 +3,10 @@
 // · la voz fija una con la herramienta «fondo».
 // Pantalla completa (clic en la tarjeta o herramienta «pantalla_completa»): impresora con todos los datos, o sistema.
 //
-// 2026-10-21, a petición del usuario: el ORBE es la escena por defecto, ya NO rotan solas cada X tiempo
-// (se cambia a mano con el clic derecho) y la del mapache paseando está desactivada —sigue en el código y
-// la voz puede pedirla, pero no entra en la rueda—. Y el orbe es el único que no se quita al hablarle a
+// 2026-10-21, a petición del usuario: el ORBE es la escena por defecto y ya NO rotan solas cada X
+// tiempo (se cambia a mano con el clic derecho). Y el orbe es el único que no se quita al hablarle a
 // Delta: los demás descubren el panel en cuanto despierta.
 import * as THREE from '/three.module.js';
-import * as Mapache from '/mapache3d.js';
 import * as Orbe from '/orbe.js';
 import * as Gota from '/blob.js';
 import * as Tiempo from '/tiempo.js';
@@ -20,7 +18,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&
 
 const hhmm = () => new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
 const imprime = d => d.impresora && d.impresora.online && ['printing', 'paused'].includes(d.impresora.estado);
-// El orbe primero: es la de por defecto. El mapache no está: desactivado (solo por voz).
+// El orbe primero: es la de por defecto.
 const escenas = d => ['orbe', 'blob', 'reloj'].concat(d.clima ? ['tiempo'] : [], imprime(d) ? ['impresion'] : []);
 
 function elegir(d, saltar) {
@@ -36,7 +34,7 @@ function elegir(d, saltar) {
 function poner(e) {
   if (e === escena) return;
   escena = e;
-  for (const n of ['orbe', 'blob', 'reloj', 'mascota', 'impresion', 'tiempo', 'sistema']) $('f-' + n).classList.toggle('on', n === e);
+  for (const n of ['orbe', 'blob', 'reloj', 'impresion', 'tiempo', 'sistema']) $('f-' + n).classList.toggle('on', n === e);
   if (e === 'orbe') Orbe.entrar();
   if (e === 'blob') Gota.entrar();  // la gota vuelve a crecer desde una bola lisa
   if (e === 'sistema') Sis.ya();
@@ -76,7 +74,7 @@ window.pantallaCompleta = que => { full = que; forzado = true; fuera = 0; escena
 const siguiente = e => { e.preventDefault(); full = null; $('fondo').classList.remove('full'); manual = elegir(D, true); poner(manual); };
 $('fondo').addEventListener('contextmenu', siguiente);
 $('miniorbe').addEventListener('contextmenu', e => { e.preventDefault(); forzado = true; fuera = 0; window.fondoEspera(D); });
-// El mini orbe de la cabecera del panel (en lugar del mapache, 2026-10-21): clic = el orbe 2 en grande
+// El mini orbe de la cabecera del panel (2026-10-21): clic = el orbe 2 en grande
 window.miniOrbe = (cv, d) => Gota.mini(cv, d);
 $('miniorbe').addEventListener('click', () => { full = null; manual = 'blob'; forzado = true; fuera = 0; escena = null; window.fondoEspera(D); });
 const salir = () => { const era = full; full = null; manual = null; if (on) { forzado = false; fuera = era ? 0 : performance.now() + PAUSA; mostrar(false); } };
@@ -84,18 +82,15 @@ $('fondo').addEventListener('dblclick', salir);
 // La rueda también lo quita: el reloj tapa el panel en cuanto Delta se duerme, que es justo cuando
 // quieres subir a releer la conversación, y antes solo salía con doble clic o Escape (2026-10-20).
 $('fondo').addEventListener('wheel', salir, { passive: true });
-$('fondo').addEventListener('mousemove', e => {  // el mapache sigue al ratón y la gota se aparta de él
-  if (escena === 'blob') { const r = $('fb-cv').getBoundingClientRect(); return Gota.raton(e.clientX - r.left, e.clientY - r.top); }
-  if (escena !== 'mascota') return;
-  const r = $('fm-cv').getBoundingClientRect();
-  Mapache.raton(e.clientX - r.left, e.clientY - r.top, performance.now() / 1000);
+$('fondo').addEventListener('mousemove', e => {  // la gota se aparta del ratón
+  if (escena === 'blob') { const r = $('fb-cv').getBoundingClientRect(); Gota.raton(e.clientX - r.left, e.clientY - r.top); }
 });
 $('fondo').addEventListener('mouseleave', () => Gota.raton(null, 0));
 addEventListener('keydown', e => { if (e.key === 'Escape') salir(); });
 
 function textos(d) {
   const w = d.clima, a = (d.avisos || [])[0];
-  $('fr-hora').textContent = $('fm-hora').textContent = hhmm();
+  $('fr-hora').textContent = hhmm();
   $('fr-fecha').textContent = d.fecha || '';
   $('fr-pie').textContent = [w && `${w.temp}° · ${w.desc} · ${w.ciudad}`, a && `${a.t.slice(11, 16)} ${a.texto}`].filter(Boolean).join('   ·   ');
   $('fondo').classList.toggle('noche', new Date().getHours() < 7 && !full);
@@ -107,7 +102,6 @@ function bucle(ms) {
   const t = ms / 1000;
   if (escena === 'orbe') Orbe.pintar($('fo-cv'), D);
   if (escena === 'blob') Gota.pintar($('fb-cv'), D);
-  if (escena === 'mascota') Mapache.pintar(t, $('fm-cv'));
   if (escena === 'tiempo') Tiempo.pintar(t, D);
   if (escena === 'impresion') Imp.pintar(t, $('f-impresion'), false);
   if (escena === 'impresion' && full) Imp.ficha(t);

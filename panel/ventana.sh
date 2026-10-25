@@ -1,12 +1,10 @@
 #!/bin/bash
-# Abre el panel en una ventana sin marcos y reparte la interfaz entre el panel y la mascota (mascota.py).
-# Vista (fichero $VISTA, lo escriben Delta, el panel y la mascota): «panel» = panel a pantalla completa en la
-# pantalla secundaria, mascota oculta; «mascota» = panel minimizado, solo el mapache flotando;
-# «invisible» = mascota oculta y el panel encogido a una barra de estado en la esquina superior derecha,
+# Abre el panel en una ventana sin marcos y le aplica la vista.
+# Vista (fichero $VISTA, lo escriben Delta y el panel): «panel» = panel a pantalla completa en la
+# pantalla secundaria; «invisible» = el panel encogido a una barra de estado en la esquina superior derecha,
 # siempre encima y sin robar el foco; «invisible-grande» = esa misma barra con una tarjeta desplegada;
-# «oculto» = ni barra ni mascota, todo minimizado (Delta sigue escuchando).
-# Al cambiar las pantallas se elige sola: con HDMI, panel; solo el portátil, la barra (la mascota, oculta
-# por defecto hasta que esté el diseño nuevo del gato: 2026-10-21; se saca con «modo mascota»).
+# «oculto» = ni barra ni panel, todo minimizado (Delta sigue escuchando).
+# Al cambiar las pantallas se elige sola: con HDMI, panel; solo el portátil, la barra.
 # Uso: ventana.sh [NOMBRE_SALIDA]   p.ej. eDP-1 o HDMI-A-1
 DIR="$(cd "$(dirname "$0")" && pwd)"
 URL="http://127.0.0.1:7876"
@@ -33,19 +31,14 @@ destino() {
 }
 aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
   read -r X Y AN AL _ <<<"$2"
-  M=$(kdotool search --class delta-mascota 2>/dev/null | head -1)
   if [ "$3" = oculto ]; then
-    # «quita la barra»: ni panel ni mascota. Delta sigue escuchando; esto es solo la ventana.
-    kdotool windowminimize "$1"; [ -n "$M" ] && kdotool windowminimize "$M"
-  elif [ "$3" = mascota ]; then
-    # mostrarla sin activarla: la mascota es una capa del tamaño de la pantalla y se quedaría con el teclado
-    kdotool windowminimize "$1"; [ -n "$M" ] && kdotool windowstate --remove MINIMIZED "$M"
+    # «quita la barra»: nada en pantalla. Delta sigue escuchando; esto es solo la ventana.
+    kdotool windowminimize "$1"
   elif [ "${3%%-*}" = invisible ]; then
     # «invisible-grande» es la misma tira con la tarjeta abierta: solo cambia el alto, así que
     # no hace falta otra ventana, otra regla de KWin ni otro proceso al que perseguir.
     H=$TIRA_AL; [ "$3" = invisible-grande ] && H=$TIRA_ALTA
     # sin windowactivate: la tira no debe robarle el teclado a lo que esté haciendo el usuario
-    [ -n "$M" ] && kdotool windowminimize "$M"
     TX=$((X + AN - TIRA_AN - TIRA_M)) TY=$((Y + TIRA_M))
     kdotool windowstate --remove FULLSCREEN --remove MINIMIZED "$1"
     # ABOVE, no KEEP_ABOVE: kdotool rechaza el nombre largo y con él se caía el comando entero,
@@ -54,7 +47,6 @@ aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
     kdotool windowmove "$1" "$TX" "$TY"; kdotool windowsize "$1" "$TIRA_AN" "$H"
     sleep 1; kdotool windowmove "$1" "$TX" "$TY"; kdotool windowsize "$1" "$TIRA_AN" "$H"
   else
-    [ -n "$M" ] && kdotool windowminimize "$M"
     kdotool windowactivate "$1"
     kdotool windowstate --remove FULLSCREEN --remove KEEP_ABOVE "$1"
     kdotool windowstate --add NO_BORDER --add SKIP_TASKBAR "$1"
@@ -100,7 +92,7 @@ CH=$!
 for i in $(seq 40); do W=$(kdotool search --class "chrome.*127.0.0.1|127.0.0.1" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep .5; done
 [ -z "$W" ] && { wait $CH; exit; }
 sleep 2  # KWin recoloca la ventana al mostrarla; mover antes no se respeta
-ANT= FANT= VANT= MANT=
+ANT= FANT= VANT=
 while kill -0 $CH 2>/dev/null; do
   D=$(destino)
   if [ -n "$D" ] && [ "${D##* }" != "$FANT" ]; then  # pantallas cambiadas: vista por defecto
@@ -115,9 +107,7 @@ while kill -0 $CH 2>/dev/null; do
   if [ -n "$D" ] && [ "$D" != "$ANT" ]; then  # otra pantalla para el panel (por voz): misma vista, en la nueva
     [ -n "$ANT" ] && regla "$D"; ANT=$D; VANT=
   fi
-  MM=$(kdotool search --class delta-mascota 2>/dev/null | head -1)
-  [ "$MM" != "$MANT" ] && { MANT=$MM; VANT=; }  # la mascota (re)aparece: aplicarle la vista
-  # contenido + fecha: repetir «modo mascota» tras mover el panel a mano (o con «ventanas») también se aplica
+  # contenido + fecha: repetir la vista tras mover el panel a mano (o con «ventanas») también se aplica
   V=$(cat "$VISTA" 2>/dev/null); T=$(stat -c %.9Y "$VISTA" 2>/dev/null)
   [ -n "$D" ] && [ "$V$T" != "$VANT" ] && { aplicar "$W" "$D" "$V"; VANT=$V$T; }
   sleep 1

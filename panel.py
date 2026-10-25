@@ -179,7 +179,7 @@ def _salud(ST, mic):
 
 def _panel_version():
     try:
-        return max((AQUI / "panel" / f).stat().st_mtime_ns for f in ("index.html", "fondo.js", "orbe.js", "blob.js", "tiempo.js", "mapache3d.js")) // 1_000_000
+        return max((AQUI / "panel" / f).stat().st_mtime_ns for f in ("index.html", "fondo.js", "orbe.js", "blob.js", "tiempo.js")) // 1_000_000
     except Exception:
         return 0
 
@@ -331,10 +331,10 @@ def _vigila(sn):
     _salud_previa.update(sn["salud"])
 
 
-VISTA = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "delta-vista"  # ventana.sh la lee y coloca panel y mascota
-# en qué pantalla va cada uno (nombre de salida, p.ej. HDMI-A-1): lo escribe deltaos.mover_a_pantalla y lo leen
-# ventana.sh (panel y barra) y mascota.py; si falta o esa pantalla no está, cada uno va a la de siempre
-PANTALLA = {k: VISTA.with_name(f"delta-pantalla-{k}") for k in ("panel", "mascota")}
+VISTA = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "delta-vista"  # ventana.sh la lee y coloca el panel
+# en qué pantalla va (nombre de salida, p.ej. HDMI-A-1): lo escribe deltaos.mover_a_pantalla y lo lee
+# ventana.sh (panel y barra); si falta o esa pantalla no está, va a la de siempre
+PANTALLA = {k: VISTA.with_name(f"delta-pantalla-{k}") for k in ("panel",)}
 
 
 def vista(modo):
@@ -400,7 +400,7 @@ def _tarjeta_viva(ahora):
 
 
 def _vista_actual():
-    """La escriben Delta, ventana.sh (al cambiar las pantallas) y la mascota, así que la fuente es
+    """La escriben Delta y ventana.sh (al cambiar las pantallas), así que la fuente es
     el fichero y no una variable nuestra. Está en tmpfs: leerla en cada snapshot no cuesta nada."""
     try:
         return VISTA.read_text().strip() or "panel"
@@ -417,8 +417,8 @@ def _cmd(ST, cmd):
     elif cmd == "modo":
         S["modo"] = "alertas" if S["modo"] == "chat" else "chat"
         S["nuevas"] = 0
-    elif cmd in ("vista_panel", "vista_mascota"):
-        vista(cmd[6:])
+    elif cmd == "vista_panel":
+        vista("panel")
     elif cmd == "tiempo":
         acciones.tarea(_abrir_tiempo())
     elif cmd == "cerrar_visor":
@@ -634,7 +634,7 @@ def ip_para_la_tele():
         return None
 
 
-_VERSIONADOS = ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "mapache3d.js", "three.module.js")
+_VERSIONADOS = ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "three.module.js")
 
 
 def _con_version(nombre, tipo):
@@ -670,7 +670,7 @@ async def _ws(request):
                     _pegar(request.app["ST"], msg["pegar"])
                 if isinstance(msg.get("encargo"), str) and msg["encargo"].strip():  # delta_pide.py (Claude Code)
                     await acciones.encargo_claude(msg["encargo"].strip()[:2000])
-                if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "quitar_tarjeta", "vista_panel", "vista_mascota", "tiempo", "reset_estable", "tema_nothing", "tema_ios", "cambiar_tema"):
+                if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "quitar_tarjeta", "vista_panel", "tiempo", "reset_estable", "tema_nothing", "tema_ios", "cambiar_tema"):
                     _cmd(request.app["ST"], msg["cmd"])
                 g = msg.get("geo")
                 if g and len(g) == 3 and all(isinstance(x, (int, float)) for x in g) and g[2] <= PRECISA:
@@ -692,14 +692,14 @@ async def _difusor(ST):
         try:
             sn = snapshot(ST)
             _vigila(sn)
-            # pide permiso: al modo mascota, que saca el bocadillo Sí/No; contestado, vuelve a la vista que había
+            # pide permiso: al panel, que saca el bocadillo Sí/No; contestado, vuelve a la vista que había
             ahora = VISTA.read_text().strip() if VISTA.exists() else "panel"
             if sn["confirma"] and volver is None:
                 volver = ahora
-                if ahora != "mascota":
-                    vista("mascota")
+                if ahora != "panel":
+                    vista("panel")
             elif not sn["confirma"] and volver is not None:
-                if volver != "mascota" and ahora == "mascota":  # si el usuario cambió de vista entretanto, se respeta
+                if volver != "panel" and ahora == "panel":  # si el usuario cambió de vista entretanto, se respeta
                     vista(volver)
                 volver = None
             if S["modo"] == "alertas":
@@ -841,8 +841,8 @@ def _procesos_sync():
     out = []
     for raiz, g in sorted(G.items(), key=lambda x: -x[1]["kb"])[:30]:
         e, cmd = g["exe"], g["cmd"]
-        if "gemini-live-assistant" in cmd or e in ("assistant.py", "mascota.py"):
-            nombre, tipo, por = {"assistant.py": "Delta", "mascota.py": "Delta · mascota"}.get(e, "Delta · panel"), "no", "es Delta"
+        if "gemini-live-assistant" in cmd or e == "assistant.py":
+            nombre, tipo, por = ("Delta" if e == "assistant.py" else "Delta · panel"), "no", "es Delta"
         elif e in ("claude", "claude-desktop"):
             nombre, tipo, por = "Claude Code" if e == "claude" else "Claude (app)", "no", "con él trabajamos"
         elif e in CERRABLES or "acestream" in cmd.lower():
@@ -952,9 +952,8 @@ async def start(ST, voz):
         nc = {"Cache-Control": "no-cache"}
         app.router.add_get("/", lambda r: _con_version("index.html", "text/html"))
         app.router.add_get("/ws", _ws)
-        app.router.add_get("/mapache.txt", lambda r: web.FileResponse(AQUI / "panel" / "mapache.txt"))
         app.router.add_static("/fonts", AQUI / "panel" / "fonts")
-        for js in ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "mapache3d.js"):
+        for js in ("fondo.js", "orbe.js", "blob.js", "tiempo.js"):
             app.router.add_get("/" + js, lambda r, js=js: _con_version(js, "application/javascript"))
         for js in ("three.module.js", "novedades.json"):
             app.router.add_get("/" + js, lambda r, js=js: web.FileResponse(AQUI / "panel" / js, headers=nc))

@@ -31,8 +31,8 @@ mandadas = []
 async def falso_mejorar(peticion, voz=True):
     mandadas.append(peticion); return "Enviado a Claude Code."
 real, claude_acp.mejorar_delta = claude_acp.mejorar_delta, falso_mejorar
-assert "no a WORMHOLE" in corre(claude_acp.hablar_con_claude("Avería: la mascota no se mueve de pantalla"))
-assert mandadas == ["Avería: la mascota no se mueve de pantalla"]
+assert "no a WORMHOLE" in corre(claude_acp.hablar_con_claude("Avería: tu panel no se mueve de pantalla"))
+assert mandadas == ["Avería: tu panel no se mueve de pantalla"]
 claude_acp.mejorar_delta = real
 assert acciones._real("claude", {"accion": "mejorar_delta", "mensaje": "x"}) == ("mejorar_delta", {"peticion": "x"})
 

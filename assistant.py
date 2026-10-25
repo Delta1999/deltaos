@@ -524,7 +524,7 @@ async def main():
                     "buscar: úsala cuando te pidan buscar algo y di los datos clave; investigar SOLO si piden expresamente investigación a fondo. "
                     "Skills: si una tarea encaja con una skill instalada, léela con skills accion=usar y síguela. Si no tienes ninguna que encaje y es algo que hará falta a menudo, "
                     "búscala con skills accion=buscar e instálala con accion=instalar (pregúntale antes si la instalas), y dile cuál has instalado. Skills instaladas:\n" + deltaos.resumen_skills() + "\n"
-                    "Averías y mejoras del propio Delta (panel, barra, mascota, voz, herramientas) van a Claude Code (o Cherry si pide Cherry): "
+                    "Averías y mejoras del propio Delta (panel, barra, voz, herramientas) van a Claude Code (o Cherry si pide Cherry): "
                     "si pide arreglarlo o cambiarlo ya («arréglalo», «díselo a Claude», «comunícaselo»), claude accion=mejorar_delta; "
                     "si pide expresamente usar Cherry, o dice «con Cherry» o «dile a Cherry» («mejora esto con Cherry», «dile a Cherry que necesito que cambies esto», «pídeselo a Cherry»), usa cherry o claude accion=cherry (Plan B cuando Claude no tenga tokens); "
                     "si es para luego («apúntalo», «para mañana», «recuérdalo»), memoria accion=anotar_mejora. "

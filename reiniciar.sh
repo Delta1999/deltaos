@@ -1,7 +1,7 @@
 #!/bin/bash
 # Reinicia DeltaOS cuando el usuario lo pide de viva voz (herramienta reiniciar_delta de deltaos.py).
 # Lo lanza Delta en una sesión aparte (start_new_session): sobrevive a que mate a Delta.
-# La vista (panel / mascota / invisible) vive en $XDG_RUNTIME_DIR/delta-vista y la relee ventana.sh: no hay que tocarla.
+# La vista (panel / invisible) vive en $XDG_RUNTIME_DIR/delta-vista y la relee ventana.sh: no hay que tocarla.
 cd "$(dirname "$0")" || exit 1
 exec >>assistant.log 2>&1
 echo "♻️ reinicio: lo ha pedido el usuario"

@@ -1,4 +1,4 @@
-# Delta — asistente de voz (Gemini Live) + panel DeltaOS + mascota
+# Delta — asistente de voz (Gemini Live) + panel DeltaOS
 
 Repositorio canónico: `~/gemini-live-assistant`. Trabaja aquí, sobre estos archivos; nunca en copias ni carpetas paralelas.
 
@@ -8,7 +8,6 @@ Repositorio canónico: `~/gemini-live-assistant`. Trabaja aquí, sobre estos arc
 - `deltaos.py` — DeltaOS: visor del panel, buscar, investigar (informes en HTML), editar_informe, skills, fondo, leer_pegado.
 - `claude_acp.py` — Claude Code por ACP: `hablar_con_claude` (repo WORMHOLE) y `mejorar_delta` (este repo, con registro).
 - `panel.py` + `panel/index.html` + `panel/fondo.js` — panel web en 127.0.0.1:7876 (aiohttp + WebSocket; `S` = estado que se difunde).
-- `mascota.py` — mascota PyQt6 (mapache 3D de puntos) que se pasea por el escritorio.
 - `secretario.py` — documentos (crear_documento, convertir_documento).
 - `firetv.py` + `firetv/mic_mando/` — la tele del salón (Fire TV por ADB): herramienta tele_salon, la interfaz en la tele y el micro del mando (app Android propia `es.delta.micmando`).
 
@@ -43,7 +42,6 @@ Si te llama Delta: NO reinicies Delta (eres un proceso hijo suyo); di al final s
 - Reiniciar Delta: él mismo puede, con la herramienta `reiniciar_delta` («reiníciate», lanza `reiniciar.sh`).
   Desde fuera, a mano (si te llama Delta NO lo reinicies, eres su hijo):
   `A="assist"; P=$(pgrep -f "/${A}ant.py"); kill $P; for i in $(seq 30); do pgrep -f "/${A}ant.py" >/dev/null || break; sleep 0.5; done; sleep 2; (setsid nohup ./run.sh </dev/null >/dev/null 2>&1 &)`
-  y después `echo mascota > $XDG_RUNTIME_DIR/delta-vista` si estaba en modo mascota.
 - Tras cada arranque/reinicio (lo pidió el usuario): revisar en `assistant.log` las líneas `🩺 servicios:` (`comprobar_servicios.sh`) y `🔊 audio:` (`comprobar_audio.sh`); si hay ⚠️, arreglarlo o decírselo antes de dar Delta por buena.
 
 ## Versión estable v5

@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-25",
+  "t": "Fuera la mascota del escritorio: el mapache, el gato carey y el modo mascota se han quitado del todo (estaba apagada desde el 21/10 y el mini orbe junto a la hora ya hacía su papel). El permiso con botones Sí/No sale ahora en el panel, y las vistas son panel, invisible y oculto.",
+  "como": "«panel completo» · «modo invisible»"
+ },
+ {
+  "f": "2026-10-25",
   "t": "Vuelve la visión por cámara (fase 5.1, en prueba): la webcam ve si estás delante, si miras, gestos sostenidos y la postura, todo en local y sin guardar ni una imagen; el modo privacidad suelta la cámara y apaga su luz",
   "como": "«enciende la visión», «¿me ves?», «¿cómo estoy sentado?», «apaga la visión»"
  },

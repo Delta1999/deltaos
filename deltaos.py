@@ -707,12 +707,8 @@ async def sincronizar_skills():
 
 
 async def cambiar_vista(modo):
-    if modo not in ("panel", "mascota", "invisible", "oculto"):
-        return "Error: el modo es panel, mascota, invisible u oculto."
-    if modo == "mascota" and (AQUI / "mascota_off.txt").exists():
-        # sin proceso de mascota, el modo mascota deja la pantalla vacía: mejor decirlo (21/10)
-        return ("Error: la mascota del escritorio está desactivada por petición del usuario. "
-                "Dile que, si la quiere otra vez, lo pida y se vuelve a activar.")
+    if modo not in ("panel", "invisible", "oculto"):
+        return "Error: el modo es panel, invisible u oculto."
     panel.vista(modo)
     if modo == "oculto":
         return ("Hecho: quitada la barra de estado. Sigo escuchando igual; dile que para recuperarla "
@@ -759,7 +755,7 @@ def _donde(ps, actual, donde):
 
 
 def _pantalla_de(cual, ps):
-    """Dónde está ahora: la elegida si sigue encendida; si no, la de siempre (panel en la secundaria, mascota en la principal)."""
+    """Dónde está ahora: la elegida si sigue encendida; si no, la de siempre (la secundaria)."""
     try:
         n = panel.PANTALLA[cual].read_text().strip()
     except OSError:
@@ -771,14 +767,13 @@ def _pantalla_de(cual, ps):
 
 
 async def mover_a_pantalla(cual, donde="otra"):
-    """Fija en qué pantalla va la interfaz (panel y barra de estado son la misma ventana) y/o la mascota.
-    No mueve la ventana por su cuenta: ventana.sh y mascota.py vigilan su fichero y la recolocan ellos,
+    """Fija en qué pantalla va la interfaz (panel y barra de estado son la misma ventana).
+    No mueve la ventana por su cuenta: ventana.sh vigila su fichero y la recoloca él,
     así un cambio de vista posterior no la devuelve a la pantalla de antes."""
     c = str(cual or "").strip().lower()
-    cuales = {"interfaz": ["panel"], "panel": ["panel"], "barra": ["panel"], "mascota": ["mascota"],
-              "todo": ["panel", "mascota"]}.get(c)
+    cuales = {"interfaz": ["panel"], "panel": ["panel"], "barra": ["panel"], "todo": ["panel"]}.get(c)
     if not cuales:
-        return "Error: cual es interfaz (también la barra de estado), mascota o todo."
+        return "Error: cual es interfaz (también la barra de estado) o todo."
     ps = _pantallas((await _run(["kscreen-doctor", "-o"], timeout=10))[1])
     if len(ps) < 2:
         return "Solo hay una pantalla encendida: no hay otra a la que llevarlo. Díselo al usuario."
@@ -789,7 +784,7 @@ async def mover_a_pantalla(cual, donde="otra"):
         if not o:
             return f"Error: no sé qué pantalla es «{donde}». Hay: {', '.join(p['n'] for p in ps)}."
         panel.PANTALLA[k].write_text(o["n"] + "\n")
-        hechos.append(f"{'la interfaz' if k == 'panel' else 'la mascota'} → {o['n']} ({o['an']}x{o['al']})"
+        hechos.append(f"la interfaz → {o['n']} ({o['an']}x{o['al']})"
                       + (" (ya estaba ahí)" if o["n"] == actual else ""))
     return "Hecho: " + "; ".join(hechos) + ". Tarda un par de segundos en colocarse."
 
@@ -834,29 +829,7 @@ async def quitar_de_tira():
     return "Hecho: quitada de la barra; la barra sigue puesta, en pequeño."
 
 
-async def elegir_mascota(cual):
-    # «ninguna» la apaga del todo (el usuario la desactivó el 2026-10-21, «hasta nueva orden») y
-    # pedir un animal la vuelve a encender: es el mismo interruptor que mira run.sh al arrancar.
-    if cual not in ("mapache", "gato", "ninguna"):
-        return "Error: cual es mapache, gato o ninguna."
-    off = AQUI / "mascota_off.txt"
-    if cual == "ninguna":
-        off.write_text("La mascota del escritorio está desactivada: run.sh no la arranca mientras exista\n"
-                       "este fichero. Para volver a tenerla, pedir «pon el mapache» o «pon el gato».\n")
-        M = "masc"
-        subprocess.run(["pkill", "-f", f"/{M}ota.py"], capture_output=True)
-        return "Hecho: la mascota del escritorio queda desactivada hasta que la pida otra vez."
-    volvia = off.exists()
-    off.unlink(missing_ok=True)
-    (AQUI / "mascota_elegida.txt").write_text(cual + "\n")  # mascota.py lo vigila y se vuelve a arrancar con ella
-    if volvia:
-        return f"Hecho: la mascota vuelve, y es el {cual}. Dile que hace falta reiniciarte para que salga."
-    return f"Hecho: ahora la mascota es el {cual}."
-
-
-# «mascota» (el mapache paseando) sigue aquí porque se puede pedir por voz, pero está fuera de la
-# rueda del salvapantallas: el usuario la desactivó el 2026-10-21.
-ESCENAS = ("auto", "orbe1", "orbe2", "reloj", "mascota", "impresion", "tiempo")
+ESCENAS = ("auto", "orbe1", "orbe2", "reloj", "impresion", "tiempo")
 # El usuario los llama «orbe 1» (el de alambre) y «orbe 2» (la gota blanca) desde el 2026-10-21;
 # dentro del panel siguen siendo «orbe» y «blob», que es como se llaman los ficheros y los divs.
 NOMBRES = {"orbe": "el orbe 1", "blob": "el orbe 2"}
@@ -874,7 +847,7 @@ async def fondo(escena):
     antes = panel._vista_actual()
     # Siempre, aunque ya esté en panel: escribir la vista hace que ventana.sh lo traiga al frente.
     # 21/10: el panel estaba en «panel» pero tapado por otras ventanas, y el fondo pedido no se veía.
-    panel.vista("panel")  # en barra, mascota u oculto el panel no se ve, y el fondo va dentro del panel
+    panel.vista("panel")  # en barra u oculto el panel no se ve, y el fondo va dentro del panel
     return (f"Hecho: {NOMBRES.get(escena, escena)} a pantalla completa en el panel" + (f" (estaba en modo {antes}: he puesto el panel)" if antes != "panel" else "")
             + ". Se quita con doble clic, Escape o la rueda del ratón; también sale solo cuando duermes.")
 
@@ -950,7 +923,7 @@ async def energia(accion, minutos="0"):
 
 async def reiniciar_delta():
     """Reinicia el propio Delta cuando el usuario lo pide (lo pidió el 2026-10-21). El script corre en una sesión
-    aparte, así que sobrevive a que Delta muera; la vista (panel/mascota/invisible) la relee ventana.sh."""
+    aparte, así que sobrevive a que Delta muera; la vista (panel/invisible) la relee ventana.sh."""
     ocupado = [n for n, e in ST["trabajos"].items() if e == "en curso"]
     if ST.get("claude", {}).get("estado") in ("trabajando", "esperando permiso"):
         ocupado.append("Claude Code")
@@ -990,7 +963,7 @@ async def pasar_cos():
 
 acciones.registrar([
     acciones._fn("pasar_cos",
-                 "Pasa las C.O.S. (comprobaciones operativas de sistemas): revisa audio, micro, panel, mascota, ventanas, "
+                 "Pasa las C.O.S. (comprobaciones operativas de sistemas): revisa audio, micro, panel, ventanas, "
                  "móvil, internet/Gemini, impresora, disco, RAM y temperatura, y arranca lo que esté caído. Úsalo cuando "
                  "diga «pasar C.O.S.», «pasa las COS», «comprobaciones operativas», «¿está todo bien?». Contesta breve: "
                  "si sale OK, que todo está operativo (y las notas sin ⚠️ en una frase); si hay ⚠️, di cada fallo."),
@@ -1031,19 +1004,15 @@ acciones.registrar([
                  {"nombre": acciones._s("nombre de la skill")}),
     acciones._fn("sincronizar_skills", "Actualiza todas las skills instaladas desde su origen."),
     acciones._fn("cambiar_vista",
-                 "Cambia la interfaz: panel completo, modo mascota (solo el animal flotando) o invisible (ni animal "
-                 "ni panel, solo una tira de estado flotando en una esquina). Úsalo cuando el usuario diga «modo "
-                 "mascota», «panel completo», «abre el panel», «modo invisible», «quítate de en medio», «esconde la mascota», «quita el bicho»…",
-                 {"modo": acciones._s("panel | mascota | invisible")}),
-    acciones._fn("elegir_mascota",
-                 "Elige qué animal es la mascota flotante: el mapache o el gato carey. Úsalo cuando diga «pon el gato», "
-                 "«quiero el mapache», «cambia la mascota»…",
-                 {"cual": acciones._s("mapache | gato")}),
+                 "Cambia la interfaz: panel completo o invisible (sin panel, solo una tira de estado flotando en "
+                 "una esquina). Úsalo cuando el usuario diga «panel completo», «abre el panel», «modo invisible», "
+                 "«quítate de en medio»…",
+                 {"modo": acciones._s("panel | invisible")}),
     acciones._fn("fondo",
-                 "Pone ya a pantalla completa en el panel una escena (y es también la que sale cuando duermes): orbe (una esfera de alambre que se deforma con la voz, «pon el orbe», «pon la esfera»), reloj grande, la mascota en el centro, "
+                 "Pone ya a pantalla completa en el panel una escena (y es también la que sale cuando duermes): orbe (una esfera de alambre que se deforma con la voz, «pon el orbe», «pon la esfera»), reloj grande, "
                  "la estación meteo, o la impresión en vivo (recorrido 3D de la boquilla). auto = va rotando y la impresión manda mientras imprime. "
                  "Úsalo cuando diga «pon el reloj de fondo», «fondo de la impresora», «salvapantallas»…",
-                 {"escena": acciones._s("auto | orbe | reloj | mascota | impresion | tiempo")}),
+                 {"escena": acciones._s("auto | orbe | reloj | impresion | tiempo")}),
     acciones._fn("pantalla_completa",
                  "Pone a pantalla completa en el panel: impresora (la pieza en 3D en vivo con TODO: capas, tiempos, "
                  "filamento, temperaturas con gráfica, velocidades, flujo, ventiladores, histórico), tiempo (Nothing Weather "
@@ -1062,17 +1031,17 @@ acciones.registrar([
                  {"accion": acciones._s("suspender | apagar | reiniciar | cancelar"),
                   "minutos": acciones._s("minutos de espera; 0 = ahora")}, req=["accion"]),
     acciones._fn("reiniciar_delta",
-                 "Te reinicia a TI (DeltaOS: tu proceso, el panel y la mascota), sin tocar el ordenador. Úsala cuando el "
+                 "Te reinicia a TI (DeltaOS: tu proceso y el panel), sin tocar el ordenador. Úsala cuando el "
                  "usuario diga «reiníciate», «reinicia DeltaOS», «reinicia el asistente» o «vuelve a arrancar». "
                  "Hace falta para que se apliquen los cambios de tu código. No la uses si dice «reinicia el ordenador»: "
                  "eso es energia accion=reiniciar. Es inmediato: no le preguntes «¿seguro?», llama directamente."),
     acciones._fn("mover_a_pantalla",
-                 "Lleva la interfaz (panel o barra de estado, que son la misma ventana) y/o la mascota a otra pantalla, y se queda ahí.",
-                 {"cual": acciones._s("interfaz | mascota | todo"),
+                 "Lleva la interfaz (panel o barra de estado, que son la misma ventana) a otra pantalla, y se queda ahí.",
+                 {"cual": acciones._s("interfaz | todo"),
                   "donde": acciones._s("otra | arriba | abajo | izquierda | derecha | principal | ultrawide")}, req=["cual"]),
     acciones._fn("quitar_de_tira", "Quita la tarjeta (o la web, mapa o informe) de la barra de estado y la deja en pequeño."),
     acciones._fn("cambiar_tema",
                  "Cambia el estilo visual de DeltaOS entre Nothing Design System e iOS / Apple Design (Human Interface Guidelines / Liquid Glass). "
                  "Úsalo cuando diga «pon el diseño ios», «activa el tema apple», «pon el diseño nothing», «cambia al estilo apple», «cambia de tema»…",
                  {"tema": acciones._s("nothing | ios (o apple); vacío para alternar")}),
-], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, elegir_mascota, fondo, pantalla_completa, leer_pegado, energia, reiniciar_delta, mover_a_pantalla, quitar_de_tira, cambiar_tema))
+], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, fondo, pantalla_completa, leer_pegado, energia, reiniciar_delta, mover_a_pantalla, quitar_de_tira, cambiar_tema))

@@ -21,7 +21,7 @@ const SEG = 192;        // segmentos de la esfera: con menos se ve el polígono 
 const ENTRA = 1.4;      // segundos que tarda en salir (crece y se deforma desde una bola lisa)
 
 // Cada lienzo lleva su gota y su estado: la grande del salvapantallas y la mini de la cabecera del
-// panel, que sustituye al mapache (pedido el 2026-10-21). La mini no tiene hora, ni conversación, ni
+// panel (pedido el 2026-10-21). La mini no tiene hora, ni conversación, ni
 // ratón: es solo la gota, centrada y con menos triángulos, que a 120 px no se nota la diferencia.
 const GOTAS = new WeakMap();
 const nueva = () => ({r3: null, t0: performance.now() / 1000, NV: 0, MV: 0, V: 0, giro: 0, fase: 0, ult: 0,

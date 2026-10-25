@@ -261,7 +261,7 @@ async def mejorar_delta(peticion, voz=True):
 LIMITE = re.compile(r"hit your .{0,20}limit|session limit|usage limit|rate limit|l[ií]mite de (uso|sesi[oó]n)", re.I)
 # Lo del propio Delta que llega por «hablar» (el repo WORMHOLE) se desvía a mejorar_delta (21/10: el usuario dice
 # «díselo a Claude» y Delta elegía el Claude equivocado).
-DE_DELTA = re.compile(r"\bdelta(os)?\b|mascota|barra de estado|\bescudo\b|tu (panel|interfaz|voz|barra)|aver[ií]as?\b|"
+DE_DELTA = re.compile(r"\bdelta(os)?\b|barra de estado|\bescudo\b|tu (panel|interfaz|voz|barra)|aver[ií]as?\b|"
                       r"mejoras? (de|para|pendientes)", re.I)
 
 
@@ -315,7 +315,7 @@ acciones.registrar([
                  "Úsala para toda petición de código, CAD o archivos del repo.",
                  {"mensaje": acciones._s("lo que quieres decirle a Claude Code, completo y claro")}),
     acciones._fn("mejorar_delta",
-                 "Cambia, mejora o arregla el PROPIO Delta (tu interfaz, panel, DeltaOS, mascota, voz, herramientas, "
+                 "Cambia, mejora o arregla el PROPIO Delta (tu interfaz, panel, DeltaOS, voz, herramientas, "
                  "fondos…) llamando a Claude Code sobre tu repositorio. Úsala cuando el usuario pida modificar algo de tu "
                  "sistema («cambia el panel para…», «añádete…», «arregla tu…»). Queda registrado para poder deshacerlo.",
                  {"peticion": acciones._s("lo que hay que cambiar, completo y con las palabras del usuario")}),
