@@ -53,9 +53,9 @@ def region(alto_tira):
         if abs(dy) >= rad:
             continue
         semi = math.sqrt(rad * rad - dy * dy)
-        r.union_rectangle(cairo.RectangleInt(int(cx - semi), y, int(2 * semi), paso))
+        r.union(cairo.RectangleInt(int(cx - semi), y, int(2 * semi), paso))
     if alto_tira > 0:
-        r.union_rectangle(cairo.RectangleInt(0, TIRA_Y, ANCHO, min(alto_tira, ALTO - TIRA_Y)))
+        r.union(cairo.RectangleInt(0, TIRA_Y, ANCHO, min(alto_tira, ALTO - TIRA_Y)))
     return r
 
 
@@ -95,12 +95,14 @@ class Orbe(Gtk.Application):
         self.win.set_child(self.vista)
         self.win.connect("realize", lambda *_: GLib.timeout_add(150, self._region))
         self._gestos()
-        # Nace invisible y sin ratón: KWin lo coloca donde quiere y ventana.sh lo mueve después, y ese
-        # salto se veía. ventana.sh avisa con SIGUSR1 cuando ya está en su sitio; si no avisa, a los 15 s
-        # se muestra igual para no perder el orbe (p. ej. si se lanza a mano).
-        self.win.set_opacity(0.0)
+        # Nace oculto y sin ratón: KWin lo coloca donde quiere y ventana.sh lo mueve después, y ese salto
+        # se veía. ventana.sh lo muestra con SIGUSR1 cuando ya está en su sitio y lo oculta con SIGUSR2 al
+        # salir del modo invisible, sin matarlo: arrancarlo de cero tarda ~10 s. Ocultar es cosa de la página
+        # (clase oculto-widget y bandera orbeOculto): la ventana sigue mapeada, transparente. Ni set_opacity(0)
+        # ni ocultar el WebView valen: GTK no mapea una ventana que no pinta nada y KWin deja de verla.
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, self._mostrar)
-        GLib.timeout_add_seconds(15, lambda: (self._mostrar(), False)[1])
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR2, self._ocultar)
+        self.vista.connect("load-changed", lambda _v, ev: ev == WebKit.LoadEvent.FINISHED and self._bandera())
         self.win.present()
 
     def _fallo(self, _v, _ev, uri, error):
@@ -108,9 +110,21 @@ class Orbe(Gtk.Application):
         GLib.timeout_add_seconds(2, lambda: (self.vista.load_uri(URL), False)[1])
         return True
 
+    def _bandera(self):
+        # también al acabar de cargar: si la señal llegó con la página a medias, el JS se habría perdido
+        o = "false" if self.mostrado else "true"
+        self._js(f"window.orbeOculto={o};document.body.classList.toggle('oculto-widget',{o})")
+
     def _mostrar(self):
         self.mostrado = True
-        self.win.set_opacity(1.0)
+        self._bandera()
+        self._region()
+        return GLib.SOURCE_CONTINUE
+
+    def _ocultar(self):
+        self.mostrado = False
+        self._cancelar_clic()
+        self._bandera()
         self._region()
         return GLib.SOURCE_CONTINUE
 
@@ -137,6 +151,7 @@ class Orbe(Gtk.Application):
         clic.set_button(1)
         clic.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         clic.connect("pressed", self._pulsado)
+        clic.connect("released", self._soltado)
         self.win.add_controller(clic)
 
         arr = Gtk.GestureDrag()
@@ -144,14 +159,19 @@ class Orbe(Gtk.Application):
         arr.connect("drag-begin", lambda *_: setattr(self, "arrastrando", False))
         arr.connect("drag-update", self._arrastre)
         self.win.add_controller(arr)
+        # en grupo: al reclamar la secuencia el clic, el WebView no se la queda y no cancela «released»
+        clic.group(arr)
 
-    def _pulsado(self, _g, n, _x, _y):
-        if n >= 2:                      # doble clic: el panel entero
-            self._cancelar_clic()
-            self._js("window.deltaWidget && window.deltaWidget.panel()")
-            return
+    def _pulsado(self, g, n, _x, _y):
+        g.set_state(Gtk.EventSequenceState.CLAIMED)
         self._cancelar_clic()
-        self.clic_id = GLib.timeout_add(CLIC_MS, self._clic_simple)
+        if n >= 2:                      # doble clic: el panel entero
+            self._js("window.deltaWidget && window.deltaWidget.panel()")
+
+    def _soltado(self, _g, n, _x, _y):
+        # un clic es pulsar y soltar sin mover: decidirlo al pulsar abría la barra si se mantenía antes de arrastrar
+        if n == 1 and not self.arrastrando:
+            self.clic_id = GLib.timeout_add(CLIC_MS, self._clic_simple)
 
     def _clic_simple(self):
         self.clic_id = 0

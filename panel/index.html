@@ -625,6 +625,8 @@ body.widget{padding:0;gap:0;overflow:hidden;display:block}
 body.widget>header,body.widget>main,body.widget>footer{display:none}
 body.widget :is(#espera,#fondo,#chuleta,#cel,#pegar,#visor,#p-card,#cv){display:none!important}
 #orbe-flotante{display:none}
+/* Oculto = ventana mapeada pero sin pintar nada: con opacidad 0 GTK no la mapea y KWin no la ve. Lo manda orbe_flotante.py. */
+body.widget.oculto-widget{visibility:hidden}
 body.widget #orbe-flotante{display:block;position:fixed;top:0;right:0;width:360px;height:360px}
 body.widget #tira{position:fixed;top:368px;left:0;right:0;display:none;border-radius:18px}
 body.widget #tira.on{display:flex}
@@ -1094,7 +1096,7 @@ let S={estado:'cargando',nivel:0,mic:{nivel:0},lat:null};
 // 2026-10-25): se ve el orbe recortado sobre el escritorio y nada más. Clic = la barra 5 s,
 // doble clic = el panel entero, arrastrar = moverlo de sitio.
 const WIDGET=new URLSearchParams(location.search).has('widget');
-if(WIDGET){document.documentElement.classList.add('widget');document.body.classList.add('widget')}
+if(WIDGET){document.documentElement.classList.add('widget');document.body.classList.add('widget','oculto-widget');window.orbeOculto=true}  // nace oculto: orbe_flotante.py lo muestra al colocarlo
 const bar=(p,r)=>`<div class="bar${r?' r':''}" style="--p:${Math.max(0,Math.min(100,p))}%"></div>`;
 const mmss=s=>s==null?'—':s<90?`${Math.round(s)} s`:s<5400?`${Math.round(s/60)} min`:`${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
 
@@ -1335,7 +1337,7 @@ function nivel(e,x,y,t){ // 0..1 por estado
 function dibuja(t){
   try{
     NV+=(S.nivel-NV)*.25;if(window.FONDO_ON){requestAnimationFrame(t=>dibuja(t/1000));return} // tapado: no gastar CPU
-    relojes();const mo=WIDGET?$('orbe-flotante'):$('miniorbe');if(mo&&window.miniOrbe)miniOrbe(mo,S);
+    relojes();const mo=WIDGET?$('orbe-flotante'):$('miniorbe');if(mo&&window.miniOrbe&&!window.orbeOculto)miniOrbe(mo,S);  // orbeOculto: lo pone orbe_flotante.py mientras no está a la vista
     if(cx){
       cx.clearRect(0,0,W,H);const e=S.estado,isIos=(S.tema==='ios'),col=isIos?(e==='dormido'?'255,255,255':e==='escuchando'||e==='trabajando'?'10,132,255':'255,255,255'):(e==='dormido'?'255,255,255':e==='escuchando'||e==='trabajando'?'215,25,33':'255,255,255');
       for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const v=Math.min(1,nivel(e,x,y,t)),a=.09+.91*v;

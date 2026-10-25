@@ -47,11 +47,13 @@ aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
 # que es lo único que sabe hacer una ventana transparente aquí). Se arranca al entrar en invisible,
 # se coloca en la misma esquina donde estaba la barra de estado, y se mata al salir.
 # Nace invisible (KWin lo pone donde quiere, no donde le decimos) y se muestra con SIGUSR1 cuando ya está colocado.
-ORBE_PID= ORBE_PUESTO=
-lanzar_orbe() {  # no espera: su arranque (~6 s) va en paralelo al de Chromium
+# NO se mata al salir de invisible: arrancarlo de cero tarda ~10 s (WebKit + WebGL) y era lo que se notaba al volver
+# al modo invisible. Se queda vivo y oculto (SIGUSR2: ni se ve, ni recibe ratón, ni pinta) hasta la próxima vez.
+ORBE_PID= ORBE_PUESTO= ORBE_NUEVO=
+lanzar_orbe() {  # no espera: su arranque (~6-10 s) va en paralelo al de Chromium
   kill -0 "$ORBE_PID" 2>/dev/null && return
   /usr/bin/python3 "$DIR/orbe_flotante.py" "$URL" >/dev/null 2>&1 &   # python del sistema: PyGObject y WebKit no están en el .venv
-  ORBE_PID=$! ORBE_PUESTO=
+  ORBE_PID=$! ORBE_PUESTO= ORBE_NUEVO=1
 }
 orbe() {  # $1 = destino, $2 = vista
   if [ "${2%%-*}" = invisible ]; then
@@ -61,12 +63,13 @@ orbe() {  # $1 = destino, $2 = vista
     local W=
     for i in $(seq 40); do W=$(kdotool search --name "Delta orbe" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep .5; done
     [ -z "$W" ] && return
-    sleep 1  # igual que el panel: KWin recoloca la ventana al mostrarla, y mover antes no se respeta
+    [ -n "$ORBE_NUEVO" ] && sleep 1  # igual que el panel: KWin recoloca la ventana al mostrarla, y mover antes no se respeta
+    ORBE_NUEVO=
     kdotool windowstate --add NO_BORDER --add SKIP_TASKBAR --add ABOVE "$W"
     kdotool windowmove "$W" $((X + AN - ORBE_AN - ORBE_M)) $((Y + ORBE_M))
     kill -USR1 "$ORBE_PID" 2>/dev/null; ORBE_PUESTO=1
-  elif [ -n "$ORBE_PID" ]; then
-    kill "$ORBE_PID" 2>/dev/null; ORBE_PID=
+  elif [ -n "$ORBE_PUESTO" ]; then  # solo si estaba a la vista: recién lanzado ya nace oculto y aún no escucha la señal
+    kill -USR2 "$ORBE_PID" 2>/dev/null; ORBE_PUESTO=
   fi
 }
 trap 'kill $ORBE_PID 2>/dev/null' EXIT INT TERM
@@ -100,7 +103,7 @@ D=$(destino); [ -n "$D" ] && regla "$D"
 for i in $(seq 30); do curl -sf "$URL" >/dev/null && break; sleep 1; done
 preparar_chromium
 V0=$(cat "$VISTA" 2>/dev/null)
-[ "${V0%%-*}" = invisible ] && lanzar_orbe
+lanzar_orbe  # siempre, aunque se arranque en panel: así el primer «modo invisible» tampoco espera
 # Chromium y no Chrome: Chrome ya no admite --load-extension, y sinmarcos/ deja incrustar webs en el panel
 chromium-browser --user-data-dir="$DIR/.chromium" --load-extension="$DIR/sinmarcos" --app="$URL/" --no-first-run \
   --hide-crash-restore-bubble --disable-session-crashed-bubble --no-recovery-component --no-default-browser-check \
