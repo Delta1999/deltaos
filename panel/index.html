@@ -447,6 +447,8 @@ main{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(
 #hero{display:flex;flex-direction:column;justify-content:space-between}
 #hero .hv{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
 canvas{width:100%;flex:1;min-height:0;display:block}
+/* La onda de voz: una franja de altura fija centrada, nunca se pliega */
+#cv{flex:none;height:96px;margin:auto 0}
 #estado{font-size:22px;line-height:1;margin-top:10px;color:var(--text-display)}
 #sub{font-family:var(--mono);color:var(--text-secondary);font-size:13px;margin-top:8px;height:18px}
 #frases{display:flex;flex-direction:column;gap:14px;overflow-y:auto;overscroll-behavior:contain}
@@ -491,21 +493,22 @@ footer{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.15fr) minma
 .hs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0 4px;text-align:center}
 .hs div{font-family:var(--mono);font-size:11px;color:var(--text-secondary);display:flex;flex-direction:column;align-items:center;gap:5px}
 .hs b{color:var(--text-primary);font-weight:500}
-/* Medidores y lámparas dentro del módulo de estado. En reposo los medidores se pliegan (la rejilla pasa de 1fr a 0fr)
-   y solo quedan las lámparas: sin actividad no hay nada que medir. */
-#hero .hm{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
-.gsw{display:grid;grid-template-rows:1fr;opacity:1;margin-bottom:0;transition:grid-template-rows .3s ease,opacity .3s ease,margin-bottom .3s ease}
-.gs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;min-height:0;overflow:hidden}
-#hero.reposo .gsw{grid-template-rows:0fr;opacity:0;margin-bottom:-8px}
+/* Medidores y lámparas dentro del módulo de estado. Altura fija: en reposo las agujas caen a cero
+   pero la rejilla no se pliega, para que el módulo no cambie de tamaño al dormirse. */
+#hero .hm{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.gsw{display:block}
+.gs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;min-height:0}
 /* Vista de espera de la tarjeta de conversación: solo datos que ya hay, discreta y centrada */
 #frases>.rep{margin:auto 0;max-width:520px;display:flex;flex-direction:column;gap:18px}
 .rep .lbl{display:block}.rep .ag{grid-template-columns:52px 1fr auto}
 .rep .ej{font-family:var(--sans);font-size:17px;line-height:1.4;color:var(--text-primary);margin-top:8px;min-height:2.8em;transition:opacity .4s ease}
 .rep .ej.fuera{opacity:0}
 @media (prefers-reduced-motion:reduce){.gsw,.rep .ej{transition:none}}
-.g{text-align:center;display:flex;flex-direction:column;align-items:center}
-.g canvas{flex:none;width:100%;height:64px}
-.g .lbl{margin-top:8px}.g b{font-family:var(--dot);font-weight:900;font-size:19px;letter-spacing:.02em;margin-top:2px;color:var(--text-display)}
+.g{text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.g canvas{flex:none;width:100%;height:46px}
+.g .gl{display:flex;align-items:baseline;justify-content:center;gap:8px;white-space:nowrap}
+.g .lbl{margin-top:0}
+.g b{font-family:var(--mono);font-weight:500;font-size:13px;letter-spacing:.04em;margin-top:0;color:var(--text-display)}
 .lamps{display:flex;gap:14px;flex-wrap:wrap}
 .lamp{font-family:var(--mono);display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.12em;color:var(--text-secondary);text-transform:uppercase}
 .lamp i{width:8px;height:8px;border-radius:50%;border:1px solid var(--border-visible);background:transparent}
@@ -1062,9 +1065,9 @@ body.widget :is(#t-card,#t-web).on{display:flex;flex-direction:column;min-height
     <div class="hv"><canvas id="cv"></canvas><div id="pasos"></div></div>
     <div class="hm">
       <div class="gsw"><div class="gs">
-        <div class="g"><canvas id="g0"></canvas><span class="lbl">Micro</span><b id="v0">—</b></div>
-        <div class="g"><canvas id="g1"></canvas><span class="lbl">Voz</span><b id="v1">—</b></div>
-        <div class="g"><canvas id="g2"></canvas><span class="lbl">Respuesta</span><b id="v2">—</b></div>
+        <div class="g"><canvas id="g0"></canvas><div class="gl"><span class="lbl">Micro</span><b id="v0">—</b></div></div>
+        <div class="g"><canvas id="g1"></canvas><div class="gl"><span class="lbl">Voz</span><b id="v1">—</b></div></div>
+        <div class="g"><canvas id="g2"></canvas><div class="gl"><span class="lbl">Respuesta</span><b id="v2">—</b></div></div>
       </div></div>
       <div class="lamps">
         <span class="lamp" id="l-enlace" title="Enlace"><i></i><span>Enlace</span></span><span class="lamp" id="l-mic" title="Micro"><i></i><span>Mic</span></span><span class="lamp" id="l-aec" title="Eco"><i></i><span>Eco</span></span><span class="lamp" id="l-claude" title="Claude"><i></i><span>Claude</span></span><span class="lamp" id="l-impresora" title="Impresora 3D"><i></i><span>3D</span></span>
@@ -1331,7 +1334,7 @@ function _pintar(d){
   const ow=$('orbe-wrap');if(ow)ow.dataset.estado=eo;
   const mo=$('miniorbe');if(mo)mo.title=`${est} · voz ${d.voz} · clic: orbe 2 · clic derecho: salvapantallas`;
   $txt('sub',d.confirma?`¿PERMITIR? ${d.confirma}`:eo==='error'?(d.sinPanel?'PANEL SIN ENLACE · reconectando':(d.salud||{}).enlace==='mal'?'SIN ENLACE con Gemini · reintentando':'micro con problemas (sin señal, saturado o ruido)'):d.priv?'PRIVACIDAD · el micro se ignora, ni «Delta»'
-   :d.nomol?'NO MOLESTAR · no aviso por mi cuenta; tus alarmas siguen sonando':d.herramienta?`usando: ${d.herramienta}`:d.sueno!=null?`duerme en ${d.sueno} s`:'di «Delta» o pulsa Enter');
+   :d.nomol?'NO MOLESTAR · no aviso por mi cuenta; tus alarmas siguen sonando':d.herramienta?`usando: ${d.herramienta}`:d.sueno!=null?`duerme en ${d.sueno} s`:'');
   const fe=$('frases');
   // reposo: dormido, sin conversación, sin permiso pendiente, sin herramienta ni pasos en curso, en modo chat
   const reposo=d.estado==='dormido'&&!(d.frases||[]).length&&!d.confirma&&!d.herramienta&&d.modo!=='alertas'
@@ -1414,7 +1417,7 @@ function _pintar(d){
       tr.map(([n])=>{const g=(d.progreso||{})[n]||{};return `<div class="p cur"><span>${g.pct==null?'···':g.pct+'%'}</span><span>${esc(n.replace(/-\d+$/,''))} · ${esc(g.etapa||'arrancando…')}</span><b>${g.ini?mmss(ahora/1e3-g.ini):'●'}</b></div>`+(g.pct!=null?bar(g.pct,'act'):'')}).join('');
   }
   const u=d.uso;
-  $html('uso',u?`Contexto <b>${u.ctx}%</b> · <b>${u.tok>=1e6?(u.tok/1e6).toFixed(2)+'M':(u.tok/1000).toFixed(1)+'K'}</b> tokens<br>Gasto <b>0 €</b> · gratis (de pago ≈ ${u.usd.toFixed(3)} $)`:'');
+  $html('uso',u?`Contexto <b>${u.ctx}%</b> · <b>${u.tok>=1e6?(u.tok/1e6).toFixed(2)+'M':(u.tok/1000).toFixed(1)+'K'}</b> tokens`:'');
 
   // La tira de estado solo existe en la página del orbe flotante. El panel de Chromium se queda minimizado en
   // invisible/oculto y NO cambia de aspecto (antes enseñaba la tira vieja al abrirse y se veía el salto);
@@ -1509,26 +1512,37 @@ function trama(code,noche){const g=Array.from({length:11},()=>Array(11).fill(0))
 function icono(cv,code,noche,d){const g=trama(code,noche),k=devicePixelRatio||1,u=d*2*k;cv.width=cv.height=11*u;cv.style.width=cv.style.height=11*d*2+'px';
   const x=cv.getContext('2d'),ios=document.documentElement.dataset.tema==='ios';g.forEach((r,j)=>r.forEach((v,i)=>{x.fillStyle=v?(ios?'#1c1c1e':'#f2f2f2'):(ios?'#8e8e93':'#1c1c1c');x.beginPath();x.arc(i*u+u/2,j*u+u/2,u*(v?.38:.13),0,7);x.fill()}))}
 
-/* ---------- matriz de puntos ---------- */
-const cv=$('cv'),cx=cv.getContext('2d');let W,H,cols,rows,G=16,NV=0;
-function fit(){const r=cv.getBoundingClientRect(),k=devicePixelRatio||1;cv.width=r.width*k;cv.height=r.height*k;W=cv.width;H=cv.height;G=16*k;cols=Math.floor(W/G);rows=Math.floor(H/G)}
+/* ---------- onda de voz: una sola línea ----------
+   Sustituye a la matriz de puntos. Ocupa siempre la misma franja: lo que cambia con el estado es
+   la amplitud (en reposo casi una recta), no el tamaño, así el módulo no salta al dormirse. */
+const cv=$('cv'),cx=cv.getContext('2d');let W,H,NV=0,AMP=0;
+function fit(){const r=cv.getBoundingClientRect(),k=devicePixelRatio||1;cv.width=Math.round(r.width*k);cv.height=Math.round(r.height*k);W=cv.width;H=cv.height}
 addEventListener('resize',fit);
-function nivel(e,x,y,t){ // 0..1 por estado
-  if(e==='cargando'){const v=((x+y*3)%24===Math.floor(t*10)%24)?1:0;return v*.5}
-  const cxn=cols/2,cyn=rows/2,dx=x-cxn,dy=y-cyn,d=Math.hypot(dx,dy*1.4);
-  if(e==='dormido')return Math.max(0,Math.sin(t*.8-d*.25))*.35*Math.exp(-d*.07)+((x*7+y*13)%29===0?.12:0);
-  if(e==='escuchando')return Math.max(0,Math.sin(d*.55-t*3))*Math.exp(-d*.045)*.95;
-  if(e==='hablando'){const a=(.08+.92*NV)*(.55+.45*Math.abs(Math.sin(x*.35+t*6)*Math.sin(x*.13-t*2.3))),h=a*rows/2*.95;return Math.abs(dy)<h?1:0}
-  const ang=Math.atan2(dy,dx),f=((ang-t*3)%(2*Math.PI)+2*Math.PI)%(2*Math.PI); // trabajando: barrido radar
-  return d<Math.min(cols,rows*1.4)*.46&&d>2?Math.pow(1-f/(2*Math.PI),3):0}
+function amplitud(e){ // 0..1 de cuánto se abre la onda
+  if(e==='escuchando')return .16+.74*(S.mic?S.mic.nivel:0);
+  if(e==='hablando')return .18+.78*NV;
+  if(e==='trabajando')return .36;
+  if(e==='cargando')return .24;
+  return .05}  // dormido: respira apenas
 function dibuja(t){
   try{
     NV+=(S.nivel-NV)*.25;if(window.FONDO_ON){requestAnimationFrame(t=>dibuja(t/1000));return} // tapado: no gastar CPU
     relojes();const mo=WIDGET?$('orbe-flotante'):$('miniorbe');if(mo&&window.miniOrbe&&!window.orbeOculto)miniOrbe(mo,S);  // orbeOculto: lo pone orbe_flotante.py mientras no está a la vista
     if(cx){
-      cx.clearRect(0,0,W,H);const e=S.estado,isIos=(S.tema==='ios'),col=isIos?(e==='dormido'?'255,255,255':e==='escuchando'||e==='trabajando'?'10,132,255':'255,255,255'):(e==='dormido'?'255,255,255':'255,255,255');
-      for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const v=Math.min(1,nivel(e,x,y,t)),a=.09+.91*v;
-        cx.fillStyle=`rgba(${v>.15?col:'255,255,255'},${a})`;cx.beginPath();cx.arc(x*G+G/2,y*G+G/2,G*(.12+.2*v),0,7);cx.fill()}
+      cx.clearRect(0,0,W,H);
+      const e=S.estado,isIos=(S.tema==='ios'),k=devicePixelRatio||1;
+      AMP+=(amplitud(e)-AMP)*.12;                                   // la amplitud persigue al estado, sin saltos
+      const mid=H/2,A=AMP*H*.46,paso=Math.max(2,Math.round(2*k)),
+       barrido=(e==='trabajando'||e==='cargando');  // trabajando: un pulso que recorre la línea
+      cx.lineWidth=1.6*k;cx.lineCap='round';cx.lineJoin='round';
+      cx.strokeStyle=isIos&&(e==='escuchando'||e==='trabajando')?'#0A84FF':`rgba(242,242,242,${e==='dormido'?.4:.92})`;
+      cx.beginPath();
+      for(let x=0;x<=W;x+=paso){
+        const u=x/W,env=Math.pow(Math.sin(Math.PI*u),1.4),           // se apaga hacia los bordes
+         f=barrido?Math.exp(-Math.pow((u-((t*.3)%1.5-.25))/.17,2)):1,
+         y=mid-A*env*f*(Math.sin(u*14-t*4)*.78+Math.sin(u*31+t*2.3)*.16+Math.sin(u*6.5-t*1.3)*.14);
+        x?cx.lineTo(x,y):cx.moveTo(x,y)}
+      cx.stroke();
     }
   }catch(e){console.error('Error dibuja:',e)}
   requestAnimationFrame(t=>dibuja(t/1000))}
@@ -1539,7 +1553,6 @@ function dibuja(t){
 const GA=[{id:'g0',rojo:.85,t:()=>S.mic?S.mic.nivel:0},{id:'g1',rojo:2,t:()=>NV},{id:'g2',rojo:.67,t:()=>S.lat==null?0:Math.min(1,S.lat/3000)}]
  .map(o=>({...o,get cv(){return $(o.id)},a:0,v:0}));
 function relojes(){const k=devicePixelRatio||1,isIos=(S.tema==='ios');
-  if(REPOSO&&performance.now()-REPOSO_DESDE>400)return;  // plegados: ni se dibujan ni gastan CPU (el .4 s deja acabar la transición)
   for(const o of GA){const c=o.cv;if(!c)continue;const r=c.getBoundingClientRect();if(c.width!==Math.round(r.width*k)){c.width=Math.round(r.width*k);c.height=Math.round(r.height*k)}
     o.v=o.v*.78+(o.t()-o.a)*.14;o.a=Math.max(-.02,Math.min(1.03,o.a+o.v)); // muelle amortiguado: rebota como una aguja real
     const x=c.getContext('2d'),w=c.width,h=c.height,cx0=w/2,cy0=h*.8,R=Math.min(w*.46,h*.72),th=f=>Math.PI*(1.15-1.3*f);
@@ -1557,11 +1570,11 @@ function relojes(){const k=devicePixelRatio||1,isIos=(S.tema==='ios');
       x.fillStyle='#FFFFFF';x.beginPath();x.arc(p[0],p[1],4.5*k,0,7);x.fill();
       x.fillStyle=val>=o.rojo?'#FF453A':'#0A84FF';x.beginPath();x.arc(p[0],p[1],2*k,0,7);x.fill();
     } else {
-      for(let i=0;i<=40;i++){const f=i/40,m=i%5===0,p=[cx0+R*Math.cos(th(f)),cy0-R*Math.sin(th(f))];
-        x.fillStyle=f>=o.rojo&&o.a>=o.rojo?(m?'#D71921':'#8a1116'):(m?'#f2f2f2':'#5a5a5a');x.beginPath();x.arc(p[0],p[1],(m?2.6:1.5)*k,0,7);x.fill()}
-      for(let i=0;i<=11;i++){const d=.14+.74*i/11,f=o.a,p=[cx0+R*d*Math.cos(th(f)),cy0-R*d*Math.sin(th(f))];
-        x.fillStyle=i>8&&o.a>=o.rojo?'#D71921':'#f2f2f2';x.beginPath();x.arc(p[0],p[1],(1.2+1.1*i/11)*k,0,7);x.fill()}
-      x.fillStyle='#000';x.strokeStyle='#f2f2f2';x.lineWidth=1.5*k;x.beginPath();x.arc(cx0,cy0,5*k,0,7);x.fill();x.stroke();
+      for(let i=0;i<=24;i++){const f=i/24,m=i%4===0,p=[cx0+R*Math.cos(th(f)),cy0-R*Math.sin(th(f))];
+        x.fillStyle=f>=o.rojo&&o.a>=o.rojo?(m?'#D71921':'#8a1116'):(m?'#f2f2f2':'#5a5a5a');x.beginPath();x.arc(p[0],p[1],(m?2:1.2)*k,0,7);x.fill()}
+      for(let i=0;i<=8;i++){const d=.16+.72*i/8,f=o.a,p=[cx0+R*d*Math.cos(th(f)),cy0-R*d*Math.sin(th(f))];
+        x.fillStyle=i>6&&o.a>=o.rojo?'#D71921':'#f2f2f2';x.beginPath();x.arc(p[0],p[1],(1+.9*i/8)*k,0,7);x.fill()}
+      x.fillStyle='#000';x.strokeStyle='#f2f2f2';x.lineWidth=1.2*k;x.beginPath();x.arc(cx0,cy0,3.6*k,0,7);x.fill();x.stroke();
     }
   }}
 

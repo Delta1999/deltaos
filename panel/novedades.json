@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-25",
+  "t": "Módulo de estado más tranquilo: la matriz de puntos la sustituye una sola onda de voz, minimalista, que se abre y se cierra con lo que oye sin cambiar de tamaño; los tres medidores (micro, voz, respuesta) son más pequeños, con el nombre y el valor en una línea, y ya no se pliegan al dormirse. Fuera la línea de gasto (queda la de contexto) y el «di Delta o pulsa Enter» bajo STAND-BY.",
+  "como": "Mira el módulo de estado: la onda sustituye a los puntos",
+  "voz": false
+ },
+ {
+  "f": "2026-10-25",
   "t": "Panel rediseñado: la conversación va al lado del módulo de estado (escuchando / stand-by / trabajando), que ahora lleva dentro los medidores (se pliegan en reposo) y las luces de enlace, mic, eco, Claude y 3D como una fila de puntos. Privacidad, Alertas y Diseño pasan debajo de la tira del día, a la derecha, con Permitir y Denegar delante cuando hay que decidir. El botón Dormir/Activar desaparece: se despierta diciendo «Delta» y se duerme por voz.",
   "como": "Mira la cabecera: los botones están bajo la tira del día",
   "voz": false
