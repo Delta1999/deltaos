@@ -1,5 +1,10 @@
 [
  {
+  "f": "2026-10-25",
+  "t": "Punto de seguridad v5: el botón del menú de la hora vuelve ahora a la versión de hoy (diseño dual Nothing y Apple iOS, visor de apuntes con Gemini Live, visión Lanczos, imágenes al móvil y plan B con Cherry), no a la v4 del 21; lo que se cambie después queda guardado en git",
+  "como": "toca la hora y «↺ Volver a v5» si algo se rompe"
+ },
+ {
   "f": "2026-10-24",
   "t": "Zoom con rueda en la impresora 3D de la interfaz y puntos meteorológicos iOS con contraste Apple, manteniendo intacta la paleta Nothing",
   "como": "«acerca la impresora» con la rueda y «mejora el contraste del tiempo»"
