@@ -22,13 +22,9 @@ assert a._real("musica", {"accion": "poner", "busqueda": "lofi"}) == ("poner_mus
 assert a._real("memoria", {"accion": "recordar", "texto": "x"}) == ("recordar", {"nota": "x"})
 assert a._real("avisos", {"accion": "cancelar", "texto": "pizza", "tipo": "alarma"}) == ("cancelar_aviso", {"cual": "pizza"})
 assert a._real("vista", {"accion": "invisible", "cual": "reloj"}) == ("cambiar_vista", {"modo": "invisible"})
+assert a._real("apuntes", {"accion": "clase", "tema": "4"}) == ("clase_a_apuntes", {"tema": "4"})
 assert a._real("claude", {"accion": "tarea_suelta", "mensaje": "m"}) == ("preguntar_a_claude", {"tarea": "m"})
 assert a._real("volumen", {"accion": "subir"}) == ("volumen", {"accion": "subir"})  # las no fusionadas, igual
-assert a._real("apuntes", {"accion": "cuadricula", "tipo": "ver"}) == ("apuntes_cuadricula", {"estado": "ver"})
-assert a._real("apuntes", {"accion": "subrayar", "texto": "plazo", "color": "amarillo", "pagina_num": "2"}) == ("apuntes_subrayar", {"texto": "plazo", "color": "amarillo", "pagina": "2"})
-assert a._real("apuntes", {"accion": "nota", "texto": "ojo", "celda": "F4", "tipo": "aviso", "pagina_num": "1"}) == ("apuntes_nota", {"texto": "ojo", "celda": "F4", "tipo": "aviso", "pagina": "1"})
-assert a._real("apuntes", {"accion": "deshacer"}) == ("apuntes_deshacer", {})
-assert a._real("apuntes", {"accion": "cursor"}) == ("apuntes_cursor", {})
 assert a._real("musica", {"accion": "bailar"})[0] == "musica"
 e = asyncio.run(a.HANDLERS["musica"](accion="bailar"))
 # sin fijar el orden entero: añadir una acción no debe romper el test, solo el error debe listarlas

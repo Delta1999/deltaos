@@ -1119,52 +1119,14 @@ FUSIONES = {
               {"ruta": "enviar_imagen: ruta o nombre de la imagen; vacío o «captura» para hacer una captura de pantalla del monitor ahora mismo; «ultima» para la foto más reciente"},
               {"notificaciones": _r("notificaciones_movil"), "sonar": _r("sonar_movil"),
                "enviar_imagen": _r("enviar_imagen_movil", {"ruta": "ruta"})}),
-    "apuntes": ("Visor y editor de apuntes PDF manos libres (para estudiar temarios y oposiciones en http://127.0.0.1:8766). "
-                "abrir: abre el visor en el navegador (opcional documento o tema). "
-                "cuadricula: muestra u oculta la cuadrícula de coordenadas espaciales (A1, B2...) para situar cosas con precisión. "
-                "subrayar: resalta un texto o pasaje en amarillo (#fef08a), verde, azul, rosa, naranja, morado, rojo o turquesa; si no se dice texto o dice «esto» o «aquí», subraya automáticamente donde esté señalando el ratón. "
-                "borrar_subrayado: elimina un subrayado del texto indicado o el que esté señalando el ratón. "
-                "esquema: crea un esquema o mapa conceptual en el margen lateral derecho mediante Dagre.js sin colisiones; si dice «aquí» o no se indica celda, se ancla a la celda del ratón; incluye título, nodos y conexiones. "
-                "rama: añade un nuevo nodo conectado a un esquema existente. "
-                "nota: añade una tarjeta o aviso (tipo aviso ⚠️, clave 💡 o nota 📌) en el margen lateral a la altura de una celda o del ratón. "
-                "repaso: activa o desactiva el modo de repaso activo (active recall, oculta/desenfoca definiciones y nodos secundarios para autoevaluarse). "
-                "deshacer: deshace la última intervención realizada sobre el visor. "
-                "pagina: salta o se desplaza a una página concreta del documento. "
-                "exportar: compila y genera el PDF vectorial permanente con el margen ensanchado de 400 pt y todas las notas y esquemas. "
-                "cursor: consulta qué texto o celda tiene el usuario ahora mismo bajo el ratón. "
-                "leer: extrae y lee el texto exacto estructurado de la página del PDF y sus notas para responder preguntas con máxima fidelidad. "
-                "ver_pagina: renderiza la página actual a alta resolución (150 DPI) y la envía como imagen vectorial nítida al vídeo de Gemini. "
-                "clase: transcribe una clase grabada y la pasa a tema PDF anotado en segundo plano.",
-                {"documento": "abrir/exportar: nombre del PDF (ej. sample.pdf) o tema",
-                 "texto": "subrayar/borrar_subrayado: texto a resaltar o borrar; nota: texto del aviso o nota al margen",
-                 "color": "subrayar: amarillo | verde | azul | rosa | naranja | morado | rojo | turquesa (por defecto amarillo)",
-                 "celda": "esquema/nota: celda alfanumérica donde anclar (ej. E1, F4, G10); omitir para usar la posición del ratón",
-                 "tipo": "nota: aviso (warning) | clave (tip) | nota (info); cuadricula: ver | ocultar; repaso: activar | desactivar",
-                 "titulo": "esquema: título principal o concepto raíz",
-                 "nodos": "esquema: lista de nodos o conceptos clave",
-                 "conexiones": "esquema: relaciones o flechas origen->destino",
-                 "nodo_padre": "rama: id o nombre del nodo padre al que conectar",
-                 "nuevo_nodo": "rama: texto o etiqueta del nuevo concepto",
-                 "pagina_num": "pagina/subrayar/esquema/nota/leer/ver_pagina: número de página (1-based); si se omite, la activa",
-                 "tema": "clase: número de tema (1-23); abrir: número de tema",
+    "apuntes": ("Modo estudiante. clase: transcribe una clase grabada y la pasa a tema PDF anotado en "
+                "segundo plano, en Temario_Guardia_Civil/DeltaOs («descárgate el audio de esta clase y pásalo a "
+                "apuntes», «pasa a apuntes la última clase que bajé», «esta clase es de Paco Arriola»).",
+                {"tema": "clase: número de tema (1-23)",
                  "url": "clase: dirección web de la clase en vídeo",
                  "audio": "clase: ruta de audio ya descargado",
                  "profe": "clase: nombre del profesor"},
-                {"abrir": _r("apuntes_abrir", {"documento": "documento", "tema": "tema"}),
-                 "cuadricula": _r("apuntes_cuadricula", {"estado": "tipo"}),
-                 "subrayar": _r("apuntes_subrayar", {"texto": "texto", "color": "color", "pagina": "pagina_num"}),
-                 "borrar_subrayado": _r("apuntes_borrar_subrayado", {"texto": "texto", "pagina": "pagina_num"}),
-                 "esquema": _r("apuntes_esquema", {"titulo": "titulo", "celda": "celda", "nodos": "nodos", "conexiones": "conexiones", "pagina": "pagina_num"}),
-                 "rama": _r("apuntes_rama", {"nodo_padre": "nodo_padre", "nuevo_nodo": "nuevo_nodo", "pagina": "pagina_num"}),
-                 "nota": _r("apuntes_nota", {"texto": "texto", "celda": "celda", "tipo": "tipo", "pagina": "pagina_num"}),
-                 "repaso": _r("apuntes_repaso", {"estado": "tipo"}),
-                 "deshacer": _r("apuntes_deshacer"),
-                 "pagina": _r("apuntes_pagina", {"numero": "pagina_num"}),
-                 "exportar": _r("apuntes_exportar", {"documento": "documento"}),
-                 "cursor": _r("apuntes_cursor"),
-                 "leer": _r("apuntes_leer", {"pagina": "pagina_num"}),
-                 "ver_pagina": _r("apuntes_mirar_pagina", {"pagina": "pagina_num"}),
-                 "clase": _r("clase_a_apuntes", {"tema": "tema", "url": "url", "audio": "audio", "profe": "profe"})}),
+                {"clase": _r("clase_a_apuntes", {"tema": "tema", "url": "url", "audio": "audio", "profe": "profe"})}),
 }
 
 

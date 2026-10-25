@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-25",
+  "t": "Fuera el visor de apuntes PDF (el de 127.0.0.1:8766, con subrayados, esquemas y repaso activo): se quita entero. Pasar una clase grabada a tema anotado sigue igual.",
+  "como": "«descárgate el audio de esta clase y pásalo a apuntes»"
+ },
+ {
+  "f": "2026-10-25",
   "t": "Fuera la mascota del escritorio: el mapache, el gato carey y el modo mascota se han quitado del todo (estaba apagada desde el 21/10 y el mini orbe junto a la hora ya hacía su papel). El permiso con botones Sí/No sale ahora en el panel, y las vistas son panel, invisible y oculto.",
   "como": "«panel completo» · «modo invisible»"
  },

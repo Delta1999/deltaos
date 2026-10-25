@@ -7,7 +7,6 @@ from pathlib import Path
 
 import acciones
 from acciones import _fn, _s
-import visor_delta  # noqa: F401  (visor y editor de apuntes manos libres)
 
 AQUI = Path(__file__).parent
 

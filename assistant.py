@@ -33,7 +33,6 @@ import movil  # noqa: F401
 import deltaos  # noqa: F401  (visor del panel, investigación y skills)
 import secretario  # noqa: F401  (documentos PDF/Word/texto)
 import estudio  # noqa: F401  (modo estudiante: clase → tema anotado)
-import visor_delta  # noqa: F401  (visor y editor de apuntes manos libres)
 import mcp_puente  # noqa: F401  (conectores MCP: mcp.json → herramienta «conectores»)
 import firetv  # tele del salón (Fire TV por ADB): herramienta tele_salon y estado en el panel
 import proactivo  # noqa: F401  (habla por su cuenta, y sabe cuándo callarse)
@@ -316,22 +315,9 @@ async def screen_capture_loop(session, interval=8.0):
                 firma = None
                 await asyncio.sleep(0.3)
                 continue
-            en_apuntes = False
-            try:
-                import visor_delta
-                en_apuntes = visor_delta.apuntes_activo()
-            except Exception:
-                pass
-
-            if en_apuntes:
-                # En modo apuntes: captura nítida con prioridad a la ventana activa, ritmo ágil y umbral fino
-                jpeg_bytes, nueva = await asyncio.to_thread(capture_screen_wayland, (1920, 1080), 85, True)
-                umbral = 0.5
-                ritmo = min(3.0, VIVO_RITMO if vivo else interval)
-            else:
-                jpeg_bytes, nueva = await asyncio.to_thread(capture_screen_wayland, (1920, 1080), 80, False)
-                umbral = VIVO_UMBRAL if vivo else UMBRAL_CAMBIO
-                ritmo = VIVO_RITMO if vivo else interval
+            jpeg_bytes, nueva = await asyncio.to_thread(capture_screen_wayland, (1920, 1080), 80, False)
+            umbral = VIVO_UMBRAL if vivo else UMBRAL_CAMBIO
+            ritmo = VIVO_RITMO if vivo else interval
 
             if jpeg_bytes and (firma is None or cambio(firma, nueva) > umbral):
                 firma = nueva
