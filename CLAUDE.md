@@ -28,6 +28,7 @@ Repositorio canónico: `~/gemini-live-assistant`. Trabaja aquí, sobre estos arc
 ## Cada capacidad nueva → `panel/novedades.json`
 Añade `{"f": "AAAA-MM-DD", "t": "qué hace", "como": "frase de ejemplo para pedirlo"}` al principio. Se ve al tocar la hora del panel.
 Si actualizas la chuleta (`#chuleta` en index.html), mantenla coherente.
+`como` debe ser algo que se pueda DECIR; si es un gesto, un botón o una tecla, marca `"voz": false` (el reposo del panel solo enseña órdenes de voz).
 
 ## Buzón de averías y mejoras: `mejoras_pendientes.log`
 Todo lo que el usuario pide a Delta para luego (avería o mejora, las confunde) acaba ahí con su etiqueta `[avería]`/`[mejora]`; también lo que `mejorar_delta` no pudo hacer (límite, ocupado, fallo). Al empezar a trabajar en Delta, léelo, dile al usuario qué hay pendiente y, cuando arregles algo, bórralo de ahí.

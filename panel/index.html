@@ -1123,8 +1123,14 @@ const ETIQ_ORBE={reposo:'STAND-BY',escuchando:'ESCUCHANDO',trabajando:'TRABAJAND
 // reposo: frases de ejemplo («como» de novedades.json) que rotan cada ~20 s; solo se cambia el nodo .ej, nunca el HTML que compara FH
 let EJ=[],EJI=0,REPOSO=false,REPOSO_DESDE=0;
 const faltaDe=(t,ahora=Date.now())=>{const m=Math.round((new Date(t)-ahora)/6e4);return m<1?'ya':m<60?m+' min':m<1440?Math.floor(m/60)+' h '+m%60+' min':Math.floor(m/1440)+' d'};
+// Frases de ejemplo: solo órdenes de voz. `voz:false` en novedades.json deja fuera gestos, botones y teclas; si `como` trae frases entre «…»,
+// vale cada una (las de menos de 9 caracteres o de una sola palabra —«sí», «¿seguro?», «automático»— solas no dicen nada); si no, el texto entero.
+const frasesDe=x=>{if(!x||!x.como||x.voz===false)return[];
+  const q=[...x.como.matchAll(/«([^»]+)»/g)].map(m=>m[1].trim()).filter(f=>f.length>=9&&/\s/.test(f));
+  return(q.length?q:/«/.test(x.como)?[]:[x.como.trim()]).filter(f=>f.length<=90)};
+const ejemplosVoz=(l,azar=Math.random)=>l.map(x=>{const f=frasesDe(x);return f.length?f[Math.floor(azar()*f.length)]:null}).filter(Boolean);
 function ejemploCargar(){fetch('/novedades.json',{cache:'no-store'}).then(r=>r.json()).then(l=>{
-  const v=l.map(x=>x.como).filter(c=>c&&c.length<=110);
+  const v=ejemplosVoz(l);
   for(let i=v.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[v[i],v[j]]=[v[j],v[i]]}
   EJ=v;FH='';if(S&&S.conexion)pintar(S)}).catch(()=>{})}
 function ejemploPon(){const e=$('frases').querySelector('.rep .ej');if(e&&EJ.length)e.textContent=EJ[EJI%EJ.length]}

@@ -323,6 +323,18 @@ def test_render_headless():
     pintar(sis(96, 71, 85));
     sisHtml = document.getElementById('sis').innerHTML;
     if ((sisHtml.match(/class="bar r"/g) || []).length !== 3) {{ console.error('#sis debería tener RAM, SWAP y TEMP en rojo:', sisHtml); process.exit(1); }}
+    // Frases de ejemplo del reposo: solo órdenes de voz, ni gestos ni botones
+    const nov = {json.dumps(json.loads((HTML_PATH.parent / 'novedades.json').read_text(encoding='utf-8')), ensure_ascii=False)};
+    const prohibida = /^(rueda|clic|doble clic|toca|pulsa|arrastra|mant[eé]n|ctrl|bot[oó]n)\\b/i;
+    const todas = new Set();
+    for (const x of nov) for (const f of frasesDe(x)) todas.add(f);
+    for (const az of [0, .5, .999]) for (const f of ejemplosVoz(nov, () => az)) todas.add(f);
+    if (todas.size < 20) {{ console.error('el pool de frases de ejemplo es demasiado pequeño:', todas.size); process.exit(1); }}
+    for (const f of todas) {{
+      if (prohibida.test(f) || f.length > 90) {{ console.error('frase de ejemplo que no se puede decir:', f); process.exit(1); }}
+    }}
+    if (frasesDe({{ como: 'Rueda del ratón', voz: false }}).length) {{ console.error('voz:false debe dejar la entrada fuera'); process.exit(1); }}
+    if (frasesDe({{ como: '«apaga el ordenador» → «¿seguro?» → «sí»' }}).join('|') !== 'apaga el ordenador') {{ console.error('las respuestas sueltas no son ejemplos'); process.exit(1); }}
     console.log('✓ Headless Node.js: pintar(d) ejecutó con éxito todas las variantes de estado');
     process.exit(0);
     """

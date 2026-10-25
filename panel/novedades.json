@@ -37,7 +37,8 @@
  {
   "f": "2026-10-25",
   "t": "Punto de seguridad v5: el botón del menú de la hora vuelve ahora a la versión de hoy (diseño dual Nothing y Apple iOS, visor de apuntes con Gemini Live, visión Lanczos, imágenes al móvil y plan B con Cherry), no a la v4 del 21; lo que se cambie después queda guardado en git",
-  "como": "toca la hora y «↺ Volver a v5» si algo se rompe"
+  "como": "toca la hora y «↺ Volver a v5» si algo se rompe",
+  "voz": false
  },
  {
   "f": "2026-10-24",
@@ -62,7 +63,8 @@
  {
   "f": "2026-10-24",
   "t": "Error boundary y diagnóstico de robustez en el panel: captura errores de JavaScript con overlay visual de recuperación, reporte automático al backend en panel_error.log y blindaje null-safe de la interfaz",
-  "como": "recarga automática ante fallos de render o consulta panel_error.log"
+  "como": "recarga automática ante fallos de render o consulta panel_error.log",
+  "voz": false
  },
  {
   "f": "2026-10-24",
@@ -102,12 +104,14 @@
  {
   "f": "2026-10-21",
   "t": "El mapache de junto a la hora es ahora un mini orbe: el orbe 2 en pequeño, que respira y se deforma con la voz; clic = el orbe 2 en grande. Los puntos del dock van debajo de la hora",
-  "como": "Clic en el mini orbe"
+  "como": "Clic en el mini orbe",
+  "voz": false
  },
  {
   "f": "2026-10-21",
   "t": "Con la interfaz en la tele del salón el portátil no escucha: Delta te oye por el micro del mando; el botón de ventanas del ratón la devuelve al portátil",
-  "como": "Mantén el botón del micro del mando y pregunta «¿qué hora es?»"
+  "como": "Mantén el botón del micro del mando y pregunta «¿qué hora es?»",
+  "voz": false
  },
  {
   "f": "2026-10-21",
@@ -122,12 +126,14 @@
  {
   "f": "2026-10-21",
   "t": "Botones del ratón: el de las ventanas pone a Delta a escucharte como si hubieras dicho «Delta» (y otra vez, a dormir), y el de ZOOM enciende o apaga la privacidad",
-  "como": "Pulsa el botón de ventanas del ratón y habla"
+  "como": "Pulsa el botón de ventanas del ratón y habla",
+  "voz": false
  },
  {
   "f": "2026-10-21",
   "t": "El orbe 2 (la gota) enseña el puntero y se aparta del ratón: donde apuntas se le hace un hoyo y el cuerpo se retira un poco",
-  "como": "Pon el orbe 2 y pasa el ratón por encima"
+  "como": "Pon el orbe 2 y pasa el ratón por encima",
+  "voz": false
  },
  {
   "f": "2026-10-21",
@@ -142,7 +148,8 @@
  {
   "f": "2026-10-21",
   "t": "Mejora la interfaz del panel para que permita mostrar tarjetas de información directamente en él.",
-  "como": "vía Delta → Claude"
+  "como": "vía Delta → Claude",
+  "voz": false
  },
  {
   "f": "2026-10-21",
@@ -152,7 +159,8 @@
  {
   "f": "2026-10-21",
   "t": "El salvapantallas ya no va rotando solo: el ORBE es el de siempre y el resto se cambia a mano con el clic derecho. El del mapache paseando queda desactivado",
-  "como": "clic derecho sobre el salvapantallas para cambiarlo"
+  "como": "clic derecho sobre el salvapantallas para cambiarlo",
+  "voz": false
  },
  {
   "f": "2026-10-21",
@@ -172,12 +180,14 @@
  {
   "f": "2026-10-21",
   "t": "La conversación se ve en burbujas y la última frase se escribe a máquina, con cursor: lo tuyo a la derecha, lo de Delta a la izquierda",
-  "como": "se ve solo en el panel"
+  "como": "se ve solo en el panel",
+  "voz": false
  },
  {
   "f": "2026-10-21",
   "t": "Arreglado: la barra de estado se quedaba DEBAJO de las demás ventanas (y con marco), y cada reinicio te borraba la vista que tenías puesta",
-  "como": "arreglo"
+  "como": "arreglo",
+  "voz": false
  },
  {
   "f": "2026-10-21",
@@ -192,12 +202,14 @@
  {
   "f": "2026-10-21",
   "t": "Sigues pidiendo permiso para cerrar las ventanas. Configura el sistema para que no solicite confirmación al cerrar ventanas.",
-  "como": "vía Delta → Claude"
+  "como": "vía Delta → Claude",
+  "voz": false
  },
  {
   "f": "2026-10-21",
   "t": "Configura el sistema para que no tenga que autorizar las acciones que yo mismo te pido.",
-  "como": "vía Delta → Claude"
+  "como": "vía Delta → Claude",
+  "voz": false
  },
  {
   "f": "2026-10-21",
@@ -207,7 +219,8 @@
  {
   "f": "2026-10-21",
   "t": "Quiero que cuando te pida que apagues el ordenador no tenga que autorizarte.",
-  "como": "vía Delta → Claude"
+  "como": "vía Delta → Claude",
+  "voz": false
  },
  {
   "f": "2026-10-21",
@@ -217,7 +230,8 @@
  {
   "f": "2026-10-21",
   "t": "pon el modo oscuro",
-  "como": "vía Delta → Claude"
+  "como": "vía Delta → Claude",
+  "voz": false
  },
  {
   "f": "2026-10-21",
@@ -277,7 +291,8 @@
  {
   "f": "2026-10-20",
   "t": "Los subtítulos de la conversación ya tienen scroll y hora: puedes subir a releer lo que hablamos antes (guardo las 40 últimas frases, no 2).",
-  "como": "Rueda del ratón sobre el recuadro de la conversación"
+  "como": "Rueda del ratón sobre el recuadro de la conversación",
+  "voz": false
  },
  {
   "f": "2026-10-20",
@@ -287,17 +302,20 @@
  {
   "f": "2026-10-19",
   "t": "Ya no te pregunto nada por Claude Code: todo lo que pida (escribir, ejecutar, mirar) se acepta solo y sin avisarte",
-  "como": "sale solo"
+  "como": "sale solo",
+  "voz": false
  },
  {
   "f": "2026-10-19",
   "t": "Delta ya no pregunta si deja a Claude Code mirar cosas: leer, buscar o ver el estado (grep, ls, git diff…) y pasarle una tarea se autorizan solos; lo que escribe o borra sigue preguntando, salvo en los encargos que hace el propio Claude Code",
-  "como": "sale solo; en el registro aparece «👀 Claude Code mira sin preguntar»"
+  "como": "sale solo; en el registro aparece «👀 Claude Code mira sin preguntar»",
+  "voz": false
  },
  {
   "f": "2026-10-19",
   "t": "Clase → PDF aguanta el filtro de Gemini: si un trozo del audio lo bloquea por error, lo parte en trozos más pequeños y solo deja sin transcribir unos minutos (con una nota) en vez de perder la clase",
-  "como": "sale solo al pedir «aplica esta clase al PDF»"
+  "como": "sale solo al pedir «aplica esta clase al PDF»",
+  "voz": false
  },
  {
   "f": "2026-10-19",
@@ -307,12 +325,14 @@
  {
   "f": "2026-10-19",
   "t": "Barra de arriba reordenada en tres columnas (DELTA · TRABAJOS · ÚLTIMOS PASOS), con barras de progreso macizas, letra fija IBM Plex Mono y los pasos repetidos juntados con ×N (el más nuevo arriba)",
-  "como": "se ve sola arriba en el centro mientras Delta está en marcha"
+  "como": "se ve sola arriba en el centro mientras Delta está en marcha",
+  "voz": false
  },
  {
   "f": "2026-10-19",
   "t": "HUD para ver qué hace Delta de verdad: barra fija arriba con su estado, contexto y gasto de Gemini, Claude Code, las últimas herramientas con ✓/✗ según el resultado real y los trabajos en segundo plano con etapa, % y tiempo; el mapache lleva un globo con la etapa y el panel muestra lo mismo",
-  "como": "se ve solo mientras Delta está en marcha"
+  "como": "se ve solo mientras Delta está en marcha",
+  "voz": false
  },
  {
   "f": "2026-10-19",
@@ -322,12 +342,14 @@
  {
   "f": "2026-10-19",
   "t": "Delta tiene menos herramientas y mejor ordenadas (de 55 a 34): avisos, música, vista, Claude, memoria, skills, documentos, clima, móvil e impresora van agrupadas por tema, así que se equivoca menos al elegir. Para ti no cambia nada",
-  "como": "pídelo igual que siempre"
+  "como": "pídelo igual que siempre",
+  "voz": false
  },
  {
   "f": "2026-10-19",
   "t": "Cuando Delta necesita tu permiso pasa solo al modo mascota y el mapache saca un bocadillo con lo que quiere hacer y dos botones, Sí y No; al contestar vuelve a la vista que tenías. Además, instalar skills y abrir enlaces con datos (?…) ahora piden permiso, y leer claves o ficheros ocultos ya no pasa sin preguntar",
-  "como": "salta solo · pulsa Sí o No en el mapache (o dilo de palabra)"
+  "como": "salta solo · pulsa Sí o No en el mapache (o dilo de palabra)",
+  "voz": false
  },
  {
   "f": "2026-10-15",
@@ -337,12 +359,14 @@
  {
   "f": "2026-10-15",
   "t": "Delta móvil con voz: mantén 🎙 y habla, Delta te contesta con su voz (Charon) y consulta impresora, avisos y PC. Además, avisos al móvil (impresión terminada, error, Claude Code…) y arranque automático con el PC",
-  "como": "en el móvil: mantener 🎙 · botón 🔔 AVISOS"
+  "como": "en el móvil: mantener 🎙 · botón 🔔 AVISOS",
+  "voz": false
  },
  {
   "f": "2026-10-15",
   "t": "Delta en el móvil: web aparte (127.0.0.1:7877) con estado de impresora, PC, avisos y tiempo, y chat de texto de solo lectura con búsqueda en internet",
-  "como": "Arranca ./delta_movil.sh y abre la web en el móvil con Tailscale"
+  "como": "Arranca ./delta_movil.sh y abre la web en el móvil con Tailscale",
+  "voz": false
  },
  {
   "f": "2026-10-15",
@@ -352,7 +376,8 @@
  {
   "f": "2026-10-15",
   "t": "DeltaOS v2.0 guardada. Botón «↺ Volver a v2.0» en el menú de la hora: vuelve a esta versión estable y reinicia (lo posterior queda guardado en git)",
-  "como": "toca la hora → «↺ Volver a v2.0»"
+  "como": "toca la hora → «↺ Volver a v2.0»",
+  "voz": false
  },
  {
   "f": "2026-10-15",
@@ -362,7 +387,8 @@
  {
   "f": "2026-10-15",
   "t": "Al cerrar la ventana del lápiz con texto escrito, Delta se lo queda (aunque no pulses «Dar») y te pregunta qué hacemos con él, proponiendo una o dos opciones",
-  "como": "lápiz → pega o escribe → cierra (X, Esc o clic fuera)"
+  "como": "lápiz → pega o escribe → cierra (X, Esc o clic fuera)",
+  "voz": false
  },
  {
   "f": "2026-10-15",
@@ -377,12 +403,14 @@
  {
   "f": "2026-10-15",
   "t": "El mapache del salvapantallas es el mismo 3D que la mascota: se pasea, sigue al ratón y saluda si lo tocas; pásale el ratón por encima 4 veces seguidas y se pone juguetón (brinca y da volteretas)",
-  "como": "clic derecho en el fondo hasta la escena del mapache"
+  "como": "clic derecho en el fondo hasta la escena del mapache",
+  "voz": false
  },
  {
   "f": "2026-10-15",
   "t": "Alertas con scroll (rueda del ratón) y llave inglesa en las arreglables: van a una cola que Claude arregla sola cuando el PC está tranquilo (CPU < 45 %, RAM < 80 %)",
-  "como": "botón «Alertas» · clic en la llave para encolar o quitar"
+  "como": "botón «Alertas» · clic en la llave para encolar o quitar",
+  "voz": false
  },
  {
   "f": "2026-10-15",
@@ -407,7 +435,8 @@
  {
   "f": "2026-10-15",
   "t": "Lápiz junto al mapache: pega o escribe un texto y Delta lo tiene como contexto (también al investigar o editar informes). Punto rojo = tiene texto",
-  "como": "Ctrl+Enter para dárselo · «Olvidar» lo borra"
+  "como": "Ctrl+Enter para dárselo · «Olvidar» lo borra",
+  "voz": false
  },
  {
   "f": "2026-10-15",
@@ -457,6 +486,7 @@
  {
   "f": "2026-10-20",
   "t": "La hora es ahora un dock: Gira la rueda sobre la hora y suben desde abajo, como una tragaperras, el próximo aviso, la impresora, el sistema, el tiempo y el móvil. A los doce segundos vuelve sola a ser un reloj.",
-  "como": "Rueda del ratón sobre la hora"
+  "como": "Rueda del ratón sobre la hora",
+  "voz": false
  }
 ]
