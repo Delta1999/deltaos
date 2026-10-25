@@ -417,6 +417,25 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:24p
 .meta div{max-width:300px;min-width:0}.meta div:is(:nth-child(1),:nth-child(2),:last-child){flex:none}  /* encogen dispositivos y memoria, que son los largos */
 .meta b{display:block;font-family:var(--mono);font-weight:500;font-size:14px;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-primary)}
 .ok{color:var(--text-display)}.mal{color:var(--accent)}
+/* La tira del día: bajo .meta, sin sumar altura a la cabecera (la fija el orbe; la tira se queda con lo que sobra).
+   Una línea de puntos cada 15 min (brillantes de día, tenues de noche) y los hitos encima: sol, fin de impresión,
+   avisos y alarmas. «Ahora» queda fijo a 1/14 del borde izquierdo. Sin rojo: no es un aviso. */
+.cabd{flex:1;min-width:0;align-self:stretch;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.cabd .meta{max-width:100%}
+.tdia{position:relative;align-self:stretch;flex:1 1 0;min-height:0;overflow:hidden}
+.tdia .td-p{position:absolute;top:50%;width:3px;height:3px;margin:-1.5px 0 0 -1.5px;border-radius:50%;background:var(--text-display)}
+.tdia .td-p.h{width:5px;height:5px;margin:-2.5px 0 0 -2.5px}
+.tdia .td-p.n{background:var(--text-secondary);opacity:.4}
+.tdia .td-ya{position:absolute;top:calc(50% - 14px);height:28px;width:0;margin-left:-.5px;border-left:1px solid var(--text-display)}
+.tdia .td-m{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;box-sizing:border-box;background:var(--text-display)}
+.tdia .td-m.sol{border-radius:50%;background:var(--bg);border:1.5px solid var(--text-display)}   /* anillo */
+.tdia .td-m.impresion{border-radius:1px}                                                          /* cuadrado */
+.tdia .td-m.aviso{border-radius:50%}                                                              /* punto */
+.tdia .td-m.alarma{transform:rotate(45deg);border-radius:1px}                                     /* rombo */
+.tdia .td-l{position:absolute;white-space:nowrap;line-height:1}
+.tdia .td-l.u{bottom:calc(50% + 10px)}.tdia .td-l.d{top:calc(50% + 10px)}
+@media (max-width:900px){.tdia{display:none}}
+body.minimizado .tdia,body.widget .tdia{display:none}
 main{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:24px;min-height:0}
 .card{background:var(--surface);border:1px solid var(--border-visible);border-radius:16px;padding:22px 26px;position:relative;overflow:hidden;min-height:0}
 #hero{display:flex;flex-direction:column;justify-content:space-between}
@@ -1019,10 +1038,13 @@ body.widget :is(#t-card,#t-web).on{display:flex;flex-direction:column;min-height
 <body>
 <header>
   <div class="cab"><div id="dock" title="Rueda del ratón: gira el dock. Vuelve sola a la hora."><div id="dock-pista"><div class="slot"><div id="hora" class="dot">--:--</div><div id="fecha" class="lbl"></div></div><div class="slot" id="k1"></div><div class="slot" id="k2"></div><div class="slot" id="k3"></div><div class="slot" id="k4"></div><div class="slot" id="k5"></div></div><div id="rec"><i></i>REC</div><div id="dock-pips"></div></div><div id="orbe-wrap" data-estado="reposo"><canvas id="miniorbe" title="Clic: orbe 2 · clic derecho: salvapantallas"></canvas></div><button id="lapiz" title="Pegar texto como contexto para Delta"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/><path d="M14.5 5.5l3 3"/></svg></button></div>
-  <div class="meta">
-    <div><span class="lbl">Dispositivos</span><b id="dispos">—</b></div>
-    <div><span class="lbl">Memoria</span><b id="memoria">—</b></div>
-    <div><span class="lbl">Última actividad</span><b id="ultima">—</b></div>
+  <div class="cabd">
+    <div class="meta">
+      <div><span class="lbl">Dispositivos</span><b id="dispos">—</b></div>
+      <div><span class="lbl">Memoria</span><b id="memoria">—</b></div>
+      <div><span class="lbl">Última actividad</span><b id="ultima">—</b></div>
+    </div>
+    <div id="tdia" class="tdia" role="img" aria-label="Las próximas horas"></div>
   </div>
 </header>
 <main>
@@ -1122,6 +1144,53 @@ function estadoOrbe(d){const s=d.salud||{};
 const ETIQ_ORBE={reposo:'STAND-BY',escuchando:'ESCUCHANDO',trabajando:'TRABAJANDO',hablando:'HABLANDO',privacidad:'PRIVACIDAD',error:'ERROR'};
 // reposo: frases de ejemplo («como» de novedades.json) que rotan cada ~20 s; solo se cambia el nodo .ej, nunca el HTML que compara FH
 let EJ=[],EJI=0,REPOSO=false,REPOSO_DESDE=0;
+// ---- La tira del día: eventosDelDia(d, ahora) es PURA; el calendario (Fase 2 de PLAN_V3.md) solo tendrá que añadir
+// eventos {t:Date, tipo, texto} aquí; el dibujo no cambia. Ventana: de ahora a ahora+13 h (la tira enseña 14 h con 1 h de pasado).
+const hhmm=t=>String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+const fechaLocal=t=>t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+// sale/pone (minutos desde medianoche) del día de t: el parte trae hoy y los dos siguientes (clima.dias, por fecha);
+// si no trae ese día —o el parte es de ayer—, reutiliza clima.sale/pone (cambian ~1 min de un día al siguiente)
+const solDeDia=(c,t)=>{if(!c)return null;const z=(c.dias||[]).find(x=>x&&x.f===fechaLocal(t)&&x.sale!=null&&x.pone!=null);
+  const s=z||c;return s.sale!=null&&s.pone!=null?s:null};
+const esDeDia=(c,t)=>{const s=solDeDia(c,t);if(!s)return true;const m=t.getHours()*60+t.getMinutes();return m>=s.sale&&m<s.pone};
+function eventosDelDia(d,ahora=new Date()){
+  d=d||{};const ev=[],fin=new Date(ahora.getTime()+13*36e5),dentro=t=>t>=ahora&&t<=fin;
+  const c=d.clima;
+  if(c)for(let k=0;k<=1;k++){const dia=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()+k),s=solDeDia(c,dia);if(!s)continue;
+    for(const [min,txt] of [[s.sale,'amanece'],[s.pone,'anochece']]){
+      const t=new Date(dia.getFullYear(),dia.getMonth(),dia.getDate(),Math.floor(min/60),min%60);
+      if(dentro(t))ev.push({t,tipo:'sol',texto:txt+' '+hhmm(t)})}}
+  const p=d.impresora;
+  if(p&&(p.estado==='printing'||p.estado==='paused')&&p.quedan!=null&&isFinite(p.quedan)){
+    const t=new Date(ahora.getTime()+p.quedan*1000);
+    if(dentro(t))ev.push({t,tipo:'impresion',texto:'fin de impresión'+(p.estado==='paused'?' (en pausa)':'')+' '+hhmm(t)})}
+  for(const a of d.avisos||[]){const m=/^(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d)/.exec(a&&a.t||'');if(!m)continue;
+    const t=new Date(+m[1],m[2]-1,+m[3],+m[4],+m[5]);
+    if(dentro(t))ev.push({t,tipo:a.tipo==='alarma'?'alarma':'aviso',texto:a.texto||''})}
+  return ev.sort((a,b)=>a.t-b.t)}
+// HTML de la tira para un ancho W en px: puntos cada 15 min, «ahora» y hasta 6 hitos. Las etiquetas van arriba (u) o abajo (d):
+// si la de un hito pisaría la anterior de su fila, pasa a la otra; con tres encima, la tercera se queda sin etiqueta.
+function tiraDiaHtml(d,ahora,W){
+  const ini=ahora.getTime()-36e5,X=t=>Math.round((t-ini)/(14*36e5)*W),c=(d||{}).clima,ev=eventosDelDia(d,ahora).slice(0,6);
+  const x0=X(ahora.getTime()),CH=7.6,fin={u:-1e9,d:x0+5+5*CH};   // ancho de un carácter de etiqueta
+  let h='',res=[];
+  for(let t=Math.ceil(ini/9e5)*9e5;t<=ini+14*36e5;t+=9e5){const dt=new Date(t);
+    h+=`<i class="td-p${dt.getMinutes()?'':' h'}${esDeDia(c,dt)?'':' n'}" style="left:${X(t)}px"></i>`}
+  h+=`<i class="td-ya" style="left:${x0}px"></i><span class="td-l lbl d" style="left:${x0+5}px">ahora</span>`;
+  for(const e of ev){
+    const x=X(e.t.getTime()),lab=e.tipo==='sol'?e.texto:e.tipo==='impresion'?'fin '+hhmm(e.t):hhmm(e.t),w=lab.length*CH;
+    const l=Math.max(0,Math.min(x-5,W-w));
+    const f=l>=fin.u+6?'u':l>=fin.d+6?'d':null;   // si no cabe en ninguna fila, el hito va sin etiqueta (queda su title y el aria-label)
+    if(f)fin[f]=l+w;
+    const tt=esc((e.tipo==='alarma'?'Alarma ':e.tipo==='aviso'?'Aviso ':'')+(e.tipo==='aviso'||e.tipo==='alarma'?hhmm(e.t)+' · '+e.texto:e.texto)).replace(/"/g,'&quot;');
+    h+=`<i class="td-m ${e.tipo}" style="left:${x}px" title="${tt}"></i>${f?`<span class="td-l lbl ${f}" style="left:${l}px" title="${tt}">${esc(lab)}</span>`:''}`;
+    res.push(e.tipo==='aviso'||e.tipo==='alarma'?`${e.tipo} ${hhmm(e.t)} ${e.texto}`:e.texto)}
+  return {html:h,aria:res.length?'Próximas 13 horas: '+res.join(', '):'Próximas 13 horas: sin eventos'}}
+let TDK='';
+function tiraDia(d){
+  const e=$('tdia');if(!e)return;const W=e.clientWidth||0;if(W<200)return;     // oculta (estrecho, invisible): no pinta
+  const r=tiraDiaHtml(d,new Date(Math.floor(Date.now()/6e4)*6e4),W),k=r.html+'|'+r.aria;
+  if(k===TDK)return;TDK=k;e.innerHTML=r.html;e.setAttribute('aria-label',r.aria)}
 const faltaDe=(t,ahora=Date.now())=>{const m=Math.round((new Date(t)-ahora)/6e4);return m<1?'ya':m<60?m+' min':m<1440?Math.floor(m/60)+' h '+m%60+' min':Math.floor(m/1440)+' d'};
 // Frases de ejemplo: solo órdenes de voz. `voz:false` en novedades.json deja fuera gestos, botones y teclas; si `como` trae frases entre «…»,
 // vale cada una (las de menos de 9 caracteres o de una sola palabra —«sí», «¿seguro?», «automático»— solas no dicen nada); si no, el texto entero.
@@ -1245,6 +1314,7 @@ function _pintar(d){
   const ahora=Date.now(),tr=Object.entries(d.trabajos).filter(([n,e])=>e==='en curso'),mv=d.movil;
   const falta=t=>faltaDe(t,ahora);
   document.body.classList.toggle('sinagenda',!(d.avisos||[]).length&&!tr.length&&!(mv&&mv.length&&!d.priv));
+  if(!WIDGET)tiraDia(d);
   const grupos=mv?Object.entries(mv.reduce((o,x)=>((o[x.app]=o[x.app]||[]).push(x.quien),o),{})):[];
   $html('agenda',`<span class="lbl">Agenda · avisos</span>`+((d.avisos||[]).map(a=>`<div class="ag"><b class="${a.tipo==='alarma'?'act':''}">${a.t.slice(11,16)}</b><span>${a.tipo==='alarma'?'⏰ ':''}${esc(a.texto)}</span><span class="lbl">${falta(a.t)}</span></div>`).join('')||'<div class="vacio">Sin avisos ni alarmas. «Avísame en 20 min…»</div>')+
    (tr.length?`<div class="lbl" style="margin-top:16px">En curso</div>`+tr.map(([n])=>{const g=(d.progreso||{})[n]||{};

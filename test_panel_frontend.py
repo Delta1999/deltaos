@@ -78,7 +78,7 @@ def test_required_dom_ids():
         "sub", "frases", "impd", "agenda", "sis", "clima", "uso", "k1", "k2", "k3",
         "k4", "k5", "rec", "pasos", "t-hora", "t-est", "t-sub", "t-vivo", "t-pie",
         "t-card", "p-card", "p-card-cerrar", "pegar-cerrar", "b-priv", "b-modo",
-        "b-dormir", "b-si", "b-no", "b-tema", "vif", "pegar"
+        "b-dormir", "b-si", "b-no", "b-tema", "vif", "pegar", "tdia"
     ]
     missing = [i for i in critical_ids if i not in existing_ids]
     assert not missing, f"Faltan IDs críticos en el DOM de panel/index.html: {missing}"
@@ -151,6 +151,7 @@ def test_render_headless():
         scrollHeight: 100,
         clientHeight: 50,
         offsetWidth: 100,
+        clientWidth: 1000,
         dataset: {{}},
         getBoundingClientRect: function() {{
           return {{ width: 1920, height: 1080, top: 0, left: 0, right: 1920, bottom: 1080 }};
@@ -335,6 +336,60 @@ def test_render_headless():
     }}
     if (frasesDe({{ como: 'Rueda del ratón', voz: false }}).length) {{ console.error('voz:false debe dejar la entrada fuera'); process.exit(1); }}
     if (frasesDe({{ como: '«apaga el ordenador» → «¿seguro?» → «sí»' }}).join('|') !== 'apaga el ordenador') {{ console.error('las respuestas sueltas no son ejemplos'); process.exit(1); }}
+    // La tira del día: eventosDelDia(d, ahora) es pura
+    const chkT = (c, m) => {{ if (!c) {{ console.error('tira del día: ' + m); process.exit(1); }} }};
+    const A0 = new Date(2026, 9, 25, 18, 0, 0);
+    const clima0 = {{ sale: 8 * 60 + 41, pone: 18 * 60 + 6 }};
+    const ev1 = eventosDelDia({{ clima: clima0, impresora: {{ estado: 'printing', quedan: 3000 }},
+      avisos: [{{ t: '2026-10-25 20:00', texto: 'llamar', tipo: 'aviso' }}] }}, A0);
+    chkT(ev1.map(e => e.tipo).join() === 'sol,impresion,aviso', 'orden ' + ev1.map(e => e.tipo));
+    chkT(ev1[0].t.getTime() === new Date(2026, 9, 25, 18, 6).getTime() && ev1[0].texto === 'anochece 18:06', 'sol');
+    chkT(ev1[1].t.getTime() === A0.getTime() + 3000e3, 'fin de impresión en 3000 s');
+    const h1 = tiraDiaHtml({{ clima: clima0, impresora: {{ estado: 'printing', quedan: 3000 }},
+      avisos: [{{ t: '2026-10-25 20:00', texto: 'llamar', tipo: 'aviso' }}] }}, A0, 1400);
+    for (const px of [110, 183, 300]) chkT(h1.html.includes('class="td-m ') && h1.html.includes('style="left:' + px + 'px" title'), 'posición ' + px);
+    chkT(h1.html.includes('class="td-ya" style="left:100px"') && h1.html.includes('>ahora<'), 'ahora');
+    // lo pasado no sale; lo que está justo más allá de las 13 h tampoco
+    const ev2 = eventosDelDia({{ clima: {{ sale: 8 * 60, pone: 17 * 60 }}, avisos: [
+      {{ t: '2026-10-25 17:59', texto: 'pasado', tipo: 'aviso' }}, {{ t: '2026-10-26 07:01', texto: 'lejos', tipo: 'aviso' }},
+      {{ t: '2026-10-26 07:00', texto: 'justo', tipo: 'alarma' }}] }}, A0);
+    chkT(ev2.map(e => e.texto).join() === 'justo', 'pasado/lejos ' + ev2.map(e => e.texto));
+    // cruce de medianoche y amanecer de mañana dentro de la ventana de 14 h
+    const A1 = new Date(2026, 9, 25, 23, 0, 0);
+    const ev3 = eventosDelDia({{ clima: {{ sale: 8 * 60 + 41, pone: 19 * 60 + 36, dias: [
+      {{ f: '2026-10-25', sale: 8 * 60 + 41, pone: 19 * 60 + 36 }}, {{ f: '2026-10-26', sale: 8 * 60 + 43, pone: 19 * 60 + 34 }}] }},
+      avisos: [{{ t: '2026-10-26 01:30', texto: 'madrugada', tipo: 'alarma' }}] }}, A1);
+    chkT(ev3.map(e => e.texto).join() === 'madrugada,amanece 08:43', 'medianoche ' + ev3.map(e => e.texto));
+    chkT(ev3[0].tipo === 'alarma', 'tipo alarma');
+    const ev3b = eventosDelDia({{ clima: {{ sale: 8 * 60 + 41, pone: 19 * 60 + 36 }} }}, A1);
+    chkT(ev3b.length === 1 && ev3b[0].texto === 'amanece 08:41', 'sin dias reutiliza el de hoy');
+    // de noche los puntos son tenues; de día, brillantes
+    chkT(tiraDiaHtml({{ clima: clima0 }}, A1, 1400).html.includes('td-p n'), 'puntos de noche');
+    chkT(tiraDiaHtml({{ clima: clima0 }}, new Date(2026, 9, 25, 12, 0), 1400).html.startsWith('<i class="td-p h" '), 'puntos de día');
+    // datos vacíos o ausentes: solo «ahora»
+    for (const dv of [null, undefined, {{}}, {{ avisos: null, impresora: null, clima: null }}, {{ impresora: {{ estado: 'standby', quedan: 99 }} }}]) {{
+      chkT(eventosDelDia(dv, A0).length === 0, 'vacío');
+      const hv = tiraDiaHtml(dv, A0, 1400);
+      chkT(!hv.html.includes('td-m') && hv.html.includes('>ahora<') && hv.aria.includes('sin eventos'), 'html vacío');
+    }}
+    chkT(eventosDelDia({{ impresora: {{ estado: 'paused', quedan: 600 }} }}, A0).length === 1, 'pausa cuenta');
+    // dos hitos casi juntos: etiquetas en filas distintas; el título no rompe el atributo con comillas
+    const h4 = tiraDiaHtml({{ avisos: [{{ t: '2026-10-25 20:00', texto: 'dice "hola"', tipo: 'aviso' }},
+      {{ t: '2026-10-25 20:10', texto: 'otro', tipo: 'aviso' }}] }}, A0, 1400);
+    chkT(/td-l lbl u"[^>]*>20:00/.test(h4.html) && /td-l lbl d"[^>]*>20:10/.test(h4.html), 'escalonado');
+    chkT(h4.html.includes('&quot;hola&quot;'), 'comillas');
+    // tres hitos en 15 min: dos etiquetas (una por fila) y ninguna encima de otra; el tercero conserva su marca y su título
+    const h5 = tiraDiaHtml({{ avisos: [{{ t: '2026-10-25 20:00', texto: 'a', tipo: 'aviso' }}, {{ t: '2026-10-25 20:06', texto: 'b', tipo: 'alarma' }},
+      {{ t: '2026-10-25 20:10', texto: 'c', tipo: 'aviso' }}] }}, A0, 807);
+    chkT((h5.html.match(/class="td-m /g) || []).length === 3 && (h5.html.match(/class="td-l lbl [ud]"/g) || []).length === 3, 'tres juntos: ' + (h5.html.match(/class="td-l lbl [ud]"/g) || []).length);
+    // más de 6 hitos: solo los 6 más próximos
+    const muchos = Array.from({{ length: 9 }}, (_, i) => ({{ t: '2026-10-25 ' + String(19 + (i >> 1)).padStart(2, '0') + ':' + (i % 2 ? '30' : '00'), texto: 'a' + i, tipo: 'aviso' }}));
+    chkT((tiraDiaHtml({{ avisos: muchos }}, A0, 1400).html.match(/class="td-m /g) || []).length === 6, 'máximo 6');
+    // y pintar() con todo ello no revienta
+    pintar(Object.assign({{}}, base, {{ clima: null, impresora: {{ online: true, estado: 'printing', prog: 40, quedan: 3000, archivo: 'x', boquilla: [200, 200], cama: [60, 60] }},
+      avisos: [{{ t: '2026-10-25 20:00', texto: 'llamar', tipo: 'aviso' }}] }}));
+    pintar(Object.assign({{}}, base, {{ avisos: undefined, impresora: undefined, clima: undefined }}));
+    console.log('✓ Tira del día: eventosDelDia y su dibujo');
     console.log('✓ Headless Node.js: pintar(d) ejecutó con éxito todas las variantes de estado');
     process.exit(0);
     """
