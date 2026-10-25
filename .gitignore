@@ -43,7 +43,9 @@ panel/geo.json
 avisos.json
 memoria.md
 memoria.db
-mascota_elegida.txt
-mascota_off.txt
+tema_elegido.txt
+personalidad_elegida.txt
+cherry_pendientes.txt
+arreglos.json
 *.kate-swp
 .*.kate-swp
