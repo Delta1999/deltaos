@@ -427,13 +427,18 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:24p
 .tdia .td-p.h{width:5px;height:5px;margin:-2.5px 0 0 -2.5px}
 .tdia .td-p.n{background:var(--text-secondary);opacity:.4}
 .tdia .td-ya{position:absolute;top:calc(50% - 14px);height:28px;width:0;margin-left:-.5px;border-left:1px solid var(--text-display)}
-.tdia .td-m{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;box-sizing:border-box;background:var(--text-display)}
+.tdia .td-m{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;box-sizing:border-box;background:var(--text-display);border:0;padding:0;appearance:none;cursor:pointer}
+.tdia .td-m::after{content:'';position:absolute;inset:-9px}                                       /* zona de clic más grande que el dibujo */
+.tdia .td-m:focus-visible{outline:1.5px solid var(--text-display);outline-offset:4px}
 .tdia .td-m.sol{border-radius:50%;background:var(--bg);border:1.5px solid var(--text-display)}   /* anillo */
 .tdia .td-m.impresion{border-radius:1px}                                                          /* cuadrado */
 .tdia .td-m.aviso{border-radius:50%}                                                              /* punto */
 .tdia .td-m.alarma{transform:rotate(45deg);border-radius:1px}                                     /* rombo */
 .tdia .td-l{position:absolute;white-space:nowrap;line-height:1}
 .tdia .td-l.u{bottom:calc(50% + 10px)}.tdia .td-l.d{top:calc(50% + 10px)}
+.tdia .td-h{position:absolute;top:3px;transform:translateX(-50%);font-size:9px;letter-spacing:.04em;line-height:1;opacity:.5;pointer-events:none}   /* horas en segundo plano */
+#td-pop{position:fixed;z-index:60;max-width:280px;padding:10px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--border-visible);box-shadow:0 8px 28px rgba(0,0,0,.4);pointer-events:none}
+#td-pop[hidden]{display:none}#td-pop b{display:block;font-family:var(--dot);font-weight:700;font-size:15px;color:var(--text-display);margin:5px 0 3px;overflow-wrap:anywhere}#td-pop .lbl{display:block}
 @media (max-width:900px){.tdia{display:none}}
 body.minimizado .tdia,body.widget .tdia{display:none}
 main{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:24px;min-height:0}
@@ -1044,7 +1049,7 @@ body.widget :is(#t-card,#t-web).on{display:flex;flex-direction:column;min-height
       <div><span class="lbl">Memoria</span><b id="memoria">—</b></div>
       <div><span class="lbl">Última actividad</span><b id="ultima">—</b></div>
     </div>
-    <div id="tdia" class="tdia" role="img" aria-label="Las próximas horas"></div>
+    <div id="tdia" class="tdia" role="group" aria-label="Las próximas horas"></div><div id="td-pop" hidden></div>
   </div>
 </header>
 <main>
@@ -1168,29 +1173,48 @@ function eventosDelDia(d,ahora=new Date()){
     const t=new Date(+m[1],m[2]-1,+m[3],+m[4],+m[5]);
     if(dentro(t))ev.push({t,tipo:a.tipo==='alarma'?'alarma':'aviso',texto:a.texto||''})}
   return ev.sort((a,b)=>a.t-b.t)}
-// HTML de la tira para un ancho W en px: puntos cada 15 min, «ahora» y hasta 6 hitos. Las etiquetas van arriba (u) o abajo (d):
+// HTML de la tira para un ancho W en px: empieza en «ahora» (15 min de margen, sin nada detrás), puntos cada 15 min, las horas en gris
+// arriba y hasta 6 hitos (botones: al pulsarlos sale su ventanita). Las etiquetas van arriba (u) o abajo (d):
 // si la de un hito pisaría la anterior de su fila, pasa a la otra; con tres encima, la tercera se queda sin etiqueta.
+const TD_PRE=9e5,TD_SPAN=13.25*36e5;
 function tiraDiaHtml(d,ahora,W){
-  const ini=ahora.getTime()-36e5,X=t=>Math.round((t-ini)/(14*36e5)*W),c=(d||{}).clima,ev=eventosDelDia(d,ahora).slice(0,6);
+  const ini=ahora.getTime()-TD_PRE,X=t=>Math.round((t-ini)/TD_SPAN*W),c=(d||{}).clima,ev=eventosDelDia(d,ahora).slice(0,6);
   const x0=X(ahora.getTime()),CH=7.6,fin={u:-1e9,d:x0+5+5*CH};   // ancho de un carácter de etiqueta
   let h='',res=[];
-  for(let t=Math.ceil(ini/9e5)*9e5;t<=ini+14*36e5;t+=9e5){const dt=new Date(t);
-    h+=`<i class="td-p${dt.getMinutes()?'':' h'}${esDeDia(c,dt)?'':' n'}" style="left:${X(t)}px"></i>`}
+  const cadaHora=W/13.25>=34?1:2;   // en una tira estrecha, una hora de cada dos
+  for(let t=Math.floor(ahora.getTime()/9e5+1)*9e5;t<=ini+TD_SPAN;t+=9e5){const dt=new Date(t);
+    h+=`<i class="td-p${dt.getMinutes()?'':' h'}${esDeDia(c,dt)?'':' n'}" style="left:${X(t)}px"></i>`;
+    if(!dt.getMinutes()&&dt.getHours()%cadaHora===0&&X(t)>=x0+14&&X(t)<=W-8)h+=`<span class="td-h lbl" style="left:${X(t)}px">${String(dt.getHours()).padStart(2,'0')}</span>`}
   h+=`<i class="td-ya" style="left:${x0}px"></i><span class="td-l lbl d" style="left:${x0+5}px">ahora</span>`;
-  for(const e of ev){
+  ev.forEach((e,i)=>{
     const x=X(e.t.getTime()),lab=e.tipo==='sol'?e.texto:e.tipo==='impresion'?'fin '+hhmm(e.t):hhmm(e.t),w=lab.length*CH;
     const l=Math.max(0,Math.min(x-5,W-w));
-    const f=l>=fin.u+6?'u':l>=fin.d+6?'d':null;   // si no cabe en ninguna fila, el hito va sin etiqueta (queda su title y el aria-label)
+    const f=l>=fin.u+6?'u':l>=fin.d+6?'d':null;   // si no cabe en ninguna fila, el hito va sin etiqueta (queda su ventanita y el aria-label)
     if(f)fin[f]=l+w;
     const tt=esc((e.tipo==='alarma'?'Alarma ':e.tipo==='aviso'?'Aviso ':'')+(e.tipo==='aviso'||e.tipo==='alarma'?hhmm(e.t)+' · '+e.texto:e.texto)).replace(/"/g,'&quot;');
-    h+=`<i class="td-m ${e.tipo}" style="left:${x}px" title="${tt}"></i>${f?`<span class="td-l lbl ${f}" style="left:${l}px" title="${tt}">${esc(lab)}</span>`:''}`;
-    res.push(e.tipo==='aviso'||e.tipo==='alarma'?`${e.tipo} ${hhmm(e.t)} ${e.texto}`:e.texto)}
-  return {html:h,aria:res.length?'Próximas 13 horas: '+res.join(', '):'Próximas 13 horas: sin eventos'}}
+    h+=`<button type="button" class="td-m ${e.tipo}" data-i="${i}" style="left:${x}px" aria-label="${tt}"></button>${f?`<span class="td-l lbl ${f}" style="left:${l}px">${esc(lab)}</span>`:''}`;
+    res.push(e.tipo==='aviso'||e.tipo==='alarma'?`${e.tipo} ${hhmm(e.t)} ${e.texto}`:e.texto)});
+  return {html:h,ev,aria:res.length?'Próximas 13 horas: '+res.join(', '):'Próximas 13 horas: sin eventos'}}
+// la ventanita de un hito: qué es, a qué hora y cuánto falta (el texto del aviso ya está en la tarjeta Agenda; no sale nada nuevo)
+const TD_TIPO={sol:'Sol',impresion:'Impresora',aviso:'Aviso',alarma:'Alarma'};
+function tdPopHtml(e,ahora=Date.now()){
+  const nom=e.tipo==='sol'||e.tipo==='impresion'?e.texto.replace(/ \d\d:\d\d.*$/,'').replace(/^./,m=>m.toUpperCase()):e.texto||'(sin texto)';
+  return `<span class="lbl">${TD_TIPO[e.tipo]||''} · ${hhmm(e.t)}</span><b>${esc(nom)}</b><span class="lbl">${e.t-ahora<6e4?'ahora':'dentro de '+faltaDe(e.t,ahora)}</span>`}
 let TDK='';
 function tiraDia(d){
   const e=$('tdia');if(!e)return;const W=e.clientWidth||0;if(W<200)return;     // oculta (estrecho, invisible): no pinta
   const r=tiraDiaHtml(d,new Date(Math.floor(Date.now()/6e4)*6e4),W),k=r.html+'|'+r.aria;
-  if(k===TDK)return;TDK=k;e.innerHTML=r.html;e.setAttribute('aria-label',r.aria)}
+  if(k===TDK)return;TDK=k;TDEV=r.ev;tdCerrar();e.innerHTML=r.html;e.setAttribute('aria-label',r.aria)}
+let TDEV=[];
+function tdCerrar(){const p=$('td-pop');if(p)p.hidden=true}
+function tdAbrir(btn){
+  const e=TDEV[+btn.dataset.i],p=$('td-pop');if(!e||!p)return;
+  if(!p.hidden&&p.dataset.i===btn.dataset.i){tdCerrar();return}      // segundo clic en el mismo hito: la cierra
+  p.dataset.i=btn.dataset.i;p.innerHTML=tdPopHtml(e);p.hidden=false;
+  const r=btn.getBoundingClientRect(),w=p.offsetWidth;                // debajo del hito, sin salirse de la pantalla
+  p.style.top=Math.round(r.bottom+12)+'px';p.style.left=Math.max(8,Math.min(innerWidth-w-8,Math.round(r.left+r.width/2-w/2)))+'px'}
+{const td=$('tdia');if(td)td.addEventListener('click',ev=>{const b=ev.target.closest&&ev.target.closest('.td-m');if(b){ev.stopPropagation();tdAbrir(b)}})}
+addEventListener('click',tdCerrar);addEventListener('keydown',e=>{if(e.key==='Escape')tdCerrar()});
 const haceDe=(seg,ahora=Date.now())=>{const m=Math.max(0,Math.round((ahora/1000-seg)/60));return m<1?'ahora mismo':m<60?'hace '+m+' min':m<1440?'hace '+Math.floor(m/60)+' h':'hace '+Math.floor(m/1440)+' d'};
 const faltaDe=(t,ahora=Date.now())=>{const m=Math.round((new Date(t)-ahora)/6e4);return m<1?'ya':m<60?m+' min':m<1440?Math.floor(m/60)+' h '+m%60+' min':Math.floor(m/1440)+' d'};
 // Frases de ejemplo: solo órdenes de voz. `voz:false` en novedades.json deja fuera gestos, botones y teclas; si `como` trae frases entre «…»,

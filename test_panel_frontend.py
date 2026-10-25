@@ -347,8 +347,23 @@ def test_render_headless():
     chkT(ev1[1].t.getTime() === A0.getTime() + 3000e3, 'fin de impresión en 3000 s');
     const h1 = tiraDiaHtml({{ clima: clima0, impresora: {{ estado: 'printing', quedan: 3000 }},
       avisos: [{{ t: '2026-10-25 20:00', texto: 'llamar', tipo: 'aviso' }}] }}, A0, 1400);
-    for (const px of [110, 183, 300]) chkT(h1.html.includes('class="td-m ') && h1.html.includes('style="left:' + px + 'px" title'), 'posición ' + px);
-    chkT(h1.html.includes('class="td-ya" style="left:100px"') && h1.html.includes('>ahora<'), 'ahora');
+    // la tira empieza 15 min antes de «ahora» y abarca 13 h 15 min: x = minutos desde el inicio / 795 · W
+    const px1 = m => Math.round(m / 795 * 1400);
+    for (const m of [15 + 6, 15 + 50, 15 + 120]) chkT(h1.html.includes('class="td-m ') && h1.html.includes('style="left:' + px1(m) + 'px" aria-label'), 'posición ' + px1(m));
+    chkT(h1.html.includes('class="td-ya" style="left:' + px1(15) + 'px"') && h1.html.includes('>ahora<'), 'ahora');
+    // NADA detrás de «ahora»: ningún punto ni hora a la izquierda de la línea
+    const izq = [...h1.html.matchAll(/class="td-(?:p|h)[^"]*" style="left:(\d+)px/g)].map(m => +m[1]);
+    chkT(izq.length > 40 && izq.every(x => x > px1(15)), 'puntos solo por delante de ahora');
+    // los hitos son botones con su texto en el aria-label, y devuelve los eventos para la ventanita
+    chkT((h1.html.match(/<button type="button" class="td-m /g) || []).length === 3 && h1.ev.length === 3 && h1.html.includes('data-i="2"'), 'hitos clicables');
+    // horas grises: una por hora redonda, dos cifras
+    chkT((h1.html.match(/class="td-h lbl"/g) || []).length === 12 && h1.html.includes('>19</span>') && h1.html.includes('>06</span>'), 'horas ' + (h1.html.match(/class="td-h lbl"/g) || []).length);
+    chkT((tiraDiaHtml({{}}, A0, 400).html.match(/class="td-h lbl"/g) || []).length === 6, 'tira estrecha: una hora de cada dos');
+    // la ventanita
+    const pop = tdPopHtml(h1.ev[2], A0.getTime());
+    chkT(pop.includes('Aviso · 20:00') && pop.includes('<b>llamar</b>') && pop.includes('dentro de 2 h 0 min'), 'ventanita aviso: ' + pop);
+    chkT(tdPopHtml(h1.ev[0], A0.getTime()).includes('<b>Anochece</b>') && tdPopHtml(h1.ev[1], A0.getTime()).includes('Impresora · 18:50'), 'ventanita sol/impresora');
+    chkT(tdPopHtml({{ t: A0, tipo: 'aviso', texto: '<img src=x>' }}, A0.getTime()).includes('&lt;img'), 'ventanita escapa el texto');
     // lo pasado no sale; lo que está justo más allá de las 13 h tampoco
     const ev2 = eventosDelDia({{ clima: {{ sale: 8 * 60, pone: 17 * 60 }}, avisos: [
       {{ t: '2026-10-25 17:59', texto: 'pasado', tipo: 'aviso' }}, {{ t: '2026-10-26 07:01', texto: 'lejos', tipo: 'aviso' }},
@@ -365,7 +380,7 @@ def test_render_headless():
     chkT(ev3b.length === 1 && ev3b[0].texto === 'amanece 08:41', 'sin dias reutiliza el de hoy');
     // de noche los puntos son tenues; de día, brillantes
     chkT(tiraDiaHtml({{ clima: clima0 }}, A1, 1400).html.includes('td-p n'), 'puntos de noche');
-    chkT(tiraDiaHtml({{ clima: clima0 }}, new Date(2026, 9, 25, 12, 0), 1400).html.startsWith('<i class="td-p h" '), 'puntos de día');
+    chkT(/^<i class="td-p" /.test(tiraDiaHtml({{ clima: clima0 }}, new Date(2026, 9, 25, 12, 0), 1400).html), 'puntos de día');
     // datos vacíos o ausentes: solo «ahora»
     for (const dv of [null, undefined, {{}}, {{ avisos: null, impresora: null, clima: null }}, {{ impresora: {{ estado: 'standby', quedan: 99 }} }}]) {{
       chkT(eventosDelDia(dv, A0).length === 0, 'vacío');

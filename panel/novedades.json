@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-25",
+  "t": "La tira del día empieza en «ahora» (sin puntos por detrás), enseña las horas en gris y cada hito (aviso, alarma, amanecer, fin de impresión) se puede pulsar para ver qué es y cuánto falta.",
+  "como": "Pulsa un hito de la tira de la cabecera",
+  "voz": false
+ },
+ {
+  "f": "2026-10-25",
   "t": "Notas: un cajón desastre privado para lo que quieras apuntar sobre la marcha. Se guarda solo en este ordenador (ni Claude Code ni los conectores lo ven, y el panel solo enseña cuántas llevas y cuándo apuntaste la última, en el último hueco del dock). Delta solo las lee cuando se las pides; si borras una se conserva 30 días por si te arrepientes.",
   "como": "«Apunta en notas que tengo que mirar el PETG-CF» · «¿Qué tengo en notas de esta semana?» · «Borra la última nota»"
  },
