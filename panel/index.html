@@ -1013,6 +1013,7 @@ body.widget :is(#t-card,#t-web).on{display:flex;flex-direction:column;min-height
   [data-tema="ios"] .card,[data-tema="ios"] .btn,[data-tema="ios"] #pasos,[data-tema="ios"] #fb-chat .msg:not(.tu) .bub{backdrop-filter:none;-webkit-backdrop-filter:none;background:#fff;border-color:rgba(28,28,30,.35)}
   [data-tema="ios"] #fb-chat .msg.tu .bub{background:#005fcc}
 }
+::view-transition-old(root),::view-transition-new(root){animation-duration:.8s;animation-timing-function:ease-in-out}
 </style>
 </head>
 <body>
@@ -1169,9 +1170,14 @@ function pintar(d){
 function _pintar(d){
   S=d;
   const tm=d.tema||'nothing';
-  document.documentElement.setAttribute('data-tema',tm);
-  document.body.setAttribute('data-tema',tm);
-  try{const vf=$('vif');if(vf&&vf.contentDocument&&vf.contentDocument.documentElement){vf.contentDocument.documentElement.setAttribute('data-tema',tm)}}catch(e){}
+  const ponerTema=()=>{
+    document.documentElement.setAttribute('data-tema',tm);
+    document.body.setAttribute('data-tema',tm);
+    try{const vf=$('vif');if(vf&&vf.contentDocument&&vf.contentDocument.documentElement){vf.contentDocument.documentElement.setAttribute('data-tema',tm)}}catch(e){}};
+  // Nothing ↔ iOS (negro ↔ claro): fundido de ~0,8 s en vez de un fogonazo; sin API o con movimiento reducido, cambio directo
+  const antes=document.documentElement.getAttribute('data-tema');
+  if(antes&&antes!==tm&&document.startViewTransition&&!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){document.startViewTransition(ponerTema);setTimeout(()=>{if(S.tema===tm)ponerTema()},1200)}  // el respaldo evita quedarse sin cambiar si la página no pinta (oculta)
+  else ponerTema();
   const btm=$('b-tema');
   if(btm){
     btm.className='btn'+(tm==='ios'?' on':'');
