@@ -56,7 +56,8 @@ GEO = AQUI / "panel" / "geo.json"  # última posición dada por el navegador (Ch
 FIJA = AQUI / "ubicacion_fija.json"  # la que dice el usuario («estoy en …»): manda sobre todo
 _geo_nuevo = asyncio.Event()
 _clientes: set = set()
-RUTAS = []  # (ruta, handler) que añaden otros módulos (deltaos)
+RUTAS = []  # (ruta, handler) GET que añaden otros módulos (deltaos, habitos)
+RUTAS_POST = []  # (ruta, handler) POST que añaden otros módulos: solo tocan sus datos, nunca hacen hablar a Delta
 _cpu_prev = None
 
 
@@ -971,6 +972,8 @@ async def start(ST, voz):
         app.router.add_post("/api/error_panel", _error_panel)
         for ruta, h in RUTAS:
             app.router.add_get(ruta, h)
+        for ruta, h in RUTAS_POST:
+            app.router.add_post(ruta, h)
         runner = web.AppRunner(app, access_log=None)
         await runner.setup()
         await web.TCPSite(runner, "127.0.0.1", PORT).start()

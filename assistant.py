@@ -32,6 +32,7 @@ import avisos
 import movil  # noqa: F401
 import deltaos  # noqa: F401  (visor del panel, investigación y skills)
 import secretario  # noqa: F401  (documentos PDF/Word/texto)
+import habitos  # noqa: F401  (calendario de hábitos: registra sus rutas en el panel y sus herramientas)
 import estudio  # noqa: F401  (modo estudiante: clase → tema anotado)
 import mcp_puente  # noqa: F401  (conectores MCP: mcp.json → herramienta «conectores»)
 import firetv  # tele del salón (Fire TV por ADB): herramienta tele_salon y estado en el panel

@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-25",
+  "t": "Calendario de hábitos: una rejilla con un hábito por fila y un día por columna, como el de papel. Un clic marca que lo hiciste; otro pregunta por qué no pudo ser (enfermo, viaje, sin tiempo, pereza, olvido, descanso…, configurables con su color), y el mes se pinta con esos colores para ver de un vistazo qué te frena. Lleva racha, cuenta de sí y no, flechas de mes y un modo editar para añadir, renombrar, recolorear y ordenar hábitos y motivos. Privado: solo en este ordenador.",
+  "como": "Enséñame mis hábitos"
+ },
+ {
+  "f": "2026-10-25",
   "t": "Módulo de estado más tranquilo: la matriz de puntos la sustituye una sola onda de voz, minimalista, que se abre y se cierra con lo que oye sin cambiar de tamaño; los tres medidores (micro, voz, respuesta) son más pequeños, con el nombre y el valor en una línea, y ya no se pliegan al dormirse. Fuera la línea de gasto (queda la de contexto) y el «di Delta o pulsa Enter» bajo STAND-BY.",
   "como": "Mira el módulo de estado: la onda sustituye a los puntos",
   "voz": false

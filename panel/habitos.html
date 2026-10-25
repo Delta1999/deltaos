@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="es" data-tema="nothing">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hábitos</title>
+<style>
+@font-face{font-family:Doto;font-weight:900;src:url(/fonts/doto-900.ttf)}
+@font-face{font-family:"Space Grotesk";font-weight:400;src:url(/fonts/spacegrotesk-400.ttf)}
+@font-face{font-family:"Space Grotesk";font-weight:500;src:url(/fonts/spacegrotesk-500.ttf)}
+@font-face{font-family:"Space Mono";font-weight:400;src:url(/fonts/spacemono-400.ttf)}
+
+:root{
+  --bg:#000;--surface:#111;--surface-raised:#1A1A1A;
+  --text-display:#FFF;--fg:#E8E8E8;--dim:#999;--faint:#666;
+  --accent:#D71921;--border:#222;--line:#333;
+  --dot:"Doto","Space Mono",monospace;--mono:"Space Mono",ui-monospace,monospace;--sans:"Space Grotesk",ui-sans-serif,sans-serif;
+  --celda:26px;--radio:3px;
+}
+[data-tema="ios"]{
+  --bg:#000;--surface:rgba(28,28,30,.78);--surface-raised:rgba(44,44,46,.82);
+  --text-display:#FFF;--fg:#F5F5F7;--dim:rgba(235,235,245,.62);--faint:rgba(235,235,245,.3);
+  --accent:#0A84FF;--border:rgba(255,255,255,.09);--line:rgba(255,255,255,.16);
+  --dot:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;
+  --radio:7px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;
+     display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+
+header{display:flex;align-items:center;gap:14px;padding:14px 18px 10px;flex:0 0 auto}
+h1{margin:0;font-family:var(--dot);font-weight:900;font-size:26px;letter-spacing:.06em;
+   text-transform:uppercase;color:var(--text-display)}
+.sp{flex:1}
+button{font-family:var(--sans);font-size:13px;color:var(--fg);background:var(--surface-raised);
+       border:1px solid var(--border);border-radius:var(--radio);padding:5px 11px;cursor:pointer}
+button:hover{border-color:var(--line);color:var(--text-display)}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.lbl{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+
+main{flex:1;overflow:auto;padding:0 18px 4px}
+table{border-collapse:separate;border-spacing:3px;margin:0}
+th,td{padding:0;font-weight:400}
+th.d{width:var(--celda);height:22px;font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;vertical-align:bottom;line-height:1.1}
+th.d i{display:block;font-style:normal;font-size:8px;color:var(--faint)}
+th.d.fin{color:var(--faint)}
+th.d.hoy{color:var(--accent);font-weight:700}
+th.h{text-align:left;padding-right:10px;white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis}
+th.h .pt{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:middle}
+th.h span{font-size:13px;color:var(--fg);vertical-align:middle}
+td.c{width:var(--celda);height:var(--celda)}
+.cu{width:100%;height:100%;border:1px solid var(--border);border-radius:var(--radio);background:transparent;
+    cursor:pointer;display:block;padding:0;position:relative}
+.cu:hover{border-color:var(--line)}
+.cu.fin{background:rgba(255,255,255,.025)}
+.cu.hoy{box-shadow:0 0 0 1px var(--accent) inset}
+.cu.si{border-color:transparent}
+.cu.si::after{content:"";position:absolute;left:31%;top:19%;width:26%;height:44%;
+  border-left:2px solid rgba(0,0,0,.72);border-bottom:2px solid rgba(0,0,0,.72);transform:rotate(-45deg)}
+.cu.no{border-color:transparent}
+.cu.no::after{content:"";position:absolute;inset:0;border-radius:var(--radio);
+  background:repeating-linear-gradient(135deg,rgba(0,0,0,.42) 0 2px,transparent 2px 5px)}
+.cu.no.nom::before{content:"?";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:12px;color:rgba(0,0,0,.6)}
+td.r{padding-left:10px;font-family:var(--mono);font-size:11px;color:var(--dim);white-space:nowrap}
+td.r b{color:var(--fg);font-weight:400}
+td.r i{font-style:normal;color:var(--faint)}
+
+footer{flex:0 0 auto;padding:8px 18px 14px;border-top:1px solid var(--border)}
+#leyenda{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
+.mot{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);
+     background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:3px 10px}
+.mot .pt{width:9px;height:9px;border-radius:50%}
+.mot b{color:var(--fg);font-weight:400}
+
+#menu{position:fixed;z-index:30;background:var(--surface-raised);border:1px solid var(--line);
+      border-radius:calc(var(--radio) + 3px);padding:6px;display:none;min-width:170px;box-shadow:0 12px 34px rgba(0,0,0,.6)}
+#menu.on{display:block}
+#menu .t{padding:4px 8px 7px}
+#menu button{display:flex;align-items:center;gap:8px;width:100%;background:transparent;border:0;
+             text-align:left;padding:7px 8px;border-radius:var(--radio);font-size:13px}
+#menu button:hover{background:rgba(255,255,255,.07)}
+#menu .pt{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+
+#edit{display:none;padding:10px 18px 16px;border-top:1px solid var(--border);overflow:auto;max-height:46%}
+body.editando #edit{display:block}
+.fila{display:flex;align-items:center;gap:8px;padding:4px 0}
+.fila input[type=text]{flex:1;min-width:0;background:var(--surface);color:var(--fg);border:1px solid var(--border);
+  border-radius:var(--radio);padding:5px 9px;font-family:var(--sans);font-size:13px}
+.fila input[type=color]{width:28px;height:26px;padding:0;border:1px solid var(--border);border-radius:var(--radio);background:var(--surface);cursor:pointer}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.x{color:var(--dim);background:transparent;border:0;padding:3px 6px;font-size:14px;cursor:pointer}
+.x:hover{color:var(--accent)}
+#vacio{padding:34px 18px;color:var(--dim);font-size:14px;line-height:1.6}
+#vacio b{color:var(--fg);font-weight:500}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titulo">HÁBITOS</h1>
+  <button id="ant" title="Mes anterior">‹</button>
+  <button id="hoy">Hoy</button>
+  <button id="sig" title="Mes siguiente">›</button>
+  <span class="sp"></span>
+  <span class="lbl" id="pista">clic: hecho · otra vez: no pudo ser</span>
+  <button id="bedit" title="Añadir o quitar hábitos y motivos">✎ Editar</button>
+</header>
+
+<main>
+  <div id="vacio" hidden>Todavía no hay ningún hábito. Pulsa <b>✎ Editar</b> y añade los que quieras seguir,
+    o dímelo de palabra: «<b>añade el hábito leer</b>».</div>
+  <table id="rejilla"></table>
+</main>
+
+<footer>
+  <span class="lbl">Por qué no pudo ser · este mes</span>
+  <div id="leyenda"></div>
+</footer>
+
+<section id="edit">
+  <div class="cols">
+    <div>
+      <span class="lbl">Hábitos</span>
+      <div id="eh"></div>
+      <div class="fila"><input type="color" id="nh-color" value="#5B9BF6">
+        <input type="text" id="nh" maxlength="40" placeholder="Hábito nuevo (Intro)"></div>
+    </div>
+    <div>
+      <span class="lbl">Motivos</span>
+      <div id="em"></div>
+      <div class="fila"><input type="color" id="nm-color" value="#E0A82E">
+        <input type="text" id="nm" maxlength="30" placeholder="Motivo nuevo (Intro)"></div>
+    </div>
+  </div>
+</section>
+
+<div id="menu"></div>
+
+<script>
+const $ = i => document.getElementById(i);
+const MESES = ["ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO","JULIO","AGOSTO","SEPTIEMBRE","OCTUBRE","NOVIEMBRE","DICIEMBRE"];
+const SEM = ["L","M","X","J","V","S","D"];
+let D = null, A = 0, M = 0;
+
+const p2 = n => String(n).padStart(2, "0");
+const clave = () => `${A}-${p2(M)}`;
+const fecha = d => `${A}-${p2(M)}-${p2(d)}`;
+
+async function cargar(m) {
+  const r = await fetch("/habitos/api/mes?m=" + encodeURIComponent(m || clave()));
+  pintar(await r.json());
+}
+async function enviar(ruta, cuerpo) {
+  const r = await fetch("/habitos/api/" + ruta, {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(Object.assign({mes: clave()}, cuerpo))});
+  const d = await r.json();
+  if (d.error) { $("pista").textContent = d.error; return; }
+  pintar(d);
+}
+
+function pintar(d) {
+  D = d; A = d.anio; M = d.mes;
+  $("titulo").textContent = MESES[M - 1] + " " + A;
+  $("vacio").hidden = d.habitos.length > 0;
+  const t = $("rejilla");
+  t.innerHTML = "";
+  if (!d.habitos.length) { leyenda(); editor(); return; }
+
+  const cab = t.insertRow();
+  cab.insertCell().className = "h";
+  for (let x = 1; x <= d.dias; x++) {
+    const sem = (d.primer_dia + x - 1) % 7;
+    const th = document.createElement("th");
+    th.className = "d" + (sem > 4 ? " fin" : "") + (fecha(x) === d.hoy ? " hoy" : "");
+    th.innerHTML = `${p2(x)}<i>${SEM[sem]}</i>`;
+    cab.appendChild(th);
+  }
+  cab.insertCell().className = "r";
+
+  for (const h of d.habitos) {
+    const fila = t.insertRow();
+    const n = document.createElement("th");
+    n.className = "h";
+    n.innerHTML = `<span class="pt" style="background:${h.color}"></span><span>${esc(h.nombre)}</span>`;
+    fila.appendChild(n);
+    for (let x = 1; x <= d.dias; x++) {
+      const td = fila.insertCell(); td.className = "c";
+      const dia = fecha(x), m = d.marcas[`${h.id}:${dia}`], sem = (d.primer_dia + x - 1) % 7;
+      const b = document.createElement("button");
+      b.className = "cu" + (sem > 4 ? " fin" : "") + (dia === d.hoy ? " hoy" : "");
+      if (m) {
+        b.classList.add(m.hecho ? "si" : "no");
+        const mot = m.hecho ? null : D.motivos.find(o => o.id === m.motivo);
+        b.style.background = m.hecho ? h.color : (mot ? mot.color : "var(--faint)");
+        if (!m.hecho && !mot) b.classList.add("nom");
+        b.title = `${h.nombre} · ${dia} · ` + (m.hecho ? "hecho" : "no" + (mot ? ": " + mot.nombre : ", sin motivo"));
+      } else {
+        b.title = `${h.nombre} · ${dia}`;
+      }
+      b.onclick = e => ciclo(h, dia, m, e.currentTarget);
+      b.oncontextmenu = e => { e.preventDefault(); menuMotivo(h, dia, e.currentTarget); };
+      td.appendChild(b);
+    }
+    const r = fila.insertCell(); r.className = "r";
+    r.innerHTML = `<b>${h.si}</b>/<i>${h.no}</i>` + (h.racha > 1 ? ` · ${h.racha}🔥` : "");
+  }
+  leyenda(); editor();
+}
+
+/* vacío → hecho → no pudo ser (pregunta el motivo) → vacío */
+function ciclo(h, dia, m, el) {
+  if (!m) return enviar("marcar", {habito: h.id, dia, hecho: true});
+  if (m.hecho) return menuMotivo(h, dia, el);
+  return enviar("marcar", {habito: h.id, dia, hecho: null});
+}
+
+function menuMotivo(h, dia, el) {
+  const mn = $("menu");
+  mn.innerHTML = `<div class="t lbl">${esc(h.nombre)} · ${dia.slice(8)} · ¿por qué no?</div>`;
+  for (const m of D.motivos) {
+    const b = document.createElement("button");
+    b.innerHTML = `<span class="pt" style="background:${m.color}"></span>${esc(m.nombre)}`;
+    b.onclick = () => { cerrarMenu(); enviar("marcar", {habito: h.id, dia, hecho: false, motivo: m.id}); };
+    mn.appendChild(b);
+  }
+  const sm = document.createElement("button");
+  sm.innerHTML = `<span class="pt" style="background:var(--faint)"></span>sin motivo`;
+  sm.onclick = () => { cerrarMenu(); enviar("marcar", {habito: h.id, dia, hecho: false}); };
+  mn.appendChild(sm);
+  const q = document.createElement("button");
+  q.innerHTML = `<span class="pt" style="border:1px solid var(--line)"></span>dejar en blanco`;
+  q.onclick = () => { cerrarMenu(); enviar("marcar", {habito: h.id, dia, hecho: null}); };
+  mn.appendChild(q);
+
+  const r = el.getBoundingClientRect();
+  mn.classList.add("on");
+  mn.style.left = Math.min(r.left, innerWidth - mn.offsetWidth - 10) + "px";
+  mn.style.top = Math.min(r.bottom + 4, innerHeight - mn.offsetHeight - 10) + "px";
+}
+function cerrarMenu() { $("menu").classList.remove("on"); }
+addEventListener("click", e => { if (!e.target.closest("#menu") && !e.target.closest(".cu")) cerrarMenu(); });
+addEventListener("keydown", e => { if (e.key === "Escape") cerrarMenu(); });
+
+function leyenda() {
+  const cuenta = {};
+  for (const [k, v] of Object.entries(D.marcas)) if (!v.hecho) {
+    const id = v.motivo || 0;
+    cuenta[id] = (cuenta[id] || 0) + 1;
+  }
+  const l = $("leyenda");
+  l.innerHTML = "";
+  const filas = D.motivos.map(m => [m.color, m.nombre, cuenta[m.id] || 0]);
+  if (cuenta[0]) filas.push(["var(--faint)", "sin motivo", cuenta[0]]);
+  for (const [color, nombre, n] of filas.sort((a, b) => b[2] - a[2])) {
+    const e = document.createElement("span");
+    e.className = "mot";
+    e.innerHTML = `<span class="pt" style="background:${color}"></span>${esc(nombre)} <b>${n}</b>`;
+    e.style.opacity = n ? 1 : .45;
+    l.appendChild(e);
+  }
+}
+
+function editor() {
+  const eh = $("eh"); eh.innerHTML = "";
+  D.habitos.forEach((h, i) => {
+    const f = document.createElement("div"); f.className = "fila";
+    const c = document.createElement("input"); c.type = "color"; c.value = h.color;
+    c.onchange = () => enviar("config", {accion: "habito_cambiar", id: h.id, color: c.value});
+    const n = document.createElement("input"); n.type = "text"; n.value = h.nombre; n.maxLength = 40;
+    n.onchange = () => enviar("config", {accion: "habito_cambiar", id: h.id, nombre: n.value});
+    f.append(c, n, bot("↑", i === 0, () => enviar("config", {accion: "habito_mover", id: h.id, delta: -1})),
+             bot("↓", i === D.habitos.length - 1, () => enviar("config", {accion: "habito_mover", id: h.id, delta: 1})),
+             bot("✕", false, () => confirm(`¿Quitar «${h.nombre}» de la rejilla? Lo marcado se conserva.`)
+                 && enviar("config", {accion: "habito_quitar", id: h.id})));
+    eh.appendChild(f);
+  });
+  const em = $("em"); em.innerHTML = "";
+  for (const m of D.motivos) {
+    const f = document.createElement("div"); f.className = "fila";
+    const c = document.createElement("input"); c.type = "color"; c.value = m.color;
+    c.onchange = () => enviar("config", {accion: "motivo_cambiar", id: m.id, color: c.value});
+    const n = document.createElement("input"); n.type = "text"; n.value = m.nombre; n.maxLength = 30;
+    n.onchange = () => enviar("config", {accion: "motivo_cambiar", id: m.id, nombre: n.value});
+    f.append(c, n, bot("✕", false, () => enviar("config", {accion: "motivo_quitar", id: m.id})));
+    em.appendChild(f);
+  }
+}
+function bot(txt, off, fn) {
+  const b = document.createElement("button");
+  b.className = "x"; b.textContent = txt; b.disabled = off; b.style.opacity = off ? .25 : 1;
+  b.onclick = fn;
+  return b;
+}
+const esc = s => String(s).replace(/[<>&"]/g, c => ({"<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;"}[c]));
+
+$("ant").onclick = () => cargar(M > 1 ? `${A}-${p2(M - 1)}` : `${A - 1}-12`);
+$("sig").onclick = () => cargar(M < 12 ? `${A}-${p2(M + 1)}` : `${A + 1}-01`);
+$("hoy").onclick = () => cargar("");
+$("bedit").onclick = e => { document.body.classList.toggle("editando"); e.currentTarget.classList.toggle("on"); };
+$("nh").onkeydown = e => { if (e.key === "Enter" && e.target.value.trim()) {
+  enviar("config", {accion: "habito_nuevo", nombre: e.target.value, color: $("nh-color").value}); e.target.value = ""; } };
+$("nm").onkeydown = e => { if (e.key === "Enter" && e.target.value.trim()) {
+  enviar("config", {accion: "motivo_nuevo", nombre: e.target.value, color: $("nm-color").value}); e.target.value = ""; } };
+
+cargar(new URLSearchParams(location.search).get("m") || "");
+</script>
+</body>
+</html>

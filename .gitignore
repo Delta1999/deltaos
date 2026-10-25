@@ -46,6 +46,8 @@ memoria.md
 memoria.db
 # Las notas privadas del usuario (notas.py): solo en este ordenador. El patrón cubre también -wal, -shm y -journal.
 notas.db*
+# El calendario de hábitos (habitos.py): lo que hace el usuario cada día, solo en este ordenador.
+habitos.db*
 tema_elegido.txt
 personalidad_elegida.txt
 cherry_pendientes.txt
