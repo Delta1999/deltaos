@@ -45,12 +45,18 @@ async def main():
         est = await ws.receive_json()
         assert est["e"] == "dormida" and est["o"] == "dormido" and est["tema"] in ("nothing", "ios")
         assert set(est["sis"]) == {"cpu", "ram", "temp"} and "con" in est  # lo que pinta el orbe de la web
-        panel.S["clima"] = {"temp": 18, "desc": "Despejado", "min": 11, "max": 22, "lluvia": 5, "sale": 450, "pone": 1110, "code": 113}
-        panel.S["impresora"] = {"online": True, "estado": "printing", "prog": 40, "quedan": 3600, "archivo": "secreto.gcode"}
+        panel.S["clima"] = {"temp": 18, "sens": 17, "hum": 60, "desc": "Despejado", "ciudad": "Sevilla", "min": 11, "max": 22,
+                            "lluvia": 5, "viento": 9, "dir": "NO", "uv": 3, "sale": 450, "pone": 1110, "code": 113, "presion": 1015,
+                            "horas": [{"k": 12, "t": 20, "c": 113, "ll": 0, "v": 5, "s": 20, "hu": 50}],
+                            "dias": [{"f": "2026-10-26", "min": 11, "max": 22, "c": 113, "ll": 5, "uv": 3, "sale": 450, "pone": 1110}]}
+        panel.S["impresora"] = {"online": True, "estado": "printing", "prog": 40, "quedan": 3600, "archivo": "pieza.gcode",
+                                "boquilla": [215, 215], "cama": [60, 60], "trabajo": 3}
         panel.S["semana"] = [{"t": "2026-10-29 09:45", "texto": "x" * 60, "tipo": "aviso"}]
         e2 = voz_movil._estado()  # clima, impresión y avisos de la semana, recortados a lo que pinta el móvil
-        assert e2["cl"] == {"temp": 18, "desc": "Despejado", "min": 11, "max": 22, "lluvia": 5, "sale": 450, "pone": 1110}
-        assert e2["im"] == {"online": True, "estado": "printing", "prog": 40, "quedan": 3600} and len(e2["sem"][0]["texto"]) == 40
+        assert "presion" not in e2["cl"] and e2["cl"]["temp"] == 18 and e2["cl"]["horas"] == [{"k": 12, "t": 20, "c": 113, "ll": 0}]
+        assert e2["cl"]["dias"] == [{"f": "2026-10-26", "min": 11, "max": 22, "c": 113, "ll": 5}]
+        assert e2["im"] == {"online": True, "estado": "printing", "archivo": "pieza.gcode", "prog": 40, "quedan": 3600,
+                            "boquilla": [215, 215], "cama": [60, 60]} and len(e2["sem"][0]["texto"]) == 40
         acciones.ST["privacidad"] = True
         assert voz_movil._estado()["sem"] == []  # con privacidad, los avisos no salen
         acciones.ST["privacidad"] = False

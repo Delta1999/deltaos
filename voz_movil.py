@@ -99,8 +99,12 @@ def _estado():
     s = panel.S.get("sistema") or {}
     c, i = panel.S.get("clima"), panel.S.get("impresora")
     # el resumen de lo que enseña el panel: clima, impresión y los avisos de la semana (nada de ellos con privacidad)
-    cl = {k: c.get(k) for k in ("temp", "desc", "min", "max", "lluvia", "sale", "pone")} if c else None
-    im = {k: i.get(k) for k in ("online", "estado", "prog", "quedan")} if i else None
+    cl = {k: c.get(k) for k in ("temp", "sens", "hum", "desc", "ciudad", "min", "max", "lluvia", "viento", "dir", "uv",
+                                "sale", "pone")} if c else None
+    if cl:  # las horas y los días, solo con lo que pinta la página del clima
+        cl["horas"] = [{k: h[k] for k in ("k", "t", "c", "ll")} for h in c.get("horas", [])]
+        cl["dias"] = [{k: d[k] for k in ("f", "min", "max", "c", "ll")} for d in c.get("dias", [])]
+    im = {k: i.get(k) for k in ("online", "estado", "archivo", "prog", "quedan", "boquilla", "cama")} if i else None
     sem = [] if st.get("privacidad") else \
         [{"t": a["t"], "texto": a["texto"][:40], "tipo": a["tipo"]} for a in (panel.S.get("semana") or [])[:30]]
     # «o»: el estado del orbe (el mismo que el del panel); «e»: lo que el móvil puede hacer con él

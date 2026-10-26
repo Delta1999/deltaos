@@ -29,7 +29,7 @@
 }
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family:var(--sans);overflow:hidden;-webkit-tap-highlight-color:transparent}
-body{display:grid;grid-template-rows:auto 1fr auto auto auto auto;gap:10px;
+body{display:grid;grid-template-rows:auto 1fr auto auto;gap:10px;
   padding:max(18px,env(safe-area-inset-top)) 16px max(14px,env(safe-area-inset-bottom));user-select:none}
 .dot{font-family:var(--dot);font-weight:900;letter-spacing:.02em}
 [data-tema="ios"] .dot{font-weight:700;letter-spacing:-.02em}
@@ -52,7 +52,7 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:12p
 
 /* El orbe: el mismo de DeltaOS (orbe.js). Se dice el estado con movimiento y forma (aro), no solo con color. */
 main{display:grid;place-items:center;min-height:0}
-#orbe-wrap{position:relative;width:min(100%,36dvh);aspect-ratio:1;cursor:pointer;transition:opacity .4s}
+#orbe-wrap{position:relative;width:min(100%,42dvh);aspect-ratio:1;cursor:pointer;transition:opacity .4s}
 #orbe-wrap canvas{width:100%;height:100%;display:block}
 #orbe-wrap::before{content:"";position:absolute;inset:6%;border-radius:50%;pointer-events:none;border:0 solid transparent}
 #orbe-wrap:active canvas{transform:scale(.98)}
@@ -71,60 +71,130 @@ main{display:grid;place-items:center;min-height:0}
 
 .card{background:var(--surface);border:1px solid var(--border-visible);border-radius:var(--radio);box-shadow:var(--sombra);padding:12px 14px}
 [data-tema="ios"] .card{backdrop-filter:blur(28px) saturate(190%);-webkit-backdrop-filter:blur(28px) saturate(190%)}
-#f{display:flex;flex-direction:column;justify-content:flex-end;gap:8px;height:14dvh;overflow:hidden}
+#f{display:flex;flex-direction:column;justify-content:flex-end;gap:8px;height:20dvh;overflow:hidden}
 #f p{font-size:15px;line-height:1.4;color:var(--text-secondary)}
 #f p.delta{color:var(--text-display)}
 #f p b{font:400 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-right:8px;color:var(--text-secondary)}
 #f p.vacio{color:var(--text-secondary);opacity:.6}
 
-/* Clima, impresión y la línea del día / de la semana (toca la línea para cambiar) */
-#info{display:grid;gap:10px}
-#datos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.dato b{display:block;font-size:26px;line-height:1;color:var(--text-display);font-weight:inherit}
-.dato .lbl{display:block;margin-top:5px;line-height:1.3;text-transform:none;letter-spacing:.02em}
-#tira{position:relative;height:38px;cursor:pointer}
-.pista{position:relative;height:20px}
+/* Páginas: se desliza a los lados. Cada una es una pantalla entera con lo suyo. */
+#paginas{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;min-height:0;margin:0 -16px}
+#paginas::-webkit-scrollbar{display:none}
+.pag{flex:0 0 100%;scroll-snap-align:start;scroll-snap-stop:always;padding:0 16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;min-height:0;scrollbar-width:none}
+.pag::-webkit-scrollbar{display:none}
+#p0 main{flex:1}
+#p1c,#p2c{display:flex;flex-direction:column;gap:18px}
+.fila>div b .lbl{font-size:12px}
+.pag h2{font-size:15px;font-weight:400}
+.gran{font-size:76px;line-height:.95;color:var(--text-display)}
+.med{font-size:34px;line-height:1;color:var(--text-display)}
+.fila{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fila.tres{grid-template-columns:repeat(3,1fr)}
+.fila>div b{display:block;font-size:22px;line-height:1.1;color:var(--text-display);font-weight:inherit}
+.fila>div>.lbl{display:block;margin-top:4px;text-transform:none;letter-spacing:.02em}
+.barrita{height:6px;border-radius:3px;background:var(--border-visible);overflow:hidden}
+.barrita i{display:block;height:100%;background:var(--text-display);border-radius:3px;transition:width .6s}
+.vacio{color:var(--text-secondary);opacity:.7;font-size:14px}
+.horas{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 6px;text-align:center}
+.horas b{display:block;font-size:19px;color:var(--text-display);font-weight:inherit;margin:3px 0}
+.dias>div{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:baseline;padding:7px 0;border-top:1px solid var(--border-visible);font-size:14px}
+.dias>div:first-child{border-top:0}
+.dias b{font-weight:inherit;color:var(--text-display)}
+.nota{font-size:13px;color:var(--text-secondary);line-height:1.4}
+
+/* la línea del día (grande) y la semana */
+#tira{position:relative;height:44px}
+.pista{position:relative;height:24px}
 .pista::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px solid var(--text-secondary);opacity:.5}
 .pista i{position:absolute;top:50%;transform:translate(-50%,-50%)}
 .noche{top:0!important;bottom:0;height:100%;background:var(--border-visible);opacity:.7;border-radius:3px;transform:none!important}
-.marca{width:1px;height:8px;background:var(--text-secondary)}
-.hh{position:absolute;top:22px;transform:translateX(-50%);font:9px var(--mono);color:var(--text-secondary)}
-.av{width:8px;height:8px;border-radius:50%;background:var(--text-display)}
+.marca{width:1px;height:10px;background:var(--text-secondary)}
+.hh{position:absolute;top:27px;transform:translateX(-50%);font:10px var(--mono);color:var(--text-secondary)}
+.av{width:9px;height:9px;border-radius:50%;background:var(--text-display)}
 .av.al{background:var(--accent)}
-.fin{width:8px;height:8px;border:1px solid var(--text-display);transform:translate(-50%,-50%) rotate(45deg)!important}
-.ya{width:2px;height:20px;background:var(--accent)}
-.sem{display:grid;grid-template-columns:repeat(7,1fr);height:100%}
-.dsem{text-align:center;font:10px var(--mono);color:var(--text-secondary);text-transform:uppercase}
-.dsem.hoy{color:var(--text-display)}
-.dsem .pts{display:flex;justify-content:center;gap:3px;margin-top:6px;min-height:8px}
-.dsem .pts i{width:7px;height:7px;border-radius:50%;background:var(--text-display)}
+.fin{width:9px;height:9px;border:1px solid var(--text-display);transform:translate(-50%,-50%) rotate(45deg)!important}
+.ya{width:2px;height:24px;background:var(--accent)}
+.sem{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dsem{text-align:center;font:10px var(--mono);color:var(--text-secondary);text-transform:uppercase;padding:6px 0;border-radius:8px}
+.dsem.hoy{color:var(--text-display);background:var(--border-visible)}
+.dsem b{display:block;font-size:17px;font-weight:inherit;margin-top:2px;color:var(--text-display)}
+.dsem .pts{display:flex;justify-content:center;gap:3px;margin-top:6px;min-height:7px}
+.dsem .pts i{width:6px;height:6px;border-radius:50%;background:var(--text-display)}
 .dsem .pts i.al{background:var(--accent)}
-#prox{text-transform:none;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lista>div{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:8px 0;border-top:1px solid var(--border-visible);font-size:14px;align-items:baseline}
+.lista>div:first-child{border-top:0}
+.lista .al{color:var(--accent)}
+
+/* puntos de página + el orbe pequeño, siempre a mano */
+#barra{display:flex;align-items:center;justify-content:center;position:relative;min-height:44px}
+#puntos{display:flex;gap:9px}
+#puntos i{width:7px;height:7px;border-radius:50%;border:1px solid var(--text-secondary);cursor:pointer}
+#puntos i.on{background:var(--text-display);border-color:var(--text-display)}
+#mini{position:absolute;right:0;bottom:-4px;width:52px;height:52px;cursor:pointer;display:none}
+#barra.fuera #mini{display:block}
+
+/* la chuleta: pulsar la hora */
+#chuleta{position:fixed;inset:0;z-index:9;display:none;overflow-y:auto;padding:max(24px,env(safe-area-inset-top)) 20px 30px;
+  background:var(--bg);color:var(--text-primary)}
+body.chuleta #chuleta{display:block}
+#chuleta h2{font-size:28px;color:var(--text-display);margin-bottom:4px}
+#chuleta section{border-top:1px solid var(--border-visible);padding:10px 0;margin-top:14px}
+#chuleta ul{list-style:none;padding:0;margin-top:8px}
+#chuleta li{font-size:15px;line-height:1.45;padding:3px 0;color:var(--text-primary)}
+#chuleta li i{font-style:normal;color:var(--text-secondary);font-size:13px}
 
 footer{display:flex;justify-content:space-between;align-items:center}
 </style>
 </head>
 <body>
 <header>
-  <div><div id="hora" class="dot">--:--</div><div id="fecha" class="lbl"></div></div>
+  <div><div id="hora" class="dot" role="button" aria-label="Qué puedo pedir">--:--</div><div id="fecha" class="lbl"></div></div>
   <div class="der"><div class="logo dot">Delta<i>.</i>OS</div><span class="lamp mal" id="enlace"><i></i><span>Enlace</span></span></div>
 </header>
-<main>
-  <div id="orbe-wrap" data-estado="reposo" role="button" aria-label="Hablar con Delta"><canvas id="cv"></canvas></div>
-</main>
-<section>
-  <div id="estado" class="dot" aria-live="polite">CONECTANDO</div>
-  <div id="sub"></div>
-</section>
-<section class="card" aria-live="polite"><div id="f"></div></section>
-<section class="card" id="info">
-  <div id="datos">
-    <div class="dato"><b id="cl-v" class="dot">--</b><span id="cl-t" class="lbl"></span></div>
-    <div class="dato"><b id="im-v" class="dot">--</b><span id="im-t" class="lbl"></span></div>
-  </div>
-  <div id="tira" role="button" aria-label="Línea del día; toca para ver la semana"></div>
-  <div id="prox" class="lbl"></div>
-</section>
+<div id="paginas">
+  <section class="pag" id="p0" aria-label="Delta">
+    <main><div id="orbe-wrap" data-estado="reposo" role="button" aria-label="Hablar con Delta"><canvas id="cv"></canvas></div></main>
+    <section>
+      <div id="estado" class="dot" aria-live="polite">CONECTANDO</div>
+      <div id="sub"></div>
+    </section>
+    <section class="card" aria-live="polite"><div id="f"></div></section>
+  </section>
+  <section class="pag" id="p1" aria-label="Impresora 3D"><span class="lbl">Impresora 3D</span><div id="p1c"></div></section>
+  <section class="pag" id="p2" aria-label="Clima"><span class="lbl">Clima</span><div id="p2c"></div></section>
+  <section class="pag" id="p3" aria-label="Día y semana"><span class="lbl">Hoy</span><div id="tira"></div>
+    <span class="lbl">Semana</span><div id="semg" class="sem"></div>
+    <span class="lbl">Avisos</span><div id="lista" class="lista"></div></section>
+</div>
+<nav id="barra"><div id="puntos"></div><canvas id="mini" role="button" aria-label="Hablar con Delta"></canvas></nav>
+<div id="chuleta"><h2 class="dot">QUÉ PUEDO PEDIR</h2><div class="lbl">Desde el móvil · toca en cualquier sitio para cerrar</div>
+  <section><span class="lbl">Esta pantalla</span><ul>
+    <li>Toca el orbe para hablar con Delta; vuelve a tocarlo para terminar</li>
+    <li>Desliza a los lados: Delta · Impresora · Clima · Día y semana <i>el orbe pequeño de abajo sigue a mano</i></li>
+    <li>Toca la hora para ver esta lista</li></ul></section>
+  <section><span class="lbl">Impresora 3D</span><ul>
+    <li>«¿Cómo va la impresión?»</li><li>«¿Qué he impreso esta semana?»</li><li>«Avísame 10 minutos antes de que acabe»</li></ul></section>
+  <section><span class="lbl">Tiempo y avisos</span><ul>
+    <li>«¿Qué tiempo hace?» · «¿Va a llover mañana?»</li>
+    <li>«Recuérdame mañana a las 8 que …» <i>sale en la línea del día</i></li>
+    <li>«Apunta en el calendario que el jueves tengo médico a las 17:30»</li>
+    <li>«¿Qué avisos tengo?»</li></ul></section>
+  <section><span class="lbl">Memoria y hábitos</span><ul>
+    <li>«Recuerda que …» · «Olvida lo de …»</li>
+    <li>«Apunta en notas que …» · «¿Qué tengo en notas de esta semana?»</li>
+    <li>«Apunta que hoy hice ejercicio» · «¿Cómo llevo el mes?»</li></ul></section>
+  <section><span class="lbl">Internet y Claude</span><ul>
+    <li>«Busca cuánto cuesta el PETG en Amazon»</li>
+    <li>«Investiga a fondo ASA vs PETG para exterior» <i>el informe sale en el PC</i></li>
+    <li>«Pídele a Claude que …»</li></ul></section>
+  <section><span class="lbl">Música, tele y PC</span><ul>
+    <li>«Pon música lo-fi» · «Pausa» · «Sube / baja»</li>
+    <li>«Pon Netflix en la tele del salón»</li>
+    <li>«¿Qué ves en mi pantalla?» · «Abre Firefox»</li>
+    <li>«Sube el volumen al 40 %» · «Silencia»</li></ul></section>
+  <section><span class="lbl">Tu móvil</span><ul>
+    <li>«¿Qué notificaciones tengo?»</li><li>«Hazme sonar el móvil»</li><li>«Envíame esta captura al móvil»</li></ul></section>
+</div>
 <footer><span class="lbl" id="sis">CPU --% · RAM --%</span><span class="lbl">Delta mini</span></footer>
 <script type="module">
 // El móvil hace de micro y altavoz de Delta (voz_movil.py): manda su micro a 16 kHz y suena la voz a 24 kHz.
@@ -235,8 +305,7 @@ function ver() {
   l.className = 'lamp ' + (!S ? 'mal' : con ? 'ok' : '');
   l.lastChild.textContent = !S ? 'Sin enlace' : con ? 'Enlace' : 'Reposo';
   if (!S) return;
-  datos();
-  tira();
+  pagImp(); pagClima(); pagDia();
   $('sis').textContent = `CPU ${S.sis.cpu ?? '--'}% · RAM ${S.sis.ram ?? '--'}%${S.sis.temp != null ? ' · ' + S.sis.temp + '°' : ''}`;
   const f = $('f');
   f.innerHTML = '';
@@ -250,61 +319,100 @@ function ver() {
   }
 }
 
-// ---- clima, impresión y línea del día / semana ----
-const SEMANA = ['D', 'L', 'M', 'X', 'J', 'V', 'S'], ESTADO_IMP = {standby: 'LIBRE', complete: 'TERMINADA', error: 'ERROR', cancelled: 'CANCELADA'};
-let vista = 'dia', tVista;
+// ---- las páginas: impresora, clima, día y semana ----
+const SEMANA = ['D', 'L', 'M', 'X', 'J', 'V', 'S'], ESTADO_IMP = {standby: 'LIBRE', complete: 'TERMINADA', error: 'ERROR', cancelled: 'CANCELADA',
+  printing: 'IMPRIMIENDO', paused: 'EN PAUSA'};
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 const dehora = seg => seg >= 3600 ? `${Math.floor(seg / 3600)} h ${Math.floor(seg % 3600 / 60)} min` : `${Math.max(1, Math.round(seg / 60))} min`;
 const fechaDe = s => new Date(s.replace(' ', 'T'));
+const hhmm = d => d.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
+const dehm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+// códigos del tiempo de wttr.in → una palabra
+const CIELO = c => c === 113 ? 'Sol' : c === 116 ? 'Poco nuboso' : c === 119 || c === 122 ? 'Nubes' : [143, 248, 260].includes(c) ? 'Niebla'
+  : [200, 386, 389, 392, 395].includes(c) ? 'Tormenta'
+  : (c >= 323 && c <= 338) || (c >= 362 && c <= 377) || [179, 182, 185, 227, 230, 281, 284, 311, 314, 317, 320, 350].includes(c) ? 'Nieve'
+  : c >= 176 && c <= 359 ? 'Lluvia' : '';
 
-function datos() {
-  const c = S.cl, i = S.im;
-  $('cl-v').textContent = c ? c.temp + '°' : '--';
-  $('cl-t').textContent = c ? `${c.desc} · ${c.min}°/${c.max}° · lluvia ${c.lluvia}%` : 'Clima sin datos';
-  const imprime = i && i.online && (i.estado === 'printing' || i.estado === 'paused');
-  $('im-v').textContent = !i || !i.online ? '--' : imprime ? i.prog + '%' : ESTADO_IMP[i.estado] || String(i.estado).toUpperCase();
-  $('im-t').textContent = !i || !i.online ? 'Impresora sin conexión'
-    : imprime ? (i.estado === 'paused' ? 'En pausa · ' : '') + (i.quedan != null ? 'quedan ' + dehora(i.quedan) : 'Imprimiendo') : 'Impresora';
+function pagImp() {
+  const i = S.im, el = $('p1c');
+  if (!i || !i.online) return el.innerHTML = '<div class="med dot">SIN ENLACE</div><p class="vacio" style="margin-top:10px">No llego a la impresora.</p>';
+  const imprime = i.estado === 'printing' || i.estado === 'paused', fin = imprime && i.quedan != null ? new Date(Date.now() + i.quedan * 1000) : null;
+  const t = a => a ? `${a[0]}°<span class="lbl"> / ${a[1]}°</span>` : '--';
+  el.innerHTML = (imprime ? `<div class="gran dot">${i.prog}%</div><div class="barrita"><i style="width:${i.prog}%"></i></div>`
+      : `<div class="med dot">${esc(ESTADO_IMP[i.estado] || String(i.estado).toUpperCase())}</div>`)
+    + (i.archivo ? `<p class="nota" style="word-break:break-all">${esc(i.archivo)}</p>` : '')
+    + (imprime ? `<div class="fila"><div><b>${i.quedan != null ? dehora(i.quedan) : '--'}</b><span class="lbl">quedan</span></div>
+        <div><b>${fin ? hhmm(fin) : '--'}</b><span class="lbl">termina</span></div></div>` : '')
+    + `<div class="fila"><div><b>${t(i.boquilla)}</b><span class="lbl">Boquilla</span></div><div><b>${t(i.cama)}</b><span class="lbl">Cama</span></div></div>`
+    + '<p class="nota">Solo se mira: desde aquí no se manda nada a la impresora.</p>';
 }
 
-function tira() {
-  if (!S) return;
+function pagClima() {
+  const c = S.cl, el = $('p2c');
+  if (!c) return el.innerHTML = '<p class="vacio">Clima sin datos.</p>';
+  const hh = new Date().getHours();
+  const horas = (c.horas || []).filter(x => x.k + 3 > hh).slice(0, 8);
+  const dias = c.dias || [];
+  el.innerHTML = `<div class="gran dot">${c.temp}°</div><p style="margin-top:2px">${esc(c.desc)} · <span class="nota">${esc(c.ciudad || '')}</span></p>
+    <div class="fila tres"><div><b>${c.sens}°</b><span class="lbl">sensación</span></div><div><b>${c.hum}%</b><span class="lbl">humedad</span></div>
+      <div><b>${c.viento}</b><span class="lbl">km/h ${esc(c.dir || '')}</span></div></div>
+    <div class="fila tres"><div><b>${c.lluvia}%</b><span class="lbl">lluvia hoy</span></div><div><b>${c.uv}</b><span class="lbl">UV</span></div>
+      <div><b>${c.min}°/${c.max}°</b><span class="lbl">mín / máx</span></div></div>
+    <div class="fila"><div><b>${dehm(c.sale)}</b><span class="lbl">amanece</span></div><div><b>${dehm(c.pone)}</b><span class="lbl">anochece</span></div></div>
+    <span class="lbl">Próximas horas</span>
+    <div class="horas">${horas.map(x => `<div><span class="lbl">${String(x.k % 24).padStart(2, '0')}h</span><b class="dot">${x.t}°</b><span class="lbl">${x.ll}% · ${CIELO(x.c)}</span></div>`).join('')}</div>
+    <span class="lbl">Días</span>
+    <div class="dias">${dias.map((d, k) => `<div><span>${k ? new Date(d.f + 'T00:00').toLocaleDateString('es-ES', {weekday: 'long'}) : 'Hoy'}
+      <span class="nota"> ${CIELO(d.c)}</span></span><span class="nota">${d.ll}%</span><b>${d.min}° / ${d.max}°</b></div>`).join('')}</div>`;
+}
+
+function pagDia() {
   const sem = S.sem || [], n = new Date(), hoy = n.toDateString(), min = n.getHours() * 60 + n.getMinutes();
   const pc = m => (m / 14.4).toFixed(2) + '%', cl = S.cl, i = S.im;
-  let h = '';
-  if (vista === 'dia') {
-    h = '<div class="pista">';
-    if (cl && cl.sale != null) h += `<i class="noche" style="left:0;width:${pc(cl.sale)}"></i><i class="noche" style="left:${pc(cl.pone)};width:${pc(1440 - cl.pone)}"></i>`;
-    for (const x of [6, 12, 18]) h += `<i class="marca" style="left:${pc(x * 60)}"></i><span class="hh" style="left:${pc(x * 60)}">${x}</span>`;
-    for (const a of sem) {
-      const d = fechaDe(a.t);
-      if (d.toDateString() === hoy) h += `<i class="av${a.tipo === 'alarma' ? ' al' : ''}" style="left:${pc(d.getHours() * 60 + d.getMinutes())}"></i>`;
-    }
-    if (i && i.online && i.estado === 'printing' && i.quedan != null) {  // cuándo acabará la impresión, si es hoy
-      const f = new Date(n.getTime() + i.quedan * 1000);
-      if (f.toDateString() === hoy) h += `<i class="fin" style="left:${pc(f.getHours() * 60 + f.getMinutes())}"></i>`;
-    }
-    h += `<i class="ya" style="left:${pc(min)}"></i></div>`;
-  } else {
-    h = '<div class="sem">';
-    for (let k = 0; k < 7; k++) {
-      const d = new Date(n.getFullYear(), n.getMonth(), n.getDate() + k), de = sem.filter(a => fechaDe(a.t).toDateString() === d.toDateString());
-      h += `<div class="dsem${k ? '' : ' hoy'}">${SEMANA[d.getDay()]}<div class="pts">${de.slice(0, 3).map(a => `<i${a.tipo === 'alarma' ? ' class="al"' : ''}></i>`).join('')}</div></div>`;
-    }
-    h += '</div>';
+  let h = '<div class="pista">';
+  if (cl && cl.sale != null) h += `<i class="noche" style="left:0;width:${pc(cl.sale)}"></i><i class="noche" style="left:${pc(cl.pone)};width:${pc(1440 - cl.pone)}"></i>`;
+  for (const x of [6, 12, 18]) h += `<i class="marca" style="left:${pc(x * 60)}"></i><span class="hh" style="left:${pc(x * 60)}">${x}</span>`;
+  for (const a of sem) {
+    const d = fechaDe(a.t);
+    if (d.toDateString() === hoy) h += `<i class="av${a.tipo === 'alarma' ? ' al' : ''}" style="left:${pc(d.getHours() * 60 + d.getMinutes())}"></i>`;
   }
-  $('tira').innerHTML = h;
-  const sig = sem.find(a => fechaDe(a.t) >= n);
-  $('prox').textContent = sig ? `${fechaDe(sig.t).toLocaleDateString('es-ES', {weekday: 'short'})} ${fechaDe(sig.t).toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'})} · ${sig.texto}`
-    : 'Sin avisos en la semana';
+  if (i && i.online && i.estado === 'printing' && i.quedan != null) {  // cuándo acabará la impresión, si es hoy
+    const f = new Date(n.getTime() + i.quedan * 1000);
+    if (f.toDateString() === hoy) h += `<i class="fin" style="left:${pc(f.getHours() * 60 + f.getMinutes())}"></i>`;
+  }
+  $('tira').innerHTML = h + `<i class="ya" style="left:${pc(min)}"></i></div>`;
+  let g = '';
+  for (let k = 0; k < 7; k++) {
+    const d = new Date(n.getFullYear(), n.getMonth(), n.getDate() + k), de = sem.filter(a => fechaDe(a.t).toDateString() === d.toDateString());
+    g += `<div class="dsem${k ? '' : ' hoy'}">${SEMANA[d.getDay()]}<b class="dot">${d.getDate()}</b><div class="pts">${de.slice(0, 3).map(a => `<i${a.tipo === 'alarma' ? ' class="al"' : ''}></i>`).join('')}</div></div>`;
+  }
+  $('semg').innerHTML = g;
+  const prox = sem.filter(a => fechaDe(a.t) >= new Date(n.getTime() - 6e4)).slice(0, 14);
+  $('lista').innerHTML = prox.length ? prox.map(a => {
+    const d = fechaDe(a.t);
+    return `<div><span class="lbl${a.tipo === 'alarma' ? ' al' : ''}">${d.toLocaleDateString('es-ES', {weekday: 'short', day: 'numeric'})} · ${hhmm(d)}</span><span>${esc(a.texto)}</span></div>`;
+  }).join('') : '<p class="vacio">Sin avisos en los próximos 7 días.</p>';
 }
+setInterval(() => { if (S) pagDia(); }, 30000);
 
-$('tira').onclick = () => {
-  vista = vista === 'dia' ? 'semana' : 'dia';
-  clearTimeout(tVista);
-  if (vista === 'semana') tVista = setTimeout(() => { vista = 'dia'; tira(); }, 25000);  // la semana vuelve sola a «hoy»
-  tira();
-};
-setInterval(tira, 30000);
+// ---- páginas deslizables ----
+const PAGS = $('paginas'), NPAG = PAGS.children.length;
+let pag = 0;
+$('puntos').innerHTML = '<i></i>'.repeat(NPAG);
+[...$('puntos').children].forEach((p, k) => p.onclick = () => PAGS.scrollTo({left: k * PAGS.clientWidth, behavior: 'smooth'}));
+function marcarPagina() {
+  pag = Math.round(PAGS.scrollLeft / PAGS.clientWidth);
+  [...$('puntos').children].forEach((p, k) => p.classList.toggle('on', k === pag));
+  $('barra').classList.toggle('fuera', pag !== 0);  // fuera de la de Delta, el orbe pequeño sigue a mano
+  try { localStorage.setItem('delta-pag', pag); } catch {}
+}
+PAGS.addEventListener('scroll', marcarPagina, {passive: true});
+try { PAGS.scrollLeft = (+localStorage.getItem('delta-pag') || 0) * PAGS.clientWidth; } catch {}
+marcarPagina();
+
+// ---- la chuleta ----
+$('hora').onclick = () => document.body.classList.add('chuleta');
+$('chuleta').onclick = () => document.body.classList.remove('chuleta');
 
 function reloj() {
   const n = new Date();
@@ -316,6 +424,7 @@ function marco() {
   D.nivel *= .9;   // la voz del altavoz llega a golpes: entre golpe y golpe, baja sola
   if (!flujo) D.mic.nivel *= .9;
   pintar($('cv'), D);
+  pintar($('mini'), D);
   requestAnimationFrame(marco);
 }
 
@@ -344,7 +453,7 @@ function conectar() {
   };
 }
 
-$('orbe-wrap').onclick = async () => {
+const orbe = async () => {
   if (otra) { otra = false; ver(); return conectar(); }
   if (!S || !ws || ws.readyState !== 1 || S.e === 'privacidad') return;
   navigator.vibrate && navigator.vibrate(15);
@@ -362,6 +471,7 @@ $('orbe-wrap').onclick = async () => {
   }
   ws.send(JSON.stringify({cmd: 'hablar'}));
 };
+$('orbe-wrap').onclick = $('mini').onclick = orbe;
 
 reloj(); setInterval(reloj, 1000);
 entrar();

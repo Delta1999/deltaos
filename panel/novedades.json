@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-26",
+  "t": "La web del móvil ahora se desliza a los lados: Delta, Impresora, Clima y Día y semana; el orbe pequeño de abajo sigue a mano en todas. Tocando la hora sale la chuleta de lo que puedes pedir desde el móvil.",
+  "como": "Desliza a los lados en la web del móvil",
+  "voz": false
+ },
+ {
+  "f": "2026-10-26",
   "t": "La web del móvil ahora también enseña el clima resumido, el estado de la impresión (progreso y lo que queda) y la línea del día con tus avisos y la hora a la que acabará la impresión; tócala para ver la semana (vuelve sola a «hoy» a los 25 s).",
   "como": "Toca la línea del día en la web del móvil",
   "voz": false
