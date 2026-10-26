@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-26",
+  "t": "La web del móvil (/movil) se instala con el orbe 2 como icono: en Chrome, «Instalar aplicación» o «Añadir a pantalla de inicio» y sale con la gota blanca, sin barra del navegador",
+  "como": "en Chrome del móvil, menú ⋮ → Instalar aplicación",
+  "voz": false
+ },
+ {
+  "f": "2026-10-26",
   "t": "Punto de seguridad v6: el botón del menú de la hora vuelve ahora a la versión de hoy, con Delta por voz desde el móvil (Tailscale), sus páginas de impresora, clima y día, los avisos al móvil como notificación, las notificaciones del móvil clicables con respuesta y el botón de apagar desde el móvil; lo que se cambie después queda guardado en git",
   "como": "toca la hora y «↺ Volver a v6» si algo se rompe",
   "voz": false

@@ -48,6 +48,10 @@ async def main():
         r = await c.get("/movil/sw.js", headers=dueno)  # el service worker de los avisos: sí, y solo al dueño
         assert r.status == 200 and "showNotification" in await r.text()
         assert (await c.get("/movil/sw.js", headers={"Host": TS})).status == 403
+        for ruta in ("/movil/manifest.webmanifest", "/movil/iconos/icono-192.png", "/movil/iconos/icono-maskable-512.png"):
+            assert (await c.get(ruta, headers=dueno)).status == 200, ruta  # manifest e iconos de la web instalada
+            assert (await c.get(ruta, headers={"Host": TS})).status == 403, ruta
+        assert (await c.get("/movil/iconos/otro.png", headers=dueno)).status == 404
         for ruta in ("/orbe.js", "/fonts/doto-400.ttf"):  # lo que carga la web del móvil: sí, y solo al dueño
             assert (await c.get(ruta, headers=dueno)).status == 200, ruta
             assert (await c.get(ruta, headers={"Host": TS})).status == 403, ruta
