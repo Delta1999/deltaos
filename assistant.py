@@ -267,7 +267,9 @@ async def audio_input_loop():
                 if firetv.DONDE["aqui"] == "salon":
                     data = firetv.trozo(len(data))  # interfaz en el salón: el portátil sordo, se oye el mando
                 if voz_movil.manda():
-                    data = voz_movil.trozo(len(data))  # la despertó el móvil: el PC sordo, se oye el móvil
+                    data = voz_movil.trozo()  # la despertó el móvil: el PC sordo, se oye el móvil, tal cual llega
+                    if not data:
+                        continue
                 medir_mic(data)
                 if not ST["activo"]:
                     estaba = False

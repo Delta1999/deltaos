@@ -50,16 +50,10 @@ async def main():
         assert (await ws.receive_json(timeout=2))["e"] == "escuchando"
         assert voz_movil.manda() and acciones.ST["activo"]
         await ws.send_bytes(b"\x01\x02" * 3)
+        await ws.send_bytes(b"\x03\x04")
         await asyncio.sleep(0.1)
-        assert voz_movil.trozo(4) == bytes(4) and len(voz_movil._MIC) == 6  # sin colchón aún: silencio, nada se pierde
-        await ws.send_bytes(b"\x03\x04" * (voz_movil.COLCHON // 2 + 1))
-        await asyncio.sleep(0.1)
-        assert voz_movil.trozo(8) == b"\x01\x02" * 3 + b"\x03\x04"  # con colchón: en orden
-        voz_movil._MIC.clear()
-        assert voz_movil.trozo(4) == bytes(4)  # se vació: silencio y a juntar colchón otra vez
-        await ws.send_bytes(b"\x07\x07" * 4)
-        await asyncio.sleep(0.1)
-        assert voz_movil.trozo(4) == bytes(4)
+        assert voz_movil.trozo() == b"\x01\x02" * 3 + b"\x03\x04"  # todo lo llegado, en orden, sin rellenos
+        assert voz_movil.trozo() == b""  # no hay más: nada, ni silencio inventado
         voz_movil.audio(b"\x09" * 4)
         assert (await ws.receive_bytes(timeout=2)) == b"\x09" * 4
         voz_movil.audio(b"\x08" * 4)

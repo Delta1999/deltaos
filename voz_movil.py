@@ -15,26 +15,23 @@ from aiohttp import web
 import acciones
 import panel
 
-MIC_MAX = 16000 * 2  # 1 s de micro del móvil (16 kHz mono s16le): si Delta no lo consume, lo viejo sobra
-COLCHON = 16000 * 2 // 5  # 200 ms de micro del móvil guardados antes de dárselos a Delta
+MIC_MAX = 16000 * 2 * 10  # 10 s de micro del móvil (16 kHz mono s16le): lo que tarda Delta en conectar al despertar, sin perder lo dicho
 OTRA = 4000  # cierre del WS «te ha quitado el sitio otra pantalla»: si se reconectara sola, dos se echarían sin fin
 COLA_MAX = 600      # trozos de voz para el móvil (~1 min): si se llena, el móvil no da abasto y se tira
 
 _MIC = bytearray()
-_HUECO = {"si": True}  # el micro del móvil se vació: juntando colchón otra vez
 _CLI = {"ws": None, "cola": None}
 MANDA = {"si": False}  # lo despertó el móvil: oye y habla por él
 # Cómo le llega el micro del móvil a Delta en esta charla; se cuenta en el log al terminar (📱 mic: ...)
-ESTAD = {"recib": 0, "huecos": 0, "sil": 0, "maxint": 0.0, "ult": None, "empezo": False, "cortes": 0}
+ESTAD = {"recib": 0, "tiradas": 0, "maxint": 0.0, "ult": None, "cortes": 0}
 
 
 def _resumen():
     e = ESTAD.copy()
     if e["recib"]:
-        print(f"📱 mic: {e['recib'] / 32000:.1f} s recibidos, {e['huecos']} huecos de red "
-              f"({e['sil'] / 32000:.1f} s de silencio metido), llegada más lenta {e['maxint']:.0f} ms, "
-              f"{e['cortes']} cortes de voz por interrupción")
-    ESTAD.update(recib=0, huecos=0, sil=0, maxint=0.0, ult=None, empezo=False, cortes=0)
+        print(f"📱 mic: {e['recib'] / 32000:.1f} s recibidos, {e['tiradas'] / 32000:.1f} s tirados por acumulación, "
+              f"llegada más lenta {e['maxint']:.0f} ms, {e['cortes']} cortes de voz por interrupción")
+    ESTAD.update(recib=0, tiradas=0, maxint=0.0, ult=None, cortes=0)
 
 
 def _tailscale():
@@ -69,20 +66,11 @@ def manda():
     return MANDA["si"]
 
 
-def trozo(n):
-    """n bytes del micro del móvil para Delta en lugar del micro del PC. La red los trae a golpes: si se vacía,
-    silencio hasta juntar otra vez COLCHON (un hueco de silencio en mitad de cada palabra la deja irreconocible)."""
-    if len(_MIC) < n or (_HUECO["si"] and len(_MIC) < n + COLCHON):
-        if ESTAD["empezo"]:
-            ESTAD["sil"] += n
-            if not _HUECO["si"]:
-                ESTAD["huecos"] += 1
-        _HUECO["si"] = True
-        return bytes(n)
-    _HUECO["si"] = False
-    ESTAD["empezo"] = True
-    d = bytes(_MIC[:n])
-    del _MIC[:n]
+def trozo():
+    """Todo el micro del móvil que haya llegado, para Delta en lugar del micro del PC (b"" si no hay). Va tal cual
+    llega: rellenar con silencio los huecos de la red, al ritmo del micro del PC, lo mezclaba todo y Delta oía mal."""
+    d = bytes(_MIC)
+    _MIC.clear()
     return d
 
 
@@ -154,12 +142,13 @@ async def _ws(request):
                     ESTAD["ult"] = ahora
                     ESTAD["recib"] += len(m.data)
                     _MIC.extend(m.data)
-                    del _MIC[:-MIC_MAX]
+                    if len(_MIC) > MIC_MAX:
+                        ESTAD["tiradas"] += len(_MIC) - MIC_MAX
+                        del _MIC[:-MIC_MAX]
             elif m.type == web.WSMsgType.TEXT:
                 cmd = json.loads(m.data).get("cmd")
                 if cmd == "hablar" and not acciones.ST.get("privacidad"):
                     _MIC.clear()
-                    _HUECO["si"] = True
                     _resumen()
                     MANDA["si"] = True
                     acciones.activar()
