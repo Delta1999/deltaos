@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Delta</title>
+<style>
+:root{--bg:#000;--t1:#e8e8e8;--t2:#8a8a8a;--borde:#2a2a2a;--acento:#d71921}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--t1);font-family:system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+body{display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:max(24px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom))}
+#e{font:500 13px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--t2)}
+#orbe{width:min(62vw,280px);aspect-ratio:1;border-radius:50%;border:1px solid var(--borde);background:radial-gradient(circle at 50% 40%,#2a2a2a,#0b0b0b 70%);
+  display:grid;place-items:center;cursor:pointer;transition:transform .15s,box-shadow .3s;user-select:none}
+#orbe:active{transform:scale(.97)}
+#orbe span{font:500 15px/1.3 system-ui;color:var(--t2);text-align:center;padding:0 24px}
+body.escuchando #orbe{box-shadow:0 0 0 calc(4px + var(--n,0) * 40px) rgba(255,255,255,.08),0 0 60px rgba(255,255,255,.12)}
+body.hablando #orbe{box-shadow:0 0 0 calc(4px + var(--n,0) * 40px) rgba(215,25,33,.25),0 0 60px rgba(215,25,33,.3)}
+body.escuchando #e,body.hablando #e{color:var(--t1)}
+#f{width:100%;max-width:560px;min-height:30vh;display:flex;flex-direction:column;justify-content:flex-end;gap:10px;overflow:hidden}
+#f p{font-size:16px;line-height:1.45;color:var(--t2)}
+#f p.delta{color:var(--t1)}
+#f p b{font:500 11px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;margin-right:8px;color:var(--t2)}
+</style>
+</head>
+<body>
+<div id="e">Conectando…</div>
+<div id="orbe" role="button" aria-label="Hablar con Delta"><span id="ayuda">Toca para hablar</span></div>
+<div id="f" aria-live="polite"></div>
+<script>
+// El móvil hace de micro y altavoz de Delta (voz_movil.py): manda su micro a 16 kHz y suena la voz a 24 kHz.
+const $ = id => document.getElementById(id);
+const AYUDA = {dormida: 'Toca para hablar', 'en el PC': 'Delta está hablando en el PC. Toca para traerla aquí',
+  escuchando: 'Te escucho. Toca para terminar', hablando: 'Toca para terminar', privacidad: 'Modo privacidad: no escucha'};
+
+// Convierte a la tasa pedida (lineal); el contexto puede no darnos 16/24 kHz exactos.
+const WORKLET = `
+class Micro extends AudioWorkletProcessor {
+  constructor(o){super();this.r=sampleRate/16000;this.p=0;this.b=new Int16Array(640);this.n=0}
+  process([e]){const x=e[0];if(!x)return true;
+    for(;this.p<x.length;this.p+=this.r){const i=Math.floor(this.p),f=this.p-i,v=x[i]+((x[i+1]??x[i])-x[i])*f;
+      this.b[this.n++]=Math.max(-1,Math.min(1,v))*32767;
+      if(this.n===this.b.length){this.port.postMessage(this.b.buffer,[this.b.buffer]);this.b=new Int16Array(640);this.n=0}}
+    this.p-=x.length;return true}
+}
+class Altavoz extends AudioWorkletProcessor {
+  constructor(){super();this.q=[];this.c=null;this.i=0;this.r=24000/sampleRate;this.p=0;this.k=0;
+    this.port.onmessage=m=>{if(m.data==='cortar'){this.q=[];this.c=null}else this.q.push(new Int16Array(m.data))}}
+  process(_,[s]){const o=s[0];let suma=0;
+    for(let k=0;k<o.length;k++){
+      if(!this.c||this.i>=this.c.length){this.c=this.q.shift()||null;this.i=0}
+      const v=this.c?this.c[this.i]/32768:0;o[k]=v;suma+=v*v;
+      if(this.c){this.p+=this.r;while(this.p>=1){this.p--;this.i++}}}
+    if(++this.k%8===0)this.port.postMessage({n:Math.sqrt(suma/o.length)});return true}
+}
+registerProcessor('micro',Micro);registerProcessor('altavoz',Altavoz);`;
+const URL_WORKLET = URL.createObjectURL(new Blob([WORKLET], {type: 'application/javascript'}));
+
+let ws, estado = 'dormida', ctxIn, micro, flujo, ctxOut, altavoz, wake;
+
+async function abrirAltavoz() {
+  if (ctxOut) return ctxOut.resume();
+  ctxOut = new AudioContext({sampleRate: 24000});
+  await ctxOut.audioWorklet.addModule(URL_WORKLET);
+  altavoz = new AudioWorkletNode(ctxOut, 'altavoz', {outputChannelCount: [1]});
+  altavoz.port.onmessage = m => document.body.style.setProperty('--n', Math.min(1, m.data.n * 4).toFixed(2));
+  altavoz.connect(ctxOut.destination);
+}
+
+async function abrirMicro() {
+  if (flujo) return;
+  flujo = await navigator.mediaDevices.getUserMedia({audio: {echoCancellation: true, noiseSuppression: true,
+    autoGainControl: true, channelCount: 1}});
+  ctxIn = new AudioContext({sampleRate: 16000});
+  await ctxIn.audioWorklet.addModule(URL_WORKLET);
+  micro = new AudioWorkletNode(ctxIn, 'micro');
+  micro.port.onmessage = m => ws && ws.readyState === 1 && ws.send(m.data);
+  ctxIn.createMediaStreamSource(flujo).connect(micro);
+  try { wake = await navigator.wakeLock.request('screen'); } catch {}
+}
+
+function cerrarMicro() {
+  if (!flujo) return;
+  flujo.getTracks().forEach(t => t.stop());
+  ctxIn.close();
+  flujo = ctxIn = micro = null;
+  if (wake) { wake.release(); wake = null; }
+}
+
+function pintar(d) {
+  const conmigo = e => e === 'escuchando' || e === 'hablando';
+  if (conmigo(estado) && !conmigo(d.e)) cerrarMicro();  // se ha dormido (o se fue al PC): el micro, cerrado
+  estado = d.e;
+  document.body.className = estado;
+  $('e').textContent = estado;
+  $('ayuda').textContent = AYUDA[estado] || '';
+  $('f').innerHTML = '';
+  for (const f of d.f) {
+    const p = document.createElement('p');
+    p.className = f.rol === 'delta' ? 'delta' : '';
+    p.innerHTML = `<b>${f.rol === 'delta' ? 'Delta' : 'Tú'}</b>`;
+    p.append(f.t);
+    $('f').append(p);
+  }
+}
+
+function conectar() {
+  ws = new WebSocket(location.origin.replace(/^http/, 'ws') + '/movil/ws');
+  ws.binaryType = 'arraybuffer';
+  ws.onmessage = m => {
+    if (typeof m.data !== 'string') return altavoz && altavoz.port.postMessage(m.data, [m.data]);
+    const d = JSON.parse(m.data);
+    if (d.cortar) return altavoz && altavoz.port.postMessage('cortar');
+    pintar(d);
+  };
+  ws.onclose = () => { cerrarMicro(); $('e').textContent = 'Sin conexión con el PC…'; setTimeout(conectar, 2000); };
+}
+
+$('orbe').onclick = async () => {
+  if (!ws || ws.readyState !== 1 || estado === 'privacidad') return;
+  if (estado === 'escuchando' || estado === 'hablando') {
+    altavoz && altavoz.port.postMessage('cortar');
+    return ws.send(JSON.stringify({cmd: 'dormir'}));
+  }
+  try {
+    await abrirAltavoz();
+    await abrirMicro();
+  } catch (e) {
+    $('e').textContent = 'Sin micro: ' + e.message;
+    return;
+  }
+  ws.send(JSON.stringify({cmd: 'hablar'}));
+};
+
+conectar();
+</script>
+</body>
+</html>

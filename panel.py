@@ -612,12 +612,20 @@ TELE_IP = "192.168.0.101"
 TELE_CLAVE = secrets.token_urlsafe(24)
 
 
+POR_TAILSCALE = None  # voz_movil lo pone: f(request) -> bool, qué se deja ver por tailscale serve (el móvil)
+
+
 def _de_la_tele(request):
     return request.remote not in ("127.0.0.1", "::1")
 
 
 @web.middleware
 async def _guardia(request, handler):
+    if not _de_la_tele(request) and request.host.split(":")[0].endswith(".ts.net"):
+        # tailscale serve entra por 127.0.0.1: sin esto, desde la tailnet se vería todo el panel
+        if POR_TAILSCALE is None or not POR_TAILSCALE(request):
+            raise web.HTTPForbidden()
+        return await handler(request)
     if not _de_la_tele(request):
         return await handler(request)
     if request.remote != TELE_IP:

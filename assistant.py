@@ -36,6 +36,7 @@ import habitos  # noqa: F401  (calendario de hábitos: registra sus rutas en el 
 import estudio  # noqa: F401  (modo estudiante: clase → tema anotado)
 import mcp_puente  # noqa: F401  (conectores MCP: mcp.json → herramienta «conectores»)
 import firetv  # tele del salón (Fire TV por ADB): herramienta tele_salon y estado en el panel
+import voz_movil  # hablar desde el móvil por Tailscale: la web /movil hace de micro y altavoz
 import proactivo  # noqa: F401  (habla por su cuenta, y sabe cuándo callarse)
 import vision_delta  # visión por cámara (vision.py aparte): herramienta vision y pausa con el modo privacidad
 import panel
@@ -265,6 +266,8 @@ async def audio_input_loop():
                     continue  # modo privacidad: se descarta todo, ni la palabra clave se procesa
                 if firetv.DONDE["aqui"] == "salon":
                     data = firetv.trozo(len(data))  # interfaz en el salón: el portátil sordo, se oye el mando
+                if voz_movil.manda():
+                    data = voz_movil.trozo(len(data))  # la despertó el móvil: el PC sordo, se oye el móvil
                 medir_mic(data)
                 if not ST["activo"]:
                     estaba = False
@@ -279,7 +282,7 @@ async def audio_input_loop():
                     PRE.clear()
                     pend, estaba = [], True
                 session = ST["session"]
-                if session is None or (not AEC and ST.get("hablando")):
+                if session is None or (not AEC and not voz_movil.manda() and ST.get("hablando")):  # el móvil trae su AEC
                     # Sin sesión: guardar hasta que conecte. Sin AEC y hablando él: micro mudo (el altavoz le interrumpiría).
                     if session is None:
                         pend.append(data)
@@ -381,6 +384,7 @@ async def receive_and_play_loop(session):
                         acciones.ST["hablando"] = False
                         player.kill()
                         player = start_player()
+                        voz_movil.cortar()
 
                     model_turn = server_content.model_turn
                     if model_turn is not None:
@@ -400,6 +404,9 @@ async def receive_and_play_loop(session):
                                         pass
                                     player = start_player()
                                 panel.habla(nivel_audio(audio_data))
+                                if voz_movil.manda():  # contesta solo por el móvil; el altavoz del PC, callado
+                                    voz_movil.audio(audio_data)
+                                    continue
                                 try:
                                     player.stdin.write(audio_data)
                                     player.stdin.flush()

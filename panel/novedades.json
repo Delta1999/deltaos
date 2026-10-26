@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-26",
+  "t": "Habla con Delta desde el móvil, estés donde estés: abre https://fedora.tail630f35.ts.net/movil (con Tailscale encendido en el móvil) y toca el orbe. Es la misma Delta con todas sus herramientas; mientras hablas por el móvil, el PC no oye ni suena, y al dormirse todo vuelve al PC.",
+  "como": "Toca el orbe en la web del móvil",
+  "voz": false
+ },
+ {
+  "f": "2026-10-26",
   "t": "Si preguntas cómo hacer algo que Delta no puede hacer sola, te deja el comando copiado en el portapapeles (y en una notificación) listo para pegar en la terminal.",
   "como": "Delta, ¿cómo grabo la pantalla?"
  },
