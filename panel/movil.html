@@ -103,7 +103,7 @@ const $ = id => document.getElementById(id);
 const ETI = {dormido: 'EN REPOSO', escuchando: 'ESCUCHANDO', hablando: 'HABLANDO', trabajando: 'TRABAJANDO'};
 const AYUDA = {
   dormida: 'Toca el orbe para hablar con Delta',
-  'en el PC': 'Activa en el PC. Toca el orbe para traerla aquí',
+  'en el PC': 'Delta oye al PC, no al móvil. Toca el orbe para traerla aquí',
   escuchando: 'Te oigo. Toca el orbe para terminar',
   hablando: 'Toca el orbe para terminar',
   privacidad: 'Modo privacidad: Delta no escucha',
@@ -196,7 +196,8 @@ function ver() {
   document.documentElement.dataset.tema = S && S.tema === 'ios' ? 'ios' : 'nothing';
   $('orbe-wrap').dataset.estado = !S ? 'error' : e === 'privacidad' ? 'privacidad'
     : orb === 'dormido' ? 'reposo' : orb;
-  $('estado').textContent = !S ? 'SIN ENLACE' : otra ? 'EN OTRO SITIO' : e === 'privacidad' ? 'PRIVACIDAD' : ETI[orb] || 'LISTO';
+  $('estado').textContent = !S ? 'SIN ENLACE' : otra ? 'EN OTRO SITIO' : e === 'privacidad' ? 'PRIVACIDAD'
+    : e === 'en el PC' ? 'EN EL PC' : ETI[orb] || 'LISTO';  // en el PC oye el PC, no este móvil: que no ponga ESCUCHANDO
   $('sub').textContent = !S ? 'Buscando el PC por Tailscale…' : AYUDA[e] || '';
   const con = S && S.con === 'conectado', l = $('enlace');
   l.className = 'lamp ' + (!S ? 'mal' : con ? 'ok' : '');

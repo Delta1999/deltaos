@@ -147,6 +147,8 @@ async def _ws(request):
                         del _MIC[:-MIC_MAX]
             elif m.type == web.WSMsgType.TEXT:
                 cmd = json.loads(m.data).get("cmd")
+                if cmd:
+                    print(f"📱 móvil: {cmd}")
                 if cmd == "hablar" and not acciones.ST.get("privacidad"):
                     _MIC.clear()
                     _resumen()
