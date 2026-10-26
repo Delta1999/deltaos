@@ -121,13 +121,24 @@ class Micro extends AudioWorkletProcessor {
     this.p-=x.length;return true}
 }
 class Altavoz extends AudioWorkletProcessor {
-  constructor(){super();this.q=[];this.c=null;this.i=0;this.r=24000/sampleRate;this.p=0;this.k=0;
-    this.port.onmessage=m=>{if(m.data==='cortar'){this.q=[];this.c=null}else this.q.push(new Int16Array(m.data))}}
+  // La voz llega a golpes por la red: no suena hasta juntar ~150 ms y, si se vacía, vuelve a juntar (sin colchón,
+  // cada bache se oye como un corte o un chasquido). Entre muestras interpola, por si el contexto no es de 24 kHz.
+  constructor(){super();this.q=[];this.n=0;this.c=null;this.i=0;this.r=24000/sampleRate;this.p=0;this.k=0;this.w=0;
+    this.espera=true;this.min=3600;
+    this.port.onmessage=m=>{if(m.data==='cortar'){this.q=[];this.n=0;this.c=null;this.espera=true}
+      else{const a=new Int16Array(m.data);this.q.push(a);this.n+=a.length}}}
+  sig(){if(!this.q.length){this.c=null;return false}this.c=this.q.shift();this.n-=this.c.length;this.i=0;return true}
   process(_,[s]){const o=s[0];let suma=0;
-    for(let k=0;k<o.length;k++){
-      if(!this.c||this.i>=this.c.length){this.c=this.q.shift()||null;this.i=0}
-      const v=this.c?this.c[this.i]/32768:0;o[k]=v;suma+=v*v;
-      if(this.c){this.p+=this.r;while(this.p>=1){this.p--;this.i++}}}
+    if(this.espera){const hay=this.n+(this.c?this.c.length-this.i:0);
+      // el final de una frase puede ser menos que el colchón: si no llega más en 200 ms, suena igualmente
+      if(hay>=this.min||(hay>0&&++this.w*o.length/sampleRate>.2)){this.espera=false;this.w=0}else if(!hay)this.w=0}
+    for(let k=0;k<o.length;k++){let v=0;
+      if(!this.espera){
+        if(!this.c||this.i>=this.c.length){if(!this.sig()){this.espera=true}}
+        if(this.c){const x=this.c[this.i]/32768,y=this.i+1<this.c.length?this.c[this.i+1]/32768:(this.q.length?this.q[0][0]/32768:x);
+          v=x+(y-x)*this.p;this.p+=this.r;while(this.p>=1){this.p--;this.i++;
+            if(this.i>=this.c.length&&!this.sig()){this.espera=true;break}}}}
+      o[k]=v;suma+=v*v}
     if(++this.k%8===0)this.port.postMessage({n:Math.sqrt(suma/o.length)});return true}
 }
 registerProcessor('micro',Micro);registerProcessor('altavoz',Altavoz);`;
@@ -135,6 +146,10 @@ const URL_WORKLET = URL.createObjectURL(new Blob([WORKLET], {type: 'application/
 
 let ws, S = null, otra = false, ctxIn, micro, flujo, ctxOut, altavoz, wake;
 const D = {estado: 'dormido', nivel: 0, mic: {nivel: 0}, mini: true};  // lo que lee orbe.js
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && ctxOut && ctxOut.state !== 'running') ctxOut.resume().catch(() => {});
+});
 
 async function abrirAltavoz() {
   if (ctxOut) return ctxOut.resume();
