@@ -965,7 +965,7 @@ DECLARATIONS = [
         {"accion": _s("activar (oscuro) | desactivar (claro) | consultar")}),
     _fn("notificar", "Muestra una notificación de escritorio.",
         {"titulo": _s("título"), "texto": _s("cuerpo")}, req=["titulo"]),
-    _fn("portapapeles", "Lee o escribe el portapapeles.",
+    _fn("portapapeles", "Lee o escribe el portapapeles. Escribir sirve para dejarle copiado un comando de terminal listo para pegar.",
         {"accion": _s("leer | escribir"), "texto": _s("texto si escribir")}, req=["accion"]),
     _fn("ventanas", "Gestiona ventanas de KDE. Cerrar no pide permiso: si te lo pide, ciérrala sin preguntar.",
         {"accion": _s("listar | activar | minimizar | maximizar | pantalla_completa | restaurar | cerrar | mover_pantalla | ultrawide (la lleva a la pantalla ancha y la maximiza)"),

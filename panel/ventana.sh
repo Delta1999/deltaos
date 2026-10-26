@@ -28,6 +28,16 @@ destino() {
       split(g[s],a," "); split(a[1],xy,","); split(a[2],wh,"x")
       print xy[1], xy[2], wh[1], wh[2], (k>1 ? "panel" : "invisible"), f}'
 }
+# Firma de los conectores de video, leida de /sys/class/drm: cambia al enchufar o quitar una
+# pantalla. Fija CONS_NUEVO en vez de imprimirlo porque $(...) seria un fork, y esto se consulta
+# una vez por segundo. Con «read» y el glob de bash no cuesta ni un proceso.
+conectores() {
+  local c s
+  CONS_NUEVO=
+  for c in /sys/class/drm/card*-*/status; do
+    read -r s < "$c" 2>/dev/null && CONS_NUEVO+="$c=$s;"
+  done
+}
 aplicar() {  # $1 = ventana del panel, $2 = destino, $3 = vista
   read -r X Y AN AL _ <<<"$2"
   if [ "${3%%-*}" = invisible ] || [ "$3" = oculto ]; then
@@ -148,23 +158,48 @@ if [ "${V0%%-*}" = invisible ] || [ "$V0" = oculto ]; then
 else
   sleep 2  # KWin recoloca la ventana al mostrarla; mover antes no se respeta
 fi
-ANT= FANT= VANT=
+# Este bucle vive mientras viva el panel —horas—, asi que su camino rapido no hace ni un fork:
+# lee la vista con «read» y nota que la han tocado con «-nt», los dos builtins de bash. Lo caro es
+# destino() (kscreen-doctor + sed + awk, ~0,02 s de CPU y 4 procesos), y antes se llamaba una vez
+# por segundo: ~5% de un nucleo y unas 21.000 llamadas por hora para devolver siempre lo mismo.
+# Ahora solo se vuelve a preguntar cuando algo pudo cambiar de verdad:
+#   - se enchufo o quito una pantalla      -> cambia la firma de conectores()
+#   - se pidio otra pantalla por voz       -> $PANT es mas nuevo que su marca
+#   - cada $REPOLL s                       -> red de seguridad: cambiar la resolucion desde los
+#                                             ajustes de KDE no se ve en los conectores
+# Tras un cambio de conectores, KWin tarda en habilitar la salida nueva, asi que se vuelve al
+# sondeo de 1 Hz durante $VIGILIA vueltas hasta que la respuesta se estabiliza.
+REPOLL=30 VIGILIA=10
+MVISTA="$VISTA.visto" MPANT="$PANT.visto"   # marcas de mtime: «esto ya lo he atendido»
+: > "$MVISTA"; : > "$MPANT"
+ANT= FANT= VANT= CONS= CONS_NUEVO= D= URGE=1 ULTIMO=0
 while kill -0 $CH 2>/dev/null; do
-  D=$(destino)
-  if [ -n "$D" ] && [ "${D##* }" != "$FANT" ]; then  # pantallas cambiadas: vista por defecto
-    [ -n "$FANT" ] && { sleep 2; D=$(destino); }
-    read -r _ _ _ _ VDEF FANT <<<"$D"
-    # Al arrancar se respeta la vista que tenía puesta el usuario: antes cada reinicio de Delta se la
-    # borraba y volvía a la de por defecto (con el portátil solo, la tira). Solo se impone la de por
-    # defecto al cambiar de pantallas de verdad, o si no hay vista guardada (sesión nueva).
-    if [ -n "$ARRANCADO" ] || [ ! -s "$VISTA" ]; then echo "$VDEF" > "$VISTA"; fi
-    ARRANCADO=1; VANT=
+  conectores
+  if [ "$CONS_NUEVO" != "$CONS" ]; then CONS=$CONS_NUEVO; URGE=$VIGILIA; fi
+  if [ "$PANT" -nt "$MPANT" ]; then : > "$MPANT"; URGE=$VIGILIA; fi
+  if [ "$URGE" -gt 0 ] || [ $((SECONDS - ULTIMO)) -ge "$REPOLL" ]; then
+    [ "$URGE" -gt 0 ] && URGE=$((URGE - 1))
+    ULTIMO=$SECONDS
+    D=$(destino)
+    if [ -n "$D" ] && [ "${D##* }" != "$FANT" ]; then  # pantallas cambiadas: vista por defecto
+      [ -n "$FANT" ] && { sleep 2; D=$(destino); }
+      read -r _ _ _ _ VDEF FANT <<<"$D"
+      # Al arrancar se respeta la vista que tenía puesta el usuario: antes cada reinicio de Delta se la
+      # borraba y volvía a la de por defecto (con el portátil solo, la tira). Solo se impone la de por
+      # defecto al cambiar de pantallas de verdad, o si no hay vista guardada (sesión nueva).
+      if [ -n "$ARRANCADO" ] || [ ! -s "$VISTA" ]; then echo "$VDEF" > "$VISTA"; fi
+      ARRANCADO=1; VANT=
+    fi
+    if [ -n "$D" ] && [ "$D" != "$ANT" ]; then  # otra pantalla para el panel (por voz): misma vista, en la nueva
+      [ -n "$ANT" ] && regla "$D"; ANT=$D; VANT=
+    fi
   fi
-  if [ -n "$D" ] && [ "$D" != "$ANT" ]; then  # otra pantalla para el panel (por voz): misma vista, en la nueva
-    [ -n "$ANT" ] && regla "$D"; ANT=$D; VANT=
+  # contenido + «la han tocado»: repetir la vista tras mover el panel a mano (o con «ventanas»)
+  # también se aplica. Los dos son builtins, a diferencia del cat + stat de antes.
+  V=; [ -r "$VISTA" ] && { read -r V < "$VISTA" || :; }
+  if [ -n "$D" ] && { [ "$V" != "$VANT" ] || [ "$VISTA" -nt "$MVISTA" ]; }; then
+    : > "$MVISTA"
+    orbe "$D" "$V"; aplicar "$W" "$D" "$V"; VANT=$V
   fi
-  # contenido + fecha: repetir la vista tras mover el panel a mano (o con «ventanas») también se aplica
-  V=$(cat "$VISTA" 2>/dev/null); T=$(stat -c %.9Y "$VISTA" 2>/dev/null)
-  [ -n "$D" ] && [ "$V$T" != "$VANT" ] && { orbe "$D" "$V"; aplicar "$W" "$D" "$V"; VANT=$V$T; }
   sleep 1
 done
