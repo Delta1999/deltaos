@@ -1,0 +1,17 @@
+[Unit]
+Description=Pasarela de Delta (pagina PC apagado)
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/delta-pasarela/pasarela.py
+Environment=PC_IP=100.108.136.98
+Environment=PC_HOST=fedora.tail630f35.ts.net
+DynamicUser=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

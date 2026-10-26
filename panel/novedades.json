@@ -1,5 +1,11 @@
 [
  {
+  "f": "2026-10-27",
+  "t": "Con el portátil apagado, el móvil ya no se queda en blanco: la caja de la impresora (siempre encendida) sirve una página «PC apagado» que se vigila sola y salta a Delta en cuanto el portátil arranca. Se instala como app con el mismo orbe",
+  "como": "en el móvil, abre https://delta.tail630f35.ts.net e instálala (menú ⋮ → Instalar aplicación)",
+  "voz": false
+ },
+ {
   "f": "2026-10-26",
   "t": "La web del móvil (/movil) se instala con el orbe 2 como icono: en Chrome, «Instalar aplicación» o «Añadir a pantalla de inicio» y sale con la gota blanca, sin barra del navegador",
   "como": "en Chrome del móvil, menú ⋮ → Instalar aplicación",
