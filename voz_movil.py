@@ -8,6 +8,7 @@ Solo por el WebSocket /movil/ws, que comprueba Origin; y por Tailscale solo entr
 import asyncio
 import json
 import subprocess
+import time
 
 from aiohttp import web
 
@@ -23,6 +24,17 @@ _MIC = bytearray()
 _HUECO = {"si": True}  # el micro del móvil se vació: juntando colchón otra vez
 _CLI = {"ws": None, "cola": None}
 MANDA = {"si": False}  # lo despertó el móvil: oye y habla por él
+# Cómo le llega el micro del móvil a Delta en esta charla; se cuenta en el log al terminar (📱 mic: ...)
+ESTAD = {"recib": 0, "huecos": 0, "sil": 0, "maxint": 0.0, "ult": None, "empezo": False, "cortes": 0}
+
+
+def _resumen():
+    e = ESTAD.copy()
+    if e["recib"]:
+        print(f"📱 mic: {e['recib'] / 32000:.1f} s recibidos, {e['huecos']} huecos de red "
+              f"({e['sil'] / 32000:.1f} s de silencio metido), llegada más lenta {e['maxint']:.0f} ms, "
+              f"{e['cortes']} cortes de voz por interrupción")
+    ESTAD.update(recib=0, huecos=0, sil=0, maxint=0.0, ult=None, empezo=False, cortes=0)
 
 
 def _tailscale():
@@ -51,6 +63,8 @@ def permitido(request):
 def manda():
     """¿Oye y habla Delta por el móvil? Mientras esté despierta, la despertara el móvil y siga con la web abierta."""
     if not acciones.ST["activo"] or _CLI["ws"] is None:
+        if MANDA["si"]:
+            _resumen()
         MANDA["si"] = False
     return MANDA["si"]
 
@@ -59,9 +73,14 @@ def trozo(n):
     """n bytes del micro del móvil para Delta en lugar del micro del PC. La red los trae a golpes: si se vacía,
     silencio hasta juntar otra vez COLCHON (un hueco de silencio en mitad de cada palabra la deja irreconocible)."""
     if len(_MIC) < n or (_HUECO["si"] and len(_MIC) < n + COLCHON):
+        if ESTAD["empezo"]:
+            ESTAD["sil"] += n
+            if not _HUECO["si"]:
+                ESTAD["huecos"] += 1
         _HUECO["si"] = True
         return bytes(n)
     _HUECO["si"] = False
+    ESTAD["empezo"] = True
     d = bytes(_MIC[:n])
     del _MIC[:n]
     return d
@@ -79,6 +98,7 @@ def cortar():
     """El usuario ha hablado encima: el móvil tira lo que le quede por decir."""
     c = _CLI["cola"]
     if c is not None:
+        ESTAD["cortes"] += 1
         while not c.empty():
             c.get_nowait()
         c.put_nowait({"cortar": 1})
@@ -128,6 +148,11 @@ async def _ws(request):
         async for m in ws:
             if m.type == web.WSMsgType.BINARY:
                 if MANDA["si"]:
+                    ahora = time.monotonic()
+                    if ESTAD["ult"] is not None:
+                        ESTAD["maxint"] = max(ESTAD["maxint"], (ahora - ESTAD["ult"]) * 1000)
+                    ESTAD["ult"] = ahora
+                    ESTAD["recib"] += len(m.data)
                     _MIC.extend(m.data)
                     del _MIC[:-MIC_MAX]
             elif m.type == web.WSMsgType.TEXT:
@@ -135,6 +160,7 @@ async def _ws(request):
                 if cmd == "hablar" and not acciones.ST.get("privacidad"):
                     _MIC.clear()
                     _HUECO["si"] = True
+                    _resumen()
                     MANDA["si"] = True
                     acciones.activar()
                 elif cmd == "dormir" and manda():
@@ -146,6 +172,7 @@ async def _ws(request):
             _CLI.update(ws=None, cola=None)
             MANDA["si"] = False
         envio.cancel()
+        _resumen()
         print("📱 móvil desconectado")
     return ws
 
