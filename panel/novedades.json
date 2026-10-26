@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-26",
+  "t": "Punto de seguridad v6: el botón del menú de la hora vuelve ahora a la versión de hoy, con Delta por voz desde el móvil (Tailscale), sus páginas de impresora, clima y día, los avisos al móvil como notificación, las notificaciones del móvil clicables con respuesta y el botón de apagar desde el móvil; lo que se cambie después queda guardado en git",
+  "como": "toca la hora y «↺ Volver a v6» si algo se rompe",
+  "voz": false
+ },
+ {
+  "f": "2026-10-26",
   "t": "Los avisos al móvil (impresión, recordatorios, alarmas, Claude Code) ahora llegan como notificación del navegador desde la web de Delta, aunque la web esté cerrada y sin depender de KDE Connect. Se activan una vez con el botón «Activar avisos» de la página Sistema.",
   "como": "Página Sistema de la web del móvil → Activar avisos",
   "voz": false
