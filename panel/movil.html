@@ -432,7 +432,12 @@ async function avisos(pedir) {
       ws.send(JSON.stringify({cmd: 'suscribir', sub: s.toJSON()}));
       $('avisos').textContent = 'Probar aviso';
       notaAvisos('Activados: te llegan como notificación, con esta web cerrada también.');
-      if (pedir) ws.send(JSON.stringify({cmd: 'probar_aviso'}));
+      if (pedir) {  // primero uno local (sin servidor): si este no sale, el bloqueo es de Android; luego el de verdad, desde el PC
+        const reg = await navigator.serviceWorker.getRegistration('/movil');
+        await reg.showNotification('Delta', {body: 'Prueba 1 de 2: aviso local, sin pasar por el PC', tag: 'delta-local'});
+        ws.send(JSON.stringify({cmd: 'probar_aviso'}));
+        notaAvisos('Activados. Deberían salir dos avisos: uno local y otro desde el PC. Si falta alguno, dime cuál.');
+      }
     } else if (pedir) notaAvisos('Sin conexión con Delta: inténtalo otra vez.');
   } catch (e) { notaAvisos(String(e.message || e)); }
 }
