@@ -196,7 +196,13 @@ async def _sw(request):
     return web.FileResponse(acciones.AQUI / "panel" / "sw.js", headers={"Cache-Control": "no-cache"})
 
 
+async def _recibido(request):
+    print(f"📱 el móvil recibió el aviso {request.query.get('t', '')[:12]}")
+    return web.Response(status=204)
+
+
 panel.RUTAS.append(("/movil", _pagina))
+panel.RUTAS.append(("/movil/ok", _recibido))
 panel.RUTAS.append(("/movil/sw.js", _sw))
 panel.RUTAS.append(("/movil/ws", _ws))
 panel.POR_TAILSCALE = permitido
