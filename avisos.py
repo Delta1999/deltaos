@@ -107,11 +107,17 @@ async def programar_aviso(texto, en_minutos="", a_las="", tipo="aviso", repetir=
     return f"{tipo.capitalize()} «{texto}» para {_bonito(t)}{', cada día' if diario else ''}."
 
 
+def _ahora():
+    """La hora de aquí, para que Gemini no diga la suya (va en UTC: decía las 18:17 a las 19:17, 26/10/2026)."""
+    n = datetime.now()
+    return f"Ahora (hora de España): {DIAS[n.weekday()]} {n:%d/%m/%Y, %H:%M}."
+
+
 async def ver_avisos():
     lista = sorted(_cargar(), key=lambda a: a["t"])
     if not lista:
-        return f"No hay avisos ni alarmas. Ahora son las {datetime.now():%H:%M}."
-    return f"Ahora: {datetime.now():%A %d %H:%M}.\n" + "\n".join(
+        return f"{_ahora()} No hay avisos ni alarmas."
+    return f"{_ahora()}\n" + "\n".join(
         f"- {a['tipo']} «{a['texto']}»: {_bonito(datetime.fromisoformat(a['t']))}{' (cada día)' if a['diario'] else ''}"
         for a in lista)
 

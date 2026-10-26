@@ -1035,7 +1035,7 @@ FUSIONES = {
     "avisos": ("Temporizadores, recordatorios y alarmas (sobreviven a reinicios). programar: «avísame en 20 minutos», "
                "«recuérdame a las 18:30 llamar a Juan», «despiértame a las 8» (tipo alarma: suena en bucle hasta "
                "accion=parar_alarma). También es el CALENDARIO: «apunta en el calendario que el jueves tengo médico a las 17:30» "
-               "(texto «médico», a_las «jueves 17:30»; sale en la línea de la semana del panel). ver: los pendientes y la hora actual. cancelar: los que contengan texto, o «todos». "
+               "(texto «médico», a_las «jueves 17:30»; sale en la línea de la semana del panel). ver: los pendientes y la hora y fecha de aquí (consúltala siempre que te pregunten la hora, el día o la fecha). cancelar: los que contengan texto, o «todos». "
                "no_molestar: deja de avisar por tu cuenta un rato («no me molestes», «déjame en paz», «silencio»); lo "
                "que él te pidió sigue sonando, y sin en_minutos (o con 0) vuelves a avisar.",
                {"texto": "programar: qué recordar («sacar la pizza»); cancelar: parte del texto o «todos»",
