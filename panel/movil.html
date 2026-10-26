@@ -115,10 +115,22 @@ function conectar() {
     if (d.cortar) return altavoz && altavoz.port.postMessage('cortar');
     pintar(d);
   };
-  ws.onclose = () => { cerrarMicro(); $('e').textContent = 'Sin conexión con el PC…'; setTimeout(conectar, 2000); };
+  ws.onclose = e => {
+    cerrarMicro();
+    if (e.code === 4000) {  // otra pantalla ha abierto Delta: no reconectar sola, o las dos se echarían sin fin
+      estado = 'otra';
+      document.body.className = '';
+      $('e').textContent = 'Abierta en otro sitio';
+      $('ayuda').textContent = 'Toca para traerla aquí';
+      return;
+    }
+    $('e').textContent = 'Sin conexión con el PC…';
+    setTimeout(conectar, 2000);
+  };
 }
 
 $('orbe').onclick = async () => {
+  if (estado === 'otra') { estado = 'dormida'; return conectar(); }
   if (!ws || ws.readyState !== 1 || estado === 'privacidad') return;
   if (estado === 'escuchando' || estado === 'hablando') {
     altavoz && altavoz.port.postMessage('cortar');

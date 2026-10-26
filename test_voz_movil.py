@@ -58,7 +58,10 @@ async def main():
         assert (await ws.receive_json(timeout=2)) == {"cortar": 1}
         acciones.ST["activo"] = False  # se duerme: todo vuelve al PC
         assert not voz_movil.manda()
-        await ws.close()
+        otra = await c.ws_connect("/movil/ws", headers={"Origin": "http://127.0.0.1:7876"})
+        await ws.receive(timeout=2)  # otra pantalla le quita el sitio: se cierra con OTRA, para no reconectar sola
+        assert ws.closed and ws.close_code == voz_movil.OTRA, ws.close_code
+        await otra.close()
     print("OK: Tailscale solo deja /movil al dueño, el WS exige Origin y lleva micro, voz y corte")
 
 

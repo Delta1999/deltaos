@@ -16,7 +16,8 @@ import panel
 
 MIC_MAX = 16000 * 2  # 1 s de micro del móvil (16 kHz mono s16le): si Delta no lo consume, lo viejo sobra
 COLCHON = 16000 * 2 // 5  # 200 ms de micro del móvil guardados antes de dárselos a Delta
-COLA_MAX = 600       # trozos de voz para el móvil (~1 min): si se llena, el móvil no da abasto y se tira
+OTRA = 4000  # cierre del WS «te ha quitado el sitio otra pantalla»: si se reconectara sola, dos se echarían sin fin
+COLA_MAX = 600      # trozos de voz para el móvil (~1 min): si se llena, el móvil no da abasto y se tira
 
 _MIC = bytearray()
 _HUECO = {"si": True}  # el micro del móvil se vació: juntando colchón otra vez
@@ -110,8 +111,8 @@ async def _ws(request):
         raise web.HTTPForbidden()
     ws = web.WebSocketResponse(heartbeat=20, max_msg_size=1 << 20)
     await ws.prepare(request)
-    if _CLI["ws"] is not None:  # otra pestaña o el móvil reconectando: manda la última
-        await _CLI["ws"].close()
+    if _CLI["ws"] is not None:  # otra pestaña u otro móvil: manda la última; la echada no vuelve sola (ver OTRA)
+        await _CLI["ws"].close(code=OTRA)
     cola = asyncio.Queue(COLA_MAX)
     _CLI.update(ws=ws, cola=cola)
     MANDA["si"] = False
