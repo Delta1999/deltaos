@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-26",
+  "t": "Los avisos al móvil (impresión, recordatorios, alarmas, Claude Code) ahora llegan como notificación del navegador desde la web de Delta, aunque la web esté cerrada y sin depender de KDE Connect. Se activan una vez con el botón «Activar avisos» de la página Sistema.",
+  "como": "Página Sistema de la web del móvil → Activar avisos",
+  "voz": false
+ },
+ {
+  "f": "2026-10-26",
   "t": "Las notificaciones del móvil (solo WhatsApp y las del sistema) salen en la agenda del panel y se pueden pulsar: se abre una ventana con el mensaje y, si admite respuesta, escribes y pulsas Enviar (Ctrl+Enter). Los archivos adjuntos no llegan: KDE Connect solo pasa el texto.",
   "como": "Pulsa una notificación del móvil en la tarjeta Agenda",
   "voz": false

@@ -17,6 +17,8 @@ websockets==13.1
 
 # Panel web (127.0.0.1:7876) y peticiones HTTP
 aiohttp==3.14.5
+pywebpush==2.5.0  # avisos al móvil como notificación del navegador (avisos_web.py)
+py-vapid==1.9.6
 httpx==0.28.1
 requests==2.34.2
 

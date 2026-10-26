@@ -100,10 +100,11 @@ main{display:grid;place-items:center;min-height:0}
 .dias>div{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:baseline;padding:7px 0;border-top:1px solid var(--border-visible);font-size:14px}
 .dias>div:first-child{border-top:0}
 .dias b{font-weight:inherit;color:var(--text-display)}
-#apagar{font:inherit;font-size:17px;color:var(--accent);background:transparent;border:1px solid var(--accent);
+#apagar,#avisos{font:inherit;font-size:17px;color:var(--accent);background:transparent;border:1px solid var(--accent);
   border-radius:12px;padding:16px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em}
+#avisos{color:var(--text-display);border-color:var(--text-display)}
 #apagar:active{background:var(--accent);color:var(--bg,#fff)}
-#apagar:disabled{opacity:.5}
+#apagar:disabled,#avisos:disabled{opacity:.5}
 .nota{font-size:13px;color:var(--text-secondary);line-height:1.4}
 
 /* la línea del día (grande) y la semana */
@@ -170,6 +171,9 @@ footer{display:flex;justify-content:space-between;align-items:center}
     <span class="lbl">Semana</span><div id="semg" class="sem"></div>
     <span class="lbl">Avisos</span><div id="lista" class="lista"></div></section>
   <section class="pag" id="p4" aria-label="Sistema"><span class="lbl">Sistema</span><div id="p4c"></div>
+    <span class="lbl">Avisos en este móvil</span>
+    <button id="avisos" type="button">Activar avisos</button>
+    <div class="nota" id="avisosnota"></div>
     <span class="lbl">Ordenador</span>
     <button id="apagar" type="button">Apagar el PC</button>
     <div class="nota" id="apagarnota">Sin preguntar: al tocarlo, el PC se apaga en unos segundos.</div></section>
@@ -201,7 +205,7 @@ footer{display:flex;justify-content:space-between;align-items:center}
     <li>«¿Qué ves en mi pantalla?» · «Abre Firefox»</li>
     <li>«Sube el volumen al 40 %» · «Silencia»</li></ul></section>
   <section><span class="lbl">Tu móvil</span><ul>
-    <li>«¿Qué notificaciones tengo?»</li><li>«Hazme sonar el móvil»</li><li>Página Sistema: botón para apagar el PC</li><li>«Envíame esta captura al móvil»</li></ul></section>
+    <li>«¿Qué notificaciones tengo?»</li><li>«Hazme sonar el móvil»</li><li>Página Sistema: activar los avisos como notificación · apagar el PC</li><li>«Envíame esta captura al móvil»</li></ul></section>
 </div>
 <footer><span class="lbl" id="sis">CPU --% · RAM --%</span><span class="lbl">Delta mini</span></footer>
 <script type="module">
@@ -313,7 +317,7 @@ function ver() {
   l.className = 'lamp ' + (!S ? 'mal' : con ? 'ok' : '');
   l.lastChild.textContent = !S ? 'Sin enlace' : con ? 'Enlace' : 'Reposo';
   if (!S) return;
-  pagImp(); pagClima(); pagDia(); pagSis();
+  pagImp(); pagClima(); pagDia(); pagSis(); avisosAlConectar();
   $('sis').textContent = `CPU ${S.sis.cpu ?? '--'}% · RAM ${S.sis.ram ?? '--'}%${S.sis.temp != null ? ' · ' + S.sis.temp + '°' : ''}`;
   const f = $('f');
   f.innerHTML = '';
@@ -408,6 +412,38 @@ function pagDia() {
   }).join('') : '<p class="vacio">Sin avisos en los próximos 7 días.</p>';
 }
 setInterval(() => { if (S) pagDia(); }, 30000);
+
+// ---- avisos como notificación (Web Push: llegan aunque esta web esté cerrada) ----
+const b64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), c => c.charCodeAt(0));
+async function suscripcion(pedir) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) throw 'Este navegador no admite avisos.';
+  if (pedir && Notification.permission !== 'granted' && await Notification.requestPermission() !== 'granted') throw 'Permiso denegado: actívalo en los ajustes del navegador para esta web.';
+  if (Notification.permission !== 'granted') return null;
+  const reg = await navigator.serviceWorker.register('/movil/sw.js');
+  const sw = reg.installing || reg.waiting || reg.active;
+  if (sw.state !== 'activated') await new Promise(r => sw.addEventListener('statechange', () => sw.state === 'activated' && r()));
+  return await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64(S.push.clave)});
+}
+function notaAvisos(t) { $('avisosnota').textContent = t; }
+async function avisos(pedir) {
+  try {
+    const s = S && S.push && ws && ws.readyState === 1 ? await suscripcion(pedir) : null;
+    if (s) {
+      ws.send(JSON.stringify({cmd: 'suscribir', sub: s.toJSON()}));
+      $('avisos').textContent = 'Probar aviso';
+      notaAvisos('Activados: te llegan como notificación, con esta web cerrada también.');
+      if (pedir) ws.send(JSON.stringify({cmd: 'probar_aviso'}));
+    } else if (pedir) notaAvisos('Sin conexión con Delta: inténtalo otra vez.');
+  } catch (e) { notaAvisos(String(e.message || e)); }
+}
+$('avisos').onclick = () => avisos(true);
+let avisosSync = false;
+function avisosAlConectar() {  // si ya dio permiso, se apunta sola al abrir (el endpoint puede haber cambiado)
+  if (avisosSync || !S || !S.push || !('Notification' in window)) return;
+  avisosSync = true;
+  if (Notification.permission === 'granted') avisos(false);
+  else notaAvisos(Notification.permission === 'denied' ? 'Bloqueados en los ajustes del navegador para esta web.' : 'Toca el botón para recibir notificaciones de impresión, recordatorios y Claude.');
+}
 
 // ---- apagar el PC (sin preguntar, lo pidió el dueño; el WS ya solo deja entrar a su cuenta) ----
 $('apagar').onclick = () => {

@@ -13,6 +13,7 @@ import time
 from aiohttp import web
 
 import acciones
+import avisos_web
 import panel
 
 MIC_MAX = 16000 * 2 * 10  # 10 s de micro del móvil (16 kHz mono s16le): lo que tarda Delta en conectar al despertar, sin perder lo dicho
@@ -111,6 +112,7 @@ def _estado():
     return {"e": e, "o": panel._estado(st), "tema": panel.S.get("tema", "nothing"),
             "con": "conectado" if st["session"] else "en reposo" if st.get("reposo") else "reconectando",
             "sis": {k: s.get(k) for k in ("cpu", "ram", "temp")}, "cl": cl, "im": im, "sem": sem,
+            "push": {"clave": avisos_web.clave_publica(), "n": avisos_web.cuantas()},
             "f": [{"rol": f["rol"], "t": f["t"][-300:]} for f in panel.S["frases"][-4:]]}
 
 
@@ -156,7 +158,8 @@ async def _ws(request):
                         ESTAD["tiradas"] += len(_MIC) - MIC_MAX
                         del _MIC[:-MIC_MAX]
             elif m.type == web.WSMsgType.TEXT:
-                cmd = json.loads(m.data).get("cmd")
+                msg = json.loads(m.data)
+                cmd = msg.get("cmd")
                 if cmd:
                     print(f"📱 móvil: {cmd}")
                 if cmd == "hablar" and not acciones.ST.get("privacidad"):
@@ -166,6 +169,10 @@ async def _ws(request):
                     acciones.activar()
                 elif cmd == "dormir" and manda():
                     acciones.dormir_ahora()
+                elif cmd == "suscribir":  # el móvil se apunta a los avisos como notificación
+                    print(f"📱 móvil: suscripción a avisos {'guardada' if avisos_web.suscribir(msg.get('sub')) else 'rechazada'}")
+                elif cmd == "probar_aviso":
+                    acciones.tarea(avisos_web.push("Prueba: los avisos de Delta te llegan a este móvil"))
                 elif cmd == "apagar":  # a petición del dueño (26/10/2026): desde su móvil se apaga sin preguntar
                     import deltaos
                     print(f"📱 móvil: {await deltaos.energia('apagar')}")
@@ -185,6 +192,11 @@ async def _pagina(request):
     return web.FileResponse(acciones.AQUI / "panel" / "movil.html", headers={"Cache-Control": "no-cache"})
 
 
+async def _sw(request):
+    return web.FileResponse(acciones.AQUI / "panel" / "sw.js", headers={"Cache-Control": "no-cache"})
+
+
 panel.RUTAS.append(("/movil", _pagina))
+panel.RUTAS.append(("/movil/sw.js", _sw))
 panel.RUTAS.append(("/movil/ws", _ws))
 panel.POR_TAILSCALE = permitido

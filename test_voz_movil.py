@@ -3,15 +3,20 @@ Delta con el micro del móvil y le lleva la voz (y el corte si el usuario habla 
 import asyncio
 import json
 import sys
+import tempfile
 import types
+from pathlib import Path
 
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 
 import acciones
+import avisos_web
 import panel
 import voz_movil
 
+_d = Path(tempfile.mkdtemp())  # las suscripciones y la clave de la prueba, no las de verdad
+avisos_web.CLAVE, avisos_web.SUSCR = _d / "clave.pem", _d / "suscr.json"
 APAGADOS = []
 
 
@@ -40,6 +45,9 @@ async def main():
         assert (await c.get("/movil", headers={"Host": TS, "Tailscale-User-Login": "yo@ejemplo"})).status == 200
         assert (await c.get("/")).status == 200  # en local, el panel como siempre
         dueno = {"Host": TS, "Tailscale-User-Login": "yo@ejemplo"}
+        r = await c.get("/movil/sw.js", headers=dueno)  # el service worker de los avisos: sí, y solo al dueño
+        assert r.status == 200 and "showNotification" in await r.text()
+        assert (await c.get("/movil/sw.js", headers={"Host": TS})).status == 403
         for ruta in ("/orbe.js", "/fonts/doto-400.ttf"):  # lo que carga la web del móvil: sí, y solo al dueño
             assert (await c.get(ruta, headers=dueno)).status == 200, ruta
             assert (await c.get(ruta, headers={"Host": TS})).status == 403, ruta
@@ -55,6 +63,7 @@ async def main():
                                                       "Tailscale-User-Login": "yo@ejemplo"})
         est = await ws.receive_json()
         assert est["e"] == "dormida" and est["o"] == "dormido" and est["tema"] in ("nothing", "ios")
+        assert est["push"]["clave"] and est["push"]["n"] == avisos_web.cuantas()  # con qué clave se suscribe el móvil
         assert set(est["sis"]) == {"cpu", "ram", "temp"} and "con" in est  # lo que pinta el orbe de la web
         panel.S["clima"] = {"temp": 18, "sens": 17, "hum": 60, "desc": "Despejado", "ciudad": "Sevilla", "min": 11, "max": 22,
                             "lluvia": 5, "viento": 9, "dir": "NO", "uv": 3, "sale": 450, "pone": 1110, "code": 113, "presion": 1015,
@@ -85,13 +94,18 @@ async def main():
         voz_movil.audio(b"\x08" * 4)
         voz_movil.cortar()  # lo pendiente se tira y el móvil recibe el corte
         assert (await ws.receive_json(timeout=2)) == {"cortar": 1}
+        sus = {"endpoint": "https://push.ejemplo/yo", "keys": {"p256dh": "a", "auth": "b"}}
+        await ws.send_str(json.dumps({"cmd": "suscribir", "sub": sus}))  # el móvil se apunta a los avisos
+        await asyncio.sleep(0.2)
+        assert any(s["endpoint"] == sus["endpoint"] for s in avisos_web._leer())
         await ws.send_str(json.dumps({"cmd": "apagar"}))  # el botón del móvil apaga sin preguntar
         await asyncio.sleep(0.2)
         assert APAGADOS == ["apagar"], APAGADOS
         acciones.ST["activo"] = False  # se duerme: todo vuelve al PC
         assert not voz_movil.manda()
         otra = await c.ws_connect("/movil/ws", headers={"Origin": "http://127.0.0.1:7876"})
-        await ws.receive(timeout=2)  # otra pantalla le quita el sitio: se cierra con OTRA, para no reconectar sola
+        while not ws.closed:
+            await ws.receive(timeout=2)  # (pueden colarse estados) otra pantalla le quita el sitio: se cierra con OTRA, para no reconectar sola
         assert ws.closed and ws.close_code == voz_movil.OTRA, ws.close_code
         await otra.close()
     print("OK: Tailscale solo deja /movil al dueño, el WS exige Origin y lleva micro, voz y corte")

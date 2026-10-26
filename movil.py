@@ -42,22 +42,6 @@ def permitida(n):
     return any(k in app for k in PERMITIDAS)
 
 
-async def push(texto):
-    """Notificación en el móvil (un «ping» de KDE Connect con mensaje). Si no está a mano, se pierde: no se encola."""
-    try:
-        d = await _movil()
-        if not d:
-            print(f"📱 sin móvil a mano, aviso perdido: {texto}")
-            return False
-        rc, out = await _run(["kdeconnect-cli", "-d", d, "--ping-msg", texto[:200]], timeout=10)
-        if rc != 0:
-            print(f"📱 el aviso no llegó: {out}")
-        return rc == 0
-    except Exception as e:
-        print(f"📱 aviso al móvil: {e}")
-        return False
-
-
 async def _notificaciones(d):
     ruta = f"/modules/kdeconnect/devices/{d}/notifications"
     _, ids = await _run(["qdbus-qt6", KDC, ruta, f"{_NOTIF}.activeNotifications"], timeout=10)
@@ -221,7 +205,6 @@ async def enviar_imagen_movil(ruta=""):
             if rc == 0 else f"Error al enviar la imagen al móvil: {out}")
 
 
-acciones.PUSH_MOVIL = push
 acciones.registrar([
     _fn("notificaciones_movil", "Lee las notificaciones del móvil del usuario (WhatsApp, Telegram, correo, llamadas…)."),
     _fn("responder_notificacion",
