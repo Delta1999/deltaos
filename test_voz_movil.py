@@ -19,7 +19,8 @@ async def main():
     app = web.Application(middlewares=[panel._guardia])
     for ruta, h in panel.RUTAS:
         app.router.add_get(ruta, h)
-    app.router.add_get("/", lambda r: web.Response(text="panel"))
+    for ruta in ("/", "/orbe.js", "/fondo.js", "/fonts/doto-400.ttf", "/impresora/vivo"):
+        app.router.add_get(ruta, lambda r: web.Response(text="panel"))
     async with TestClient(TestServer(app, host="127.0.0.1")) as c:
         # por Tailscale: el panel no, /movil sí pero solo con la cuenta dueña
         assert (await c.get("/", headers={"Host": TS, "Tailscale-User-Login": "yo@ejemplo"})).status == 403
@@ -27,6 +28,12 @@ async def main():
         assert (await c.get("/movil", headers={"Host": TS, "Tailscale-User-Login": "otro@x"})).status == 403
         assert (await c.get("/movil", headers={"Host": TS, "Tailscale-User-Login": "yo@ejemplo"})).status == 200
         assert (await c.get("/")).status == 200  # en local, el panel como siempre
+        dueno = {"Host": TS, "Tailscale-User-Login": "yo@ejemplo"}
+        for ruta in ("/orbe.js", "/fonts/doto-400.ttf"):  # lo que carga la web del móvil: sí, y solo al dueño
+            assert (await c.get(ruta, headers=dueno)).status == 200, ruta
+            assert (await c.get(ruta, headers={"Host": TS})).status == 403, ruta
+        for ruta in ("/fondo.js", "/impresora/vivo"):  # el resto del panel, ni al dueño
+            assert (await c.get(ruta, headers=dueno)).status == 403, ruta
         # WebSocket: sin Origin de los nuestros, fuera
         r = await c.get("/movil/ws", headers={"Origin": "https://malo.example", "Connection": "Upgrade",
                                               "Upgrade": "websocket", "Sec-WebSocket-Version": "13",
@@ -35,7 +42,9 @@ async def main():
         acciones.ST["activo"] = False
         ws = await c.ws_connect("/movil/ws", headers={"Origin": f"https://{TS}", "Host": TS,
                                                       "Tailscale-User-Login": "yo@ejemplo"})
-        assert (await ws.receive_json())["e"] == "dormida"
+        est = await ws.receive_json()
+        assert est["e"] == "dormida" and est["o"] == "dormido" and est["tema"] in ("nothing", "ios")
+        assert set(est["sis"]) == {"cpu", "ram", "temp"} and "con" in est  # lo que pinta el orbe de la web
         await ws.send_bytes(b"\x05\x05")  # antes de tocar el orbe, el micro del móvil no cuenta
         await ws.send_str(json.dumps({"cmd": "hablar"}))
         assert (await ws.receive_json(timeout=2))["e"] == "escuchando"

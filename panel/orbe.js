@@ -57,7 +57,9 @@ export function pintar(cv, d) {
   giro += dt * (.10 + (hablando ? .30 : est === 'trabajando' ? .22 : 0) + voz * .5);
 
   x.clearRect(0, 0, W, H);
-  const cx = W / 2, cy = H * .44, R = Math.min(H * .30, W * .23);
+  // d.mini: la web del móvil (/movil). La esfera más grande y centrada, y sin el rótulo de abajo, que
+  // no cabe en un móvil: ahí el logotipo y los datos van en HTML.
+  const mini = !!d.mini, cx = W / 2, cy = H * (mini ? .5 : .44), R = Math.min(H * .30, W * .23) * (mini ? 1.65 : 1);
   const nac = suave(t / ARR);                       // sale del ecuador hacia los polos
   const paso = Math.ceil(PAR / 2 * nac);            // en pasos discretos: aparece un paralelo, luego otro
 
@@ -101,7 +103,7 @@ export function pintar(cv, d) {
     trazar(x, ani, colores.red, a, k * (1 + Math.min(1, voz * 2)));
   }
 
-  if (nac < 1) return;
+  if (nac < 1 || mini) return;
   pie(x, W, H, cy + R * 1.28, d, t, k);
 }
 

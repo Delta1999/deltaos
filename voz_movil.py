@@ -36,6 +36,7 @@ def _tailscale():
         return None, None
 
 
+WEB_MOVIL = ("/movil", "/orbe.js")  # lo que carga la web del móvil además de /movil/ws y las fuentes
 ORIGEN_TS, DUENO = _tailscale()
 ORIGENES = panel.ORIGENES | ({ORIGEN_TS} if ORIGEN_TS else set())
 
@@ -43,8 +44,8 @@ ORIGENES = panel.ORIGENES | ({ORIGEN_TS} if ORIGEN_TS else set())
 def permitido(request):
     """Petición llegada por tailscale serve: solo la web del móvil y solo la cuenta dueña de este PC
     (tailscale serve pone Tailscale-User-Login y quita el que traiga el cliente)."""
-    return (request.path == "/movil" or request.path.startswith("/movil/")) and DUENO is not None \
-        and request.headers.get("Tailscale-User-Login") == DUENO
+    return DUENO is not None and request.headers.get("Tailscale-User-Login") == DUENO \
+        and (request.path in WEB_MOVIL or request.path.startswith(("/movil/", "/fonts/")))
 
 
 def manda():
@@ -87,7 +88,12 @@ def _estado():
     st = acciones.ST
     e = ("privacidad" if st.get("privacidad") else "dormida" if not st["activo"]
          else "en el PC" if not manda() else "hablando" if st.get("hablando") else "escuchando")
-    return {"e": e, "f": [{"rol": f["rol"], "t": f["t"][-300:]} for f in panel.S["frases"][-4:]]}
+    s = panel.S.get("sistema") or {}
+    # «o»: el estado del orbe (el mismo que el del panel); «e»: lo que el móvil puede hacer con él
+    return {"e": e, "o": panel._estado(st), "tema": panel.S.get("tema", "nothing"),
+            "con": "conectado" if st["session"] else "en reposo" if st.get("reposo") else "reconectando",
+            "sis": {k: s.get(k) for k in ("cpu", "ram", "temp")},
+            "f": [{"rol": f["rol"], "t": f["t"][-300:]} for f in panel.S["frases"][-4:]]}
 
 
 async def _enviar(ws, cola):
