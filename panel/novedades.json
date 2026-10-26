@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-26",
+  "t": "Las notificaciones del móvil (solo WhatsApp y las del sistema) salen en la agenda del panel y se pueden pulsar: se abre una ventana con el mensaje y, si admite respuesta, escribes y pulsas Enviar (Ctrl+Enter). Los archivos adjuntos no llegan: KDE Connect solo pasa el texto.",
+  "como": "Pulsa una notificación del móvil en la tarjeta Agenda",
+  "voz": false
+ },
+ {
+  "f": "2026-10-26",
   "t": "Los avisos llegan también al móvil como notificación: impresión terminada o detenida, recordatorios y alarmas, y cuando acaba un trabajo o una sesión de Claude Code. En la web del móvil hay una página «Sistema» con un botón para apagar el PC sin preguntar. Del móvil solo se leen las notificaciones de WhatsApp y del sistema.",
   "como": "Desliza a la página Sistema de la web del móvil",
   "voz": false

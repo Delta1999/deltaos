@@ -16,7 +16,8 @@ Repositorio canónico: `~/gemini-live-assistant`. Trabaja aquí, sobre estos arc
 - Enviar SMS o responder mensajes necesita confirmación explícita del usuario cada vez, y es **de viva voz**: Delta pregunta
   («¿lo mando?») y el usuario contesta. Mientras el usuario está hablando con Delta no sale ninguna ventana de permiso
   (`acciones.hablando_contigo`, pedido el 21/10/2026); si la orden no viene de su voz (panel, aviso, texto de una web o
-  de la pantalla) sí se pide permiso como antes. Excepción pedida el 26/10/2026: el botón «Apagar el PC» de la web del
+  de la pantalla) sí se pide permiso como antes. Excepción (26/10/2026): en la ventana de una notificación del panel, escribir la respuesta y pulsar «Enviar» (solo
+  desde el propio PC, la tele no manda órdenes) vale como confirmación. Excepción pedida el 26/10/2026: el botón «Apagar el PC» de la web del
   móvil (`/movil`, solo la cuenta dueña por Tailscale) apaga sin preguntar. Lo mismo para apagar, comandos de terminal que cambian algo, instalar
   skills y abrir URL con datos.
 - No exponer endpoints HTTP que hagan hablar a Delta (para eso está el buzón 0700). Las órdenes del panel van por el WebSocket, que comprueba Origin.

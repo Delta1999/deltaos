@@ -324,7 +324,7 @@ async def _poll_agenda():
             try:
                 d = await movil._movil()
                 # solo app y remitente: el panel puede estar en la tele
-                S["movil"] = [{"app": x.get("appName", ""), "quien": x.get("title", "")} for x in await movil._notificaciones(d)] if d else None
+                S["movil"] = [{"id": x["id"], "app": x.get("appName", ""), "quien": x.get("title", ""), "resp": bool(x.get("replyId"))} for x in await movil._notificaciones(d)] if d else None
             except Exception:
                 pass
         n += 1
@@ -685,6 +685,13 @@ async def _ws(request):
                     _pegar(request.app["ST"], msg["pegar"])
                 if isinstance(msg.get("encargo"), str) and msg["encargo"].strip():  # delta_pide.py (Claude Code)
                     await acciones.encargo_claude(msg["encargo"].strip()[:2000])
+                if isinstance(msg.get("notif_abrir"), str):  # clic en una notificación del móvil: su texto, solo a quien pregunta
+                    import movil
+                    await ws.send_str(json.dumps({"notif": await movil.notificacion(msg["notif_abrir"])}))
+                if isinstance(msg.get("notif_responder"), dict):  # el «Enviar» de la ventana: lo escribe y lo pulsa el usuario
+                    import movil
+                    r = msg["notif_responder"]
+                    await ws.send_str(json.dumps({"notif_res": await movil.responder_id(str(r.get("id")), str(r.get("texto", ""))[:1000])}))
                 if msg.get("cmd") in ("privacidad", "modo", "dormir", "permitir", "denegar", "cerrar_visor", "quitar_tarjeta", "vista_panel", "tiempo", "reset_estable", "tema_nothing", "tema_ios", "cambiar_tema"):
                     _cmd(request.app["ST"], msg["cmd"])
                 g = msg.get("geo")

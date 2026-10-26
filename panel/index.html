@@ -476,6 +476,12 @@ canvas{width:100%;flex:1;min-height:0;display:block}
 footer{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.15fr) minmax(0,.75fr) minmax(0,1.3fr);gap:24px}
 #imp .big{font-size:38px}
 .ag{font-family:var(--mono);display:grid;grid-template-columns:52px 1fr auto;gap:10px;font-size:12px;margin-top:8px}
+.ag.nt{cursor:pointer}.ag.nt:hover span{color:var(--text-display)}
+#notif{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9;display:none;align-items:center;justify-content:center}body.notif #notif{display:flex}
+#notif .card{width:min(560px,90vw);display:flex;flex-direction:column;gap:14px}
+#ntxt{font-size:15px;line-height:1.5;white-space:pre-wrap;color:var(--text-primary);max-height:40vh;overflow-y:auto}
+#nresp{height:90px;resize:none;background:var(--surface-raised);color:var(--text-primary);border:1px solid var(--border-visible);border-radius:8px;padding:12px;font:14px/1.5 var(--sans);outline:none}#nresp:focus{border-color:var(--text-primary)}
+#notif .pie{display:flex;justify-content:space-between;align-items:center;gap:12px}#ninfo{font-family:var(--mono);color:var(--text-secondary);font-size:12px}
 .ag span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--sans)}
 .ag b{font-weight:500;color:var(--text-primary)}.ag .act{color:var(--text-display);font-weight:700}
 .big{font-size:52px;line-height:1;margin:10px 0;color:var(--text-display)}
@@ -1112,6 +1118,9 @@ body.widget :is(#t-card,#t-web).on{display:flex;flex-direction:column;min-height
 <div id="pegar"><section class="card"><span class="lbl">Contexto para Delta · pega o escribe; lo tendrá en cuenta en lo que estéis haciendo</span>
   <textarea id="ptxt" placeholder="Pega aquí apuntes, un correo, un enunciado, un trozo de código…" spellcheck="false"></textarea>
   <div class="pie"><span id="pinfo"></span><span><button class="btn" id="p-borrar">Olvidar</button> <button class="btn" id="pegar-cerrar">Cerrar</button> <button class="btn on" id="p-dar">Dárselo a Delta · Ctrl+Enter</button></span></div></section></div>
+<div id="notif"><section class="card"><span class="lbl" id="ntit"></span><div id="ntxt"></div>
+  <textarea id="nresp" placeholder="Tu respuesta…" spellcheck="false"></textarea>
+  <div class="pie"><span id="ninfo"></span><span><button class="btn" id="n-cerrar">Cerrar</button> <button class="btn on" id="n-enviar">Enviar · Ctrl+Enter</button></span></div></section></div>
 <div id="cel"><canvas id="cv2"></canvas><div class="dot">LISTO</div><p id="celtxt"></p></div>
 
 <script>
@@ -1379,7 +1388,7 @@ function _pintar(d){
    (tr.length?`<div class="lbl" style="margin-top:16px">En curso</div>`+tr.map(([n])=>{const g=(d.progreso||{})[n]||{};
      return `<div class="ag"><b class="act">${g.pct==null?'●':g.pct+'%'}</b><span>${esc(n)}${g.etapa?' · '+esc(g.etapa):''}</span><span class="lbl">${g.ini?mmss(ahora/1e3-g.ini):''}</span></div>`+(g.pct!=null?bar(g.pct,'act'):'')}).join(''):'')+
    `<div class="lbl" style="margin-top:16px">Móvil${mv?' · '+mv.length:''}</div>`+(mv==null?'<div class="vacio">No conectado.</div>':d.priv?'<div class="vacio">Oculto (privacidad).</div>':
-    grupos.slice(0,4).map(([app,q])=>`<div class="ag"><b>${q.length}</b><span>${esc(app)} · ${esc([...new Set(q)].join(', '))}</span><span></span></div>`).join('')||'<div class="vacio">Sin notificaciones.</div>'));
+    mv.slice(0,4).map(x=>`<div class="ag nt" data-nid="${esc(x.id)}" title="Clic: abrir"><b>${x.resp?'↩':'·'}</b><span>${esc(x.app)} · ${esc(x.quien)}</span><span></span></div>`).join('')+(mv.length>4?`<div class="vacio">+${mv.length-4} más</div>`:'')||'<div class="vacio">Sin notificaciones.</div>'));
 
   const s=d.sistema||{};
   $html('sis',`<span class="lbl">Sistema</span>`+[['RAM',s.ram,'%','ram'],['SWAP',s.swap,'%','swap'],['CPU',s.cpu,'%'],['TEMP',s.temp,' °C','temp']].map(([n,v,u,m])=>
@@ -1631,7 +1640,21 @@ if(location.hash==='#celebra')setTimeout(()=>celebrar({archivo:'demo.gcode',tota
 
 /* ---------- conexión ---------- */
 function geo(w){try{navigator.geolocation.getCurrentPosition(p=>w.readyState===1&&w.send(JSON.stringify({geo:[p.coords.latitude,p.coords.longitude,p.coords.accuracy]})),()=>{},{maximumAge:36e5,timeout:20000})}catch(e){}}
-let WS=null;const cmd=c=>WS&&WS.readyState===1&&WS.send(JSON.stringify({cmd:c}));
+let WS=null;
+// notificaciones del móvil: clic en una de la agenda → ventana con su texto y, si admite respuesta, para contestarla
+let NID=null;
+const notifCerrar=()=>{document.body.classList.remove('notif');NID=null};
+const notifAbrir=n=>{if(!n){$('ninfo').textContent='Ya no está (o hay privacidad).';return}
+  NID=n.id;$('ntit').textContent=`${n.app} · ${n.quien}`;$('ntxt').textContent=n.texto||'(sin texto)';$('nresp').value='';$('ninfo').textContent='';
+  $('nresp').style.display=$('n-enviar').style.display=n.resp?'':'none';document.body.classList.add('notif');if(n.resp)$('nresp').focus()};
+const notifEnviar=()=>{const t=$('nresp').value.trim();if(!t||NID==null||!WS||WS.readyState!==1)return;
+  WS.send(JSON.stringify({notif_responder:{id:NID,texto:t}}));$('ninfo').textContent='Enviando…'};
+window.addEventListener('click',e=>{const r=e.target.closest('.nt');if(r&&WS&&WS.readyState===1)WS.send(JSON.stringify({notif_abrir:r.dataset.nid}))});
+$('n-cerrar').addEventListener('click',notifCerrar);$('n-enviar').addEventListener('click',notifEnviar);
+$('nresp').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();notifEnviar()}});
+$('notif').addEventListener('click',e=>{if(e.target===$('notif'))notifCerrar()});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('notif'))notifCerrar()});
+const cmd=c=>WS&&WS.readyState===1&&WS.send(JSON.stringify({cmd:c}));
 
 /* ---------- el orbe flotante (?widget=1) ----------
    Los clics los recoge orbe_flotante.py (la ventana es transparente y solo el orbe recibe ratón) y
@@ -1689,7 +1712,7 @@ const elSis=$('sis'); if(elSis) elSis.addEventListener('click',()=>window.pantal
 const elClima=$('clima'); if(elClima){elClima.style.cursor='pointer';elClima.title='Abrir Nothing Weather';elClima.addEventListener('click',()=>cmd('tiempo'))};
 [['p-card-cerrar','quitar_tarjeta'],['b-cerrar','cerrar_visor'],['b-priv','privacidad'],['b-modo','modo'],['b-tema','cambiar_tema'],['b-si','permitir'],['b-no','denegar']].forEach(([i,c])=>{const el=$(i);if(el)el.addEventListener('click',()=>cmd(c))});
 function ws(){const w=WS=new WebSocket(`ws://${location.host}/ws`);w.onopen=()=>geo(w);
-  w.onmessage=m=>{try{const d=JSON.parse(m.data);if(d.v){if(window._v===undefined){window._v=d.v}else if(d.v!==window._v){window._v=d.v;location.reload();return}}pintar(d);const lp=$('lapiz');if(lp)lp.classList.toggle('lleno',!!d.pegado);window.fondoEspera&&window.fondoEspera(d)}catch(err){console.error('Error ws onmessage:',err);if(window.__reportError)window.__reportError(err.message,'index.html',err.lineNumber||0,0,err)}};
+  w.onmessage=m=>{try{const d=JSON.parse(m.data);if(d.notif!==undefined){notifAbrir(d.notif);return}if(d.notif_res!==undefined){if(d.notif_res==='ok')notifCerrar();else $('ninfo').textContent=d.notif_res;return}if(d.v){if(window._v===undefined){window._v=d.v}else if(d.v!==window._v){window._v=d.v;location.reload();return}}pintar(d);const lp=$('lapiz');if(lp)lp.classList.toggle('lleno',!!d.pegado);window.fondoEspera&&window.fondoEspera(d)}catch(err){console.error('Error ws onmessage:',err);if(window.__reportError)window.__reportError(err.message,'index.html',err.lineNumber||0,0,err)}};
   w.onclose=()=>{if(S.conexion){S.sinPanel=true;pintar(S)}setTimeout(ws,2000)}}
 fit();ws();requestAnimationFrame(t=>dibuja(t/1000));
 </script>

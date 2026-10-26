@@ -66,9 +66,31 @@ async def _notificaciones(d):
         _, props = await _run(["qdbus-qt6", KDC, f"{ruta}/{nid}", "org.freedesktop.DBus.Properties.GetAll",
                                f"{_NOTIF}.notification"], timeout=10)
         n = dict(re.findall(r"^(\w+): (.*)$", props, re.M))
+        n["id"] = nid
         if n.get("silent") != "true" and (n.get("title") or n.get("text")) and permitida(n):
             lista.append(n)
     return lista
+
+
+async def notificacion(nid):
+    """Una notificación con su texto, para la ventana del panel (el texto no se difunde: el panel puede estar en la tele)."""
+    if acciones.ST.get("privacidad"):
+        return None
+    d = await _movil()
+    n = next((n for n in await _notificaciones(d) if n["id"] == nid), None) if d else None
+    return n and {"id": nid, "app": n.get("appName", ""), "quien": n.get("title", ""), "texto": n.get("text", ""),
+                  "resp": bool(n.get("replyId"))}
+
+
+async def responder_id(nid, mensaje):
+    """Respuesta escrita y enviada por el usuario en la ventana del panel: su clic en «Enviar» es la confirmación."""
+    d = await _movil()
+    n = next((n for n in await _notificaciones(d) if n["id"] == nid and n.get("replyId")), None) if d else None
+    if not n or not mensaje.strip():
+        return "No se puede responder: la notificación ya no está o no admite respuesta."
+    rc, out = await _run(["qdbus-qt6", KDC, f"/modules/kdeconnect/devices/{d}/notifications",
+                          f"{_NOTIF}.sendReply", n["replyId"], mensaje], timeout=15)
+    return "ok" if rc == 0 else f"Error al responder: {out}"
 
 
 async def notificaciones_movil():
