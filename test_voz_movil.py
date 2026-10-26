@@ -2,6 +2,8 @@
 Delta con el micro del móvil y le lleva la voz (y el corte si el usuario habla encima)."""
 import asyncio
 import json
+import sys
+import types
 
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
@@ -10,6 +12,15 @@ import acciones
 import panel
 import voz_movil
 
+APAGADOS = []
+
+
+async def _energia(accion, minutos='0'):
+    APAGADOS.append(accion)
+    return 'Hecho'
+
+
+sys.modules['deltaos'] = types.SimpleNamespace(energia=_energia)  # el apagado real no se prueba
 acciones.activar = lambda: acciones.ST.update(activo=True)  # sin pitido ni música en la prueba
 voz_movil.DUENO, TS = "yo@ejemplo", "fedora.tail0.ts.net"
 voz_movil.ORIGENES.add(f"https://{TS}")
@@ -74,6 +85,9 @@ async def main():
         voz_movil.audio(b"\x08" * 4)
         voz_movil.cortar()  # lo pendiente se tira y el móvil recibe el corte
         assert (await ws.receive_json(timeout=2)) == {"cortar": 1}
+        await ws.send_str(json.dumps({"cmd": "apagar"}))  # el botón del móvil apaga sin preguntar
+        await asyncio.sleep(0.2)
+        assert APAGADOS == ["apagar"], APAGADOS
         acciones.ST["activo"] = False  # se duerme: todo vuelve al PC
         assert not voz_movil.manda()
         otra = await c.ws_connect("/movil/ws", headers={"Origin": "http://127.0.0.1:7876"})

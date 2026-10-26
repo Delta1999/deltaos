@@ -169,7 +169,8 @@ async def _turno(mensaje, propio=None, voz=True):
         _estado.update(estado="libre", ultimo="hecho")
         panel.notificar("info", f"Claude Code terminó: {(propio[0] if propio else mensaje)[:60]}")
         if voz:
-            await avisar(f"Claude Code ha terminado. Resume al usuario en una o dos frases: {final[-1200:]}")
+            await avisar(f"Claude Code ha terminado. Resume al usuario en una o dos frases: {final[-1200:]}",
+                         movil=f"Claude Code ha terminado: {(propio[0] if propio else mensaje)[:80]}")
     except asyncio.CancelledError:
         _estado["estado"] = "libre"
         raise

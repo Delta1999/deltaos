@@ -12,6 +12,10 @@ KDC = "org.kde.kdeconnect"
 NOMBRE = "Reno14 5G"   # si cambia de móvil: nombre tal como sale en kdeconnect-cli -l
 _NOTIF = "org.kde.kdeconnect.device.notifications"
 
+# Del móvil solo importan WhatsApp y los avisos del sistema (batería baja…); correos y demás ni se enseñan ni se leen.
+# Comparación por trozos del nombre de la app, sin mayúsculas ni acentos.
+PERMITIDAS = ("whatsapp", "android", "sistema", "system", "bater", "battery", "kde connect")
+
 EXTS_IMAGEN = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".bmp", ".avif"}
 CARPETAS_IMAGEN = [
     Path.home() / "Imágenes" / "Capturas de pantalla",
@@ -33,6 +37,27 @@ async def _movil():
     return None
 
 
+def permitida(n):
+    app = f"{n.get('appName', '')}".lower().replace("í", "i").replace("é", "e")
+    return any(k in app for k in PERMITIDAS)
+
+
+async def push(texto):
+    """Notificación en el móvil (un «ping» de KDE Connect con mensaje). Si no está a mano, se pierde: no se encola."""
+    try:
+        d = await _movil()
+        if not d:
+            print(f"📱 sin móvil a mano, aviso perdido: {texto}")
+            return False
+        rc, out = await _run(["kdeconnect-cli", "-d", d, "--ping-msg", texto[:200]], timeout=10)
+        if rc != 0:
+            print(f"📱 el aviso no llegó: {out}")
+        return rc == 0
+    except Exception as e:
+        print(f"📱 aviso al móvil: {e}")
+        return False
+
+
 async def _notificaciones(d):
     ruta = f"/modules/kdeconnect/devices/{d}/notifications"
     _, ids = await _run(["qdbus-qt6", KDC, ruta, f"{_NOTIF}.activeNotifications"], timeout=10)
@@ -41,7 +66,7 @@ async def _notificaciones(d):
         _, props = await _run(["qdbus-qt6", KDC, f"{ruta}/{nid}", "org.freedesktop.DBus.Properties.GetAll",
                                f"{_NOTIF}.notification"], timeout=10)
         n = dict(re.findall(r"^(\w+): (.*)$", props, re.M))
-        if n.get("silent") != "true" and (n.get("title") or n.get("text")):
+        if n.get("silent") != "true" and (n.get("title") or n.get("text")) and permitida(n):
             lista.append(n)
     return lista
 
@@ -174,6 +199,7 @@ async def enviar_imagen_movil(ruta=""):
             if rc == 0 else f"Error al enviar la imagen al móvil: {out}")
 
 
+acciones.PUSH_MOVIL = push
 acciones.registrar([
     _fn("notificaciones_movil", "Lee las notificaciones del móvil del usuario (WhatsApp, Telegram, correo, llamadas…)."),
     _fn("responder_notificacion",

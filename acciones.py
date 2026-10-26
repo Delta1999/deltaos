@@ -64,15 +64,19 @@ def dormir_ahora():
 
 
 PUERTA = None  # proactivo.py la pone; sin ese módulo, avisar() no filtra nada
+PUSH_MOVIL = None  # movil.py la pone: async f(texto) manda una notificación al móvil por KDE Connect
 
 
-async def avisar(texto: str, notificar=True, motivo=None, urgente=False, espera=0.0):
+async def avisar(texto: str, notificar=True, motivo=None, urgente=False, espera=0.0, movil=None):
     """Aviso proactivo: notificación de escritorio y el modelo lo dice en voz alta.
     Sin sesión (colgada en reposo o reconectando): se guarda y se despierta; assistant.py lo dice al conectar.
 
     Con «motivo» es Delta quien decide hablar, así que pasa por la puerta de proactivo.py
     (privacidad, no molestar, de noche, no repetirse). Sin motivo es algo que pidió el usuario
-    —una alarma, un recordatorio, un trabajo que termina— y eso no se filtra nunca."""
+    —una alarma, un recordatorio, un trabajo que termina— y eso no se filtra nunca.
+    «movil»: frase corta para el usuario que además sale como notificación en su móvil (el «texto» es para el modelo)."""
+    if movil and PUSH_MOVIL is not None:
+        tarea(PUSH_MOVIL(movil))
     if motivo is not None and PUERTA is not None:
         callar = PUERTA(motivo, urgente, espera)
         if callar:
@@ -215,7 +219,7 @@ async def _trabajo(nombre, argv, cwd, timeout, pre=None):
     cola = _clip(log.read_text(errors="replace")[-700:])
     prog.update(etapa(log), fin=time.time())
     ST["trabajos"][nombre] = estado
-    await avisar(f"El trabajo «{nombre}» {estado}. Final del log: {cola}")
+    await avisar(f"El trabajo «{nombre}» {estado}. Final del log: {cola}", movil=f"Trabajo «{nombre}» {estado}")
 
 
 def huerfanos():
@@ -251,7 +255,7 @@ async def _seguir_huerfano(nombre, pid, log):
     estado = "falló (Traceback en el log)" if "Traceback (most recent call last)" in texto else "terminó bien"
     prog.update(etapa(log), fin=time.time())
     ST["trabajos"][nombre] = estado
-    await avisar(f"El trabajo «{nombre}» {estado}. Final del log: {_clip(texto[-700:])}")
+    await avisar(f"El trabajo «{nombre}» {estado}. Final del log: {_clip(texto[-700:])}", movil=f"Trabajo «{nombre}» {estado}")
 
 
 def adoptar_trabajos():
@@ -555,7 +559,8 @@ async def programar_aviso_impresora(minutos_antes="5"):
                     break
                 if r is not None and r <= seg_target:
                     ST["trabajos"][nombre_trabajo] = "notificado"
-                    await avisar(f"Quedan aproximadamente {int(m)} minutos para terminar de imprimir {fn}.")
+                    await avisar(f"Quedan aproximadamente {int(m)} minutos para terminar de imprimir {fn}.",
+                                 movil=f"Impresión: quedan unos {int(m)} min para acabar {fn}")
                     break
             except Exception:
                 pass
@@ -575,7 +580,9 @@ async def vigilar_impresora():
         except Exception:
             continue  # impresora apagada o sin red: reintenta
         if previo == "printing" and ps["state"] != "printing" and ps["state"] != "paused":
-            await avisar(f"La impresora ha dejado de imprimir {ps['filename']}: estado {ps['state']}. {ps.get('message') or ''}")
+            await avisar(f"La impresora ha dejado de imprimir {ps['filename']}: estado {ps['state']}. {ps.get('message') or ''}",
+                         movil=f"Impresión terminada: {ps['filename']}" if ps["state"] == "complete"
+                         else f"La impresión de {ps['filename']} se ha detenido ({ps['state']})")
         previo = ps["state"]
 
 

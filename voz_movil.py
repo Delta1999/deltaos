@@ -166,6 +166,9 @@ async def _ws(request):
                     acciones.activar()
                 elif cmd == "dormir" and manda():
                     acciones.dormir_ahora()
+                elif cmd == "apagar":  # a petición del dueño (26/10/2026): desde su móvil se apaga sin preguntar
+                    import deltaos
+                    print(f"📱 móvil: {await deltaos.energia('apagar')}")
     except Exception as e:
         print(f"📱 móvil: {e}")
     finally:

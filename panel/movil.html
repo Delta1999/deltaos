@@ -100,6 +100,10 @@ main{display:grid;place-items:center;min-height:0}
 .dias>div{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:baseline;padding:7px 0;border-top:1px solid var(--border-visible);font-size:14px}
 .dias>div:first-child{border-top:0}
 .dias b{font-weight:inherit;color:var(--text-display)}
+#apagar{font:inherit;font-size:17px;color:var(--accent);background:transparent;border:1px solid var(--accent);
+  border-radius:12px;padding:16px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em}
+#apagar:active{background:var(--accent);color:var(--bg,#fff)}
+#apagar:disabled{opacity:.5}
 .nota{font-size:13px;color:var(--text-secondary);line-height:1.4}
 
 /* la línea del día (grande) y la semana */
@@ -165,6 +169,10 @@ footer{display:flex;justify-content:space-between;align-items:center}
   <section class="pag" id="p3" aria-label="Día y semana"><span class="lbl">Hoy</span><div id="tira"></div>
     <span class="lbl">Semana</span><div id="semg" class="sem"></div>
     <span class="lbl">Avisos</span><div id="lista" class="lista"></div></section>
+  <section class="pag" id="p4" aria-label="Sistema"><span class="lbl">Sistema</span><div id="p4c"></div>
+    <span class="lbl">Ordenador</span>
+    <button id="apagar" type="button">Apagar el PC</button>
+    <div class="nota" id="apagarnota">Sin preguntar: al tocarlo, el PC se apaga en unos segundos.</div></section>
 </div>
 <nav id="barra"><div id="puntos"></div><canvas id="mini" role="button" aria-label="Hablar con Delta"></canvas></nav>
 <div id="chuleta"><h2 class="dot">QUÉ PUEDO PEDIR</h2><div class="lbl">Desde el móvil · toca en cualquier sitio para cerrar</div>
@@ -193,7 +201,7 @@ footer{display:flex;justify-content:space-between;align-items:center}
     <li>«¿Qué ves en mi pantalla?» · «Abre Firefox»</li>
     <li>«Sube el volumen al 40 %» · «Silencia»</li></ul></section>
   <section><span class="lbl">Tu móvil</span><ul>
-    <li>«¿Qué notificaciones tengo?»</li><li>«Hazme sonar el móvil»</li><li>«Envíame esta captura al móvil»</li></ul></section>
+    <li>«¿Qué notificaciones tengo?»</li><li>«Hazme sonar el móvil»</li><li>Página Sistema: botón para apagar el PC</li><li>«Envíame esta captura al móvil»</li></ul></section>
 </div>
 <footer><span class="lbl" id="sis">CPU --% · RAM --%</span><span class="lbl">Delta mini</span></footer>
 <script type="module">
@@ -305,7 +313,7 @@ function ver() {
   l.className = 'lamp ' + (!S ? 'mal' : con ? 'ok' : '');
   l.lastChild.textContent = !S ? 'Sin enlace' : con ? 'Enlace' : 'Reposo';
   if (!S) return;
-  pagImp(); pagClima(); pagDia();
+  pagImp(); pagClima(); pagDia(); pagSis();
   $('sis').textContent = `CPU ${S.sis.cpu ?? '--'}% · RAM ${S.sis.ram ?? '--'}%${S.sis.temp != null ? ' · ' + S.sis.temp + '°' : ''}`;
   const f = $('f');
   f.innerHTML = '';
@@ -332,6 +340,12 @@ const CIELO = c => c === 113 ? 'Sol' : c === 116 ? 'Poco nuboso' : c === 119 || 
   : [200, 386, 389, 392, 395].includes(c) ? 'Tormenta'
   : (c >= 323 && c <= 338) || (c >= 362 && c <= 377) || [179, 182, 185, 227, 230, 281, 284, 311, 314, 317, 320, 350].includes(c) ? 'Nieve'
   : c >= 176 && c <= 359 ? 'Lluvia' : '';
+
+function pagSis() {
+  const s = S.sis;
+  $('p4c').innerHTML = `<div class="fila tres"><div><b>${s.cpu ?? '--'}%</b><span class="lbl">CPU</span></div>
+    <div><b>${s.ram ?? '--'}%</b><span class="lbl">RAM</span></div><div><b>${s.temp != null ? s.temp + '°' : '--'}</b><span class="lbl">temp.</span></div></div>`;
+}
 
 function pagImp() {
   const i = S.im, el = $('p1c');
@@ -394,6 +408,14 @@ function pagDia() {
   }).join('') : '<p class="vacio">Sin avisos en los próximos 7 días.</p>';
 }
 setInterval(() => { if (S) pagDia(); }, 30000);
+
+// ---- apagar el PC (sin preguntar, lo pidió el dueño; el WS ya solo deja entrar a su cuenta) ----
+$('apagar').onclick = () => {
+  if (!ws || ws.readyState !== 1) { $('apagarnota').textContent = 'Sin conexión con Delta: no he podido mandarlo.'; return; }
+  ws.send(JSON.stringify({cmd: 'apagar'}));
+  $('apagar').disabled = true;
+  $('apagarnota').textContent = 'Apagando el PC…';
+};
 
 // ---- páginas deslizables ----
 const PAGS = $('paginas'), NPAG = PAGS.children.length;

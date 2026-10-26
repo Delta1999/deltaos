@@ -162,10 +162,12 @@ async def _disparar(a, retraso):
     tarde = f" (con {round(retraso / 60)} min de retraso: el ordenador estaba apagado o suspendido)" if retraso > 120 else ""
     if a["tipo"] == "alarma":
         acciones.tarea(_alarma_en_bucle())
-        await acciones.avisar(f"Alarma: {a['texto']}{tarde}. Sigue sonando hasta que el usuario diga que pares (avisos accion=parar_alarma).")
+        await acciones.avisar(f"Alarma: {a['texto']}{tarde}. Sigue sonando hasta que el usuario diga que pares (avisos accion=parar_alarma).",
+                           movil=f"Alarma: {a['texto']}{tarde}")
     else:
         _sonar("complete.oga")
-        await acciones.avisar(f"Recordatorio que te pidió el usuario: {a['texto']}{tarde}.")
+        await acciones.avisar(f"Recordatorio que te pidió el usuario: {a['texto']}{tarde}.",
+                              movil=f"Recordatorio: {a['texto']}{tarde}")
 
 
 def vencidos(lista, ahora):
@@ -196,7 +198,8 @@ async def _buzon_claude():
             await acciones.avisar(f"Ha terminado una sesión de CLAUDE CODE en la carpeta «{d.get('proyecto', '?')}» "
                                   f"(llevaba {d.get('min', '?')} min). Dilo así: ha terminado Claude Code, y en qué carpeta "
                                   f"(«gemini-live-assistant» es tu propio repositorio, DeltaOS). Resúmeselo en una frase: "
-                                  f"{d.get('final', '')[:600]}")
+                                  f"{d.get('final', '')[:600]}",
+                                  movil=f"Claude Code ha terminado en «{d.get('proyecto', '?')}» ({d.get('min', '?')} min)")
 
 
 async def vigilar():

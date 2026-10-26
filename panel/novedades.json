@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-26",
+  "t": "Los avisos llegan también al móvil como notificación: impresión terminada o detenida, recordatorios y alarmas, y cuando acaba un trabajo o una sesión de Claude Code. En la web del móvil hay una página «Sistema» con un botón para apagar el PC sin preguntar. Del móvil solo se leen las notificaciones de WhatsApp y del sistema.",
+  "como": "Desliza a la página Sistema de la web del móvil",
+  "voz": false
+ },
+ {
+  "f": "2026-10-26",
   "t": "La web del móvil ahora se desliza a los lados: Delta, Impresora, Clima y Día y semana; el orbe pequeño de abajo sigue a mano en todas. Tocando la hora sale la chuleta de lo que puedes pedir desde el móvil.",
   "como": "Desliza a los lados en la web del móvil",
   "voz": false
