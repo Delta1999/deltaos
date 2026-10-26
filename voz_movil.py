@@ -97,10 +97,16 @@ def _estado():
     e = ("privacidad" if st.get("privacidad") else "dormida" if not st["activo"]
          else "en el PC" if not manda() else "hablando" if st.get("hablando") else "escuchando")
     s = panel.S.get("sistema") or {}
+    c, i = panel.S.get("clima"), panel.S.get("impresora")
+    # el resumen de lo que enseña el panel: clima, impresión y los avisos de la semana (nada de ellos con privacidad)
+    cl = {k: c.get(k) for k in ("temp", "desc", "min", "max", "lluvia", "sale", "pone")} if c else None
+    im = {k: i.get(k) for k in ("online", "estado", "prog", "quedan")} if i else None
+    sem = [] if st.get("privacidad") else \
+        [{"t": a["t"], "texto": a["texto"][:40], "tipo": a["tipo"]} for a in (panel.S.get("semana") or [])[:30]]
     # «o»: el estado del orbe (el mismo que el del panel); «e»: lo que el móvil puede hacer con él
     return {"e": e, "o": panel._estado(st), "tema": panel.S.get("tema", "nothing"),
             "con": "conectado" if st["session"] else "en reposo" if st.get("reposo") else "reconectando",
-            "sis": {k: s.get(k) for k in ("cpu", "ram", "temp")},
+            "sis": {k: s.get(k) for k in ("cpu", "ram", "temp")}, "cl": cl, "im": im, "sem": sem,
             "f": [{"rol": f["rol"], "t": f["t"][-300:]} for f in panel.S["frases"][-4:]]}
 
 

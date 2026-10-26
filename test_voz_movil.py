@@ -45,6 +45,15 @@ async def main():
         est = await ws.receive_json()
         assert est["e"] == "dormida" and est["o"] == "dormido" and est["tema"] in ("nothing", "ios")
         assert set(est["sis"]) == {"cpu", "ram", "temp"} and "con" in est  # lo que pinta el orbe de la web
+        panel.S["clima"] = {"temp": 18, "desc": "Despejado", "min": 11, "max": 22, "lluvia": 5, "sale": 450, "pone": 1110, "code": 113}
+        panel.S["impresora"] = {"online": True, "estado": "printing", "prog": 40, "quedan": 3600, "archivo": "secreto.gcode"}
+        panel.S["semana"] = [{"t": "2026-10-29 09:45", "texto": "x" * 60, "tipo": "aviso"}]
+        e2 = voz_movil._estado()  # clima, impresión y avisos de la semana, recortados a lo que pinta el móvil
+        assert e2["cl"] == {"temp": 18, "desc": "Despejado", "min": 11, "max": 22, "lluvia": 5, "sale": 450, "pone": 1110}
+        assert e2["im"] == {"online": True, "estado": "printing", "prog": 40, "quedan": 3600} and len(e2["sem"][0]["texto"]) == 40
+        acciones.ST["privacidad"] = True
+        assert voz_movil._estado()["sem"] == []  # con privacidad, los avisos no salen
+        acciones.ST["privacidad"] = False
         await ws.send_bytes(b"\x05\x05")  # antes de tocar el orbe, el micro del móvil no cuenta
         await ws.send_str(json.dumps({"cmd": "hablar"}))
         assert (await ws.receive_json(timeout=2))["e"] == "escuchando"

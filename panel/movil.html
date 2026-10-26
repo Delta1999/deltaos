@@ -29,7 +29,7 @@
 }
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family:var(--sans);overflow:hidden;-webkit-tap-highlight-color:transparent}
-body{display:grid;grid-template-rows:auto 1fr auto auto;gap:12px;
+body{display:grid;grid-template-rows:auto 1fr auto auto auto auto;gap:10px;
   padding:max(18px,env(safe-area-inset-top)) 16px max(14px,env(safe-area-inset-bottom));user-select:none}
 .dot{font-family:var(--dot);font-weight:900;letter-spacing:.02em}
 [data-tema="ios"] .dot{font-weight:700;letter-spacing:-.02em}
@@ -52,7 +52,7 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:12p
 
 /* El orbe: el mismo de DeltaOS (orbe.js). Se dice el estado con movimiento y forma (aro), no solo con color. */
 main{display:grid;place-items:center;min-height:0}
-#orbe-wrap{position:relative;width:min(100%,44dvh);aspect-ratio:1;cursor:pointer;transition:opacity .4s}
+#orbe-wrap{position:relative;width:min(100%,36dvh);aspect-ratio:1;cursor:pointer;transition:opacity .4s}
 #orbe-wrap canvas{width:100%;height:100%;display:block}
 #orbe-wrap::before{content:"";position:absolute;inset:6%;border-radius:50%;pointer-events:none;border:0 solid transparent}
 #orbe-wrap:active canvas{transform:scale(.98)}
@@ -71,11 +71,35 @@ main{display:grid;place-items:center;min-height:0}
 
 .card{background:var(--surface);border:1px solid var(--border-visible);border-radius:var(--radio);box-shadow:var(--sombra);padding:12px 14px}
 [data-tema="ios"] .card{backdrop-filter:blur(28px) saturate(190%);-webkit-backdrop-filter:blur(28px) saturate(190%)}
-#f{display:flex;flex-direction:column;justify-content:flex-end;gap:8px;height:21dvh;overflow:hidden}
+#f{display:flex;flex-direction:column;justify-content:flex-end;gap:8px;height:14dvh;overflow:hidden}
 #f p{font-size:15px;line-height:1.4;color:var(--text-secondary)}
 #f p.delta{color:var(--text-display)}
 #f p b{font:400 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-right:8px;color:var(--text-secondary)}
 #f p.vacio{color:var(--text-secondary);opacity:.6}
+
+/* Clima, impresión y la línea del día / de la semana (toca la línea para cambiar) */
+#info{display:grid;gap:10px}
+#datos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dato b{display:block;font-size:26px;line-height:1;color:var(--text-display);font-weight:inherit}
+.dato .lbl{display:block;margin-top:5px;line-height:1.3;text-transform:none;letter-spacing:.02em}
+#tira{position:relative;height:38px;cursor:pointer}
+.pista{position:relative;height:20px}
+.pista::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px solid var(--text-secondary);opacity:.5}
+.pista i{position:absolute;top:50%;transform:translate(-50%,-50%)}
+.noche{top:0!important;bottom:0;height:100%;background:var(--border-visible);opacity:.7;border-radius:3px;transform:none!important}
+.marca{width:1px;height:8px;background:var(--text-secondary)}
+.hh{position:absolute;top:22px;transform:translateX(-50%);font:9px var(--mono);color:var(--text-secondary)}
+.av{width:8px;height:8px;border-radius:50%;background:var(--text-display)}
+.av.al{background:var(--accent)}
+.fin{width:8px;height:8px;border:1px solid var(--text-display);transform:translate(-50%,-50%) rotate(45deg)!important}
+.ya{width:2px;height:20px;background:var(--accent)}
+.sem{display:grid;grid-template-columns:repeat(7,1fr);height:100%}
+.dsem{text-align:center;font:10px var(--mono);color:var(--text-secondary);text-transform:uppercase}
+.dsem.hoy{color:var(--text-display)}
+.dsem .pts{display:flex;justify-content:center;gap:3px;margin-top:6px;min-height:8px}
+.dsem .pts i{width:7px;height:7px;border-radius:50%;background:var(--text-display)}
+.dsem .pts i.al{background:var(--accent)}
+#prox{text-transform:none;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 footer{display:flex;justify-content:space-between;align-items:center}
 </style>
@@ -93,6 +117,14 @@ footer{display:flex;justify-content:space-between;align-items:center}
   <div id="sub"></div>
 </section>
 <section class="card" aria-live="polite"><div id="f"></div></section>
+<section class="card" id="info">
+  <div id="datos">
+    <div class="dato"><b id="cl-v" class="dot">--</b><span id="cl-t" class="lbl"></span></div>
+    <div class="dato"><b id="im-v" class="dot">--</b><span id="im-t" class="lbl"></span></div>
+  </div>
+  <div id="tira" role="button" aria-label="Línea del día; toca para ver la semana"></div>
+  <div id="prox" class="lbl"></div>
+</section>
 <footer><span class="lbl" id="sis">CPU --% · RAM --%</span><span class="lbl">Delta mini</span></footer>
 <script type="module">
 // El móvil hace de micro y altavoz de Delta (voz_movil.py): manda su micro a 16 kHz y suena la voz a 24 kHz.
@@ -203,6 +235,8 @@ function ver() {
   l.className = 'lamp ' + (!S ? 'mal' : con ? 'ok' : '');
   l.lastChild.textContent = !S ? 'Sin enlace' : con ? 'Enlace' : 'Reposo';
   if (!S) return;
+  datos();
+  tira();
   $('sis').textContent = `CPU ${S.sis.cpu ?? '--'}% · RAM ${S.sis.ram ?? '--'}%${S.sis.temp != null ? ' · ' + S.sis.temp + '°' : ''}`;
   const f = $('f');
   f.innerHTML = '';
@@ -215,6 +249,62 @@ function ver() {
     f.append(p);
   }
 }
+
+// ---- clima, impresión y línea del día / semana ----
+const SEMANA = ['D', 'L', 'M', 'X', 'J', 'V', 'S'], ESTADO_IMP = {standby: 'LIBRE', complete: 'TERMINADA', error: 'ERROR', cancelled: 'CANCELADA'};
+let vista = 'dia', tVista;
+const dehora = seg => seg >= 3600 ? `${Math.floor(seg / 3600)} h ${Math.floor(seg % 3600 / 60)} min` : `${Math.max(1, Math.round(seg / 60))} min`;
+const fechaDe = s => new Date(s.replace(' ', 'T'));
+
+function datos() {
+  const c = S.cl, i = S.im;
+  $('cl-v').textContent = c ? c.temp + '°' : '--';
+  $('cl-t').textContent = c ? `${c.desc} · ${c.min}°/${c.max}° · lluvia ${c.lluvia}%` : 'Clima sin datos';
+  const imprime = i && i.online && (i.estado === 'printing' || i.estado === 'paused');
+  $('im-v').textContent = !i || !i.online ? '--' : imprime ? i.prog + '%' : ESTADO_IMP[i.estado] || String(i.estado).toUpperCase();
+  $('im-t').textContent = !i || !i.online ? 'Impresora sin conexión'
+    : imprime ? (i.estado === 'paused' ? 'En pausa · ' : '') + (i.quedan != null ? 'quedan ' + dehora(i.quedan) : 'Imprimiendo') : 'Impresora';
+}
+
+function tira() {
+  if (!S) return;
+  const sem = S.sem || [], n = new Date(), hoy = n.toDateString(), min = n.getHours() * 60 + n.getMinutes();
+  const pc = m => (m / 14.4).toFixed(2) + '%', cl = S.cl, i = S.im;
+  let h = '';
+  if (vista === 'dia') {
+    h = '<div class="pista">';
+    if (cl && cl.sale != null) h += `<i class="noche" style="left:0;width:${pc(cl.sale)}"></i><i class="noche" style="left:${pc(cl.pone)};width:${pc(1440 - cl.pone)}"></i>`;
+    for (const x of [6, 12, 18]) h += `<i class="marca" style="left:${pc(x * 60)}"></i><span class="hh" style="left:${pc(x * 60)}">${x}</span>`;
+    for (const a of sem) {
+      const d = fechaDe(a.t);
+      if (d.toDateString() === hoy) h += `<i class="av${a.tipo === 'alarma' ? ' al' : ''}" style="left:${pc(d.getHours() * 60 + d.getMinutes())}"></i>`;
+    }
+    if (i && i.online && i.estado === 'printing' && i.quedan != null) {  // cuándo acabará la impresión, si es hoy
+      const f = new Date(n.getTime() + i.quedan * 1000);
+      if (f.toDateString() === hoy) h += `<i class="fin" style="left:${pc(f.getHours() * 60 + f.getMinutes())}"></i>`;
+    }
+    h += `<i class="ya" style="left:${pc(min)}"></i></div>`;
+  } else {
+    h = '<div class="sem">';
+    for (let k = 0; k < 7; k++) {
+      const d = new Date(n.getFullYear(), n.getMonth(), n.getDate() + k), de = sem.filter(a => fechaDe(a.t).toDateString() === d.toDateString());
+      h += `<div class="dsem${k ? '' : ' hoy'}">${SEMANA[d.getDay()]}<div class="pts">${de.slice(0, 3).map(a => `<i${a.tipo === 'alarma' ? ' class="al"' : ''}></i>`).join('')}</div></div>`;
+    }
+    h += '</div>';
+  }
+  $('tira').innerHTML = h;
+  const sig = sem.find(a => fechaDe(a.t) >= n);
+  $('prox').textContent = sig ? `${fechaDe(sig.t).toLocaleDateString('es-ES', {weekday: 'short'})} ${fechaDe(sig.t).toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'})} · ${sig.texto}`
+    : 'Sin avisos en la semana';
+}
+
+$('tira').onclick = () => {
+  vista = vista === 'dia' ? 'semana' : 'dia';
+  clearTimeout(tVista);
+  if (vista === 'semana') tVista = setTimeout(() => { vista = 'dia'; tira(); }, 25000);  // la semana vuelve sola a «hoy»
+  tira();
+};
+setInterval(tira, 30000);
 
 function reloj() {
   const n = new Date();
