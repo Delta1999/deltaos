@@ -1,0 +1,17 @@
+[Unit]
+Description=Puente de la GoPro para la vision de Delta
+After=network-online.target tailscaled.service
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/delta-pasarela/gopro_puente.py
+EnvironmentFile=/etc/delta-gopro.env
+DynamicUser=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
