@@ -1,6 +1,9 @@
 {
  "fuentes": [
-  {"nombre": "portatil", "url": "/dev/video0", "rotar": 180, "fps": 5,
+  {"nombre": "portatil", "url": "/dev/video0", "rotar": 180, "fps": 5, "activa": false,
+   "analisis": ["presencia", "gestos", "postura"]},
+  {"nombre": "gopro", "url": "http://100.114.68.63:18080/live/amba.m3u8", "rotar": 0, "fps": 5,
+   "recorte": [0.25, 0.1, 0.75, 0.7],
    "analisis": ["presencia", "gestos", "postura"]}
  ]
 }

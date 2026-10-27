@@ -5,9 +5,10 @@ Lo que ve lo deja en dos ficheros del $XDG_RUNTIME_DIR (se borran al apagar):
   - delta-vision.json            el estado de ahora (lo leen Delta y el panel)
   - delta-vision-eventos.jsonl   lo que pasa (llega, se va, gesto, otra persona, bostezo…)
 
-Las cámaras son FUENTES intercambiables (vision.json): la webcam del portátil hoy; mañana la del jardín, la del
-comedero del gato o la GoPro por una capturadora HDMI. Todo lo que OpenCV abre vale: /dev/videoN, rtsp://,
-http://…mjpeg. Una contraseña de RTSP no va en vision.json: ${VARIABLE} se toma del entorno (.env).
+Las cámaras son FUENTES intercambiables (vision.json): la webcam del portátil hoy; mañana la del jardín o la del
+comedero del gato. La GoPro Hero 3 entra por pasarela/gopro_puente.py (en la caja de la impresora). Todo lo que
+OpenCV abre vale: /dev/videoN, rtsp://, http://…mjpeg, .m3u8. Una contraseña de RTSP no va en vision.json:
+${VARIABLE} se toma del entorno (.env). «recorte» [x0,y0,x1,y1] amplía una zona solo para detectar la cara.
 
 Privacidad: todo en local (MediaPipe en CPU), NINGÚN fotograma se guarda ni sale de aquí. Si existe
 $XDG_RUNTIME_DIR/delta-vision-pausa (modo privacidad) la cámara se suelta y se apaga su luz.
@@ -38,7 +39,7 @@ PAUSA = RUN / "delta-vision-pausa"
 
 DEFECTO = {"fps": 5, "ancho": 640, "rotar": "auto", "analisis": ["presencia", "gestos", "postura"],
            "llega_s": 2.0, "se_va_s": 120.0, "gesto_s": 0.8, "gesto_pausa_s": 3.0, "postura_cada_s": 1.0,
-           "activa": True}
+           "activa": True, "recorte": None}
 
 
 # ---------- configuración ----------
@@ -208,6 +209,19 @@ class Fuente:
 ROTAR = {0: None, 90: "ROTATE_90_CLOCKWISE", 180: "ROTATE_180", 270: "ROTATE_90_COUNTERCLOCKWISE"}
 
 
+def zona_cara(frame, recorte, ancho_dest=640):
+    """(imagen, ancho en px del fotograma que abarca). Con recorte [x0, y0, x1, y1] (fracciones 0-1) se recorta y se
+    amplía: el detector de caras no ve las pequeñas (la GoPro da 320×240 y la cara sale de ~35 px)."""
+    import cv2
+    h, w = frame.shape[:2]
+    if not recorte:
+        return frame, w
+    x0, y0, x1, y1 = recorte
+    zona = frame[int(h * y0):int(h * y1), int(w * x0):int(w * x1)]
+    k = ancho_dest / zona.shape[1]
+    return cv2.resize(zona, None, fx=k, fy=k, interpolation=cv2.INTER_CUBIC), zona.shape[1]
+
+
 class Analizador:
     def __init__(self, cfg):
         from mediapipe.tasks.python import BaseOptions, vision as v
@@ -245,7 +259,9 @@ class Analizador:
         rgb = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         gris = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         r = {"rotar": g, "res": [frame.shape[1], frame.shape[0]], "brillo": float(gris.mean()), "nitidez": nitidez(gris)}
-        c = self.cara.detect_for_video(rgb, self._ms)
+        zona, ancho_zona = zona_cara(frame, self.cfg["recorte"])
+        c = self.cara.detect_for_video(rgb if zona is frame else mp.Image(
+            image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(zona, cv2.COLOR_BGR2RGB)), self._ms)
         r["caras"] = len(c.face_landmarks)
         if self.rotar is None:
             self._prueba[g] += r["caras"] > 0
@@ -257,7 +273,7 @@ class Analizador:
             i = max(range(len(c.face_landmarks)),
                     key=lambda k: max(p.x for p in c.face_landmarks[k]) - min(p.x for p in c.face_landmarks[k]))
             lm = c.face_landmarks[i]
-            r["ancho_cara"] = (max(p.x for p in lm) - min(p.x for p in lm)) * frame.shape[1]
+            r["ancho_cara"] = (max(p.x for p in lm) - min(p.x for p in lm)) * ancho_zona
             if c.facial_transformation_matrixes:
                 r["giro"], r["cabeceo"] = angulos(c.facial_transformation_matrixes[i].tolist())
             if c.face_blendshapes:

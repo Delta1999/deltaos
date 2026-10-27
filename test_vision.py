@@ -8,6 +8,13 @@ from pathlib import Path
 
 import vision
 
+# ---------- recorte de la cara: se amplía la zona (la GoPro da 320×240) y se sabe cuántos px abarca ----------
+import numpy as np
+img, ancho = vision.zona_cara(np.zeros((240, 320, 3), np.uint8), [0.25, 0.1, 0.75, 0.7])
+assert img.shape == (576, 640, 3) and ancho == 160, (img.shape, ancho)
+base = np.zeros((240, 320, 3), np.uint8)
+assert vision.zona_cara(base, None)[0] is base and vision.zona_cara(base, None)[1] == 320, "sin recorte no se toca"
+
 # ---------- presencia: llegar rápido, irse con margen ----------
 p = vision.Presencia(llega_s=2, se_va_s=120)
 assert p.ver(True, 0) is None and p.ver(True, 1) is None
