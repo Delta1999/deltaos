@@ -26,7 +26,7 @@ DUENO = os.environ.get("DUENO")  # login de Tailscale del dueño, en /etc/delta-
 CAMARA = os.environ.get("CAMARA", "10.5.5.9:8080")  # flujo HLS de la GoPro, por el WiFi USB de la caja
 MOONRAKER = os.environ.get("MOONRAKER", "127.0.0.1:7125")
 PARTE = re.compile(r"^(amba\.m3u8|\d+\.ts)$")  # la lista y los trozos que numera esta pasarela; nada más de la cámara sale
-MEMORIA = 30  # trozos de ~0,27 s que se guardan: unos 8 s de colchón para el móvil
+MEMORIA = 12  # segmentos de ~1,1 s (4 trozos de la cámara juntos) que se guardan: ~13 s de colchón; menos peticiones por segundo al móvil
 TIPOS_HLS = {"m3u8": "application/vnd.apple.mpegurl", "ts": "video/mp2t"}
 CACHE_CAMARA = {"t": 0.0, "datos": None}
 
@@ -119,7 +119,7 @@ def lista_hls(trozos):
     """trozos: [(n, duración, hay_corte)] ya numerados -> lista HLS en directo con los trozos que guardamos."""
     if not trozos:
         return None
-    cab = ["#EXTM3U", "#EXT-X-VERSION:3", "#EXT-X-TARGETDURATION:1", f"#EXT-X-MEDIA-SEQUENCE:{trozos[0][0]}"]
+    cab = ["#EXTM3U", "#EXT-X-VERSION:3", "#EXT-X-TARGETDURATION:2", f"#EXT-X-MEDIA-SEQUENCE:{trozos[0][0]}"]
     for n, dur, corte in trozos:
         cab += (["#EXT-X-DISCONTINUITY"] if corte else []) + [f"#EXTINF:{dur:.5f},", f"{n}.ts"]
     return "\n".join(cab) + "\n"
@@ -158,6 +158,7 @@ class Flujo:
 
     def _bucle(self):
         ultima, corte = None, True   # última secuencia de la cámara que copié; el primer trozo empieza sin historia
+        junto, dur_junto, corte_junto = b"", 0.0, False   # trozos de la cámara a medio juntar (concatenar TS es válido)
         while time.time() - self.visto < 20:
             try:
                 lista = urllib.request.urlopen(f"http://{CAMARA}/live/amba.m3u8", timeout=3).read().decode()
@@ -169,7 +170,15 @@ class Flujo:
                         continue
                     datos = urllib.request.urlopen(f"http://{CAMARA}/live/{nombre}", timeout=4).read()
                     corte = corte or (ultima is not None and sec > ultima + 1)   # se me escapó alguno: corte en la lista
-                    self._guardar(dur, arreglar_pat(datos), corte)
+                    if corte and junto:   # lo juntado hasta ahora no enlaza con este trozo: se guarda tal cual
+                        self._guardar(dur_junto, junto, corte_junto)
+                        junto, dur_junto = b"", 0.0
+                    if not junto:
+                        corte_junto = corte
+                    junto, dur_junto = junto + arreglar_pat(datos), dur_junto + dur
+                    if dur_junto >= 1.0:
+                        self._guardar(dur_junto, junto, corte_junto)
+                        junto, dur_junto = b"", 0.0
                     corte, ultima = False, sec
                 time.sleep(0.3)
             except (OSError, ValueError, IndexError):   # cámara sin contestar: se vuelve a intentar sin hacer ruido
@@ -233,7 +242,7 @@ class Manejador(BaseHTTPRequestHandler):
         if nombre == "amba.m3u8":
             for _ in range(20):   # el hilo acaba de arrancar: unos segundos para tener colchón
                 lista = FLUJO.lista()
-                if lista and len(FLUJO.trozos) >= 8:
+                if lista and len(FLUJO.trozos) >= 3:
                     return self._enviar(lista.encode(), TIPOS_HLS["m3u8"])
                 time.sleep(0.25)
             return self.send_error(503)

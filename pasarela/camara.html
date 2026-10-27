@@ -78,7 +78,7 @@ function conectar() {
   clearTimeout(reintento);
   soltar();
   if (window.Hls && Hls.isSupported()) {   // Chrome/Android: hls.js lo pasa a MSE; Safari/iOS lo reproducen solos
-    hls = new Hls({liveSyncDurationCount: 12, maxBufferLength: 8, enableWorker: false});
+    hls = new Hls({liveSyncDuration: 2.5, liveMaxLatencyDuration: 6, maxLiveSyncPlaybackRate: 1.25, maxBufferLength: 8, enableWorker: false});
     hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) V.dispatchEvent(new Event("error")); });
     hls.loadSource(SRC);
     hls.attachMedia(V);
