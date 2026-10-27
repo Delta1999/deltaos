@@ -72,12 +72,13 @@ def _has_aec():
 SESSION_HANDLE = {}
 AEC = _has_aec()
 REC_DEV = ["-d", "echo-cancel-source"] if AEC else []
-PLAY_DEV = ["-d", "echo-cancel-sink"] if AEC else []
+# El TTS sale por el sink por defecto, no por un sink del cancelador: en monitor.mode el AEC
+# lee la referencia del monitor de ese sink, así que oye nuestra voz igual y la resta del micro.
 
 def start_player():
     return subprocess.Popen(
         ["paplay", "--raw", "--format=s16le", f"--rate={AUDIO_OUTPUT_RATE}", "--channels=1",
-         "--latency-msec=60", *PLAY_DEV],
+         "--latency-msec=60"],
         stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 # Available voice options in Gemini Live

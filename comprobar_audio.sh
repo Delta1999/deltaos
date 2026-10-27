@@ -48,7 +48,15 @@ fijar 'Digital Capture Volume' '60,60'  # 0 dB
 pactl list short sources | grep -q "$MIC" || log "⚠️ SIN MICRO tras corregir el perfil: revisar a mano"
 
 # El cancelador cargado antes de que existiera el micro queda sordo: recargarlo.
+# Ya no vale `pactl unload-module`: el cancelador no se carga a mano, lo trae PipeWire desde
+# ~/.config/pipewire/pipewire.conf.d/50-delta-echo-cancel.conf. Reiniciar PipeWire lo recarga
+# desde ahí, enganchado al micro que ahora sí existe. Esto corre antes de arrancar Delta, así
+# que no hay captura en curso que cortar.
 if [ "$RECARGAR" = 1 ] || { pactl list short sources | grep -q echo-cancel-source && ! pw-link -l 2>/dev/null | grep -A1 "^$MIC:capture_FL" | grep -q echo-cancel-capture; }; then
-  pactl unload-module module-echo-cancel 2>/dev/null && log "cancelador de eco recargado"
+  systemctl --user restart pipewire wireplumber pipewire-pulse 2>/dev/null
+  sleep 3
+  pw-link -l 2>/dev/null | grep -A1 "^$MIC:capture_FL" | grep -q echo-cancel-capture \
+    && log "cancelador de eco recargado" \
+    || log "⚠️ el cancelador NO se engancha al micro tras recargar: revisar a mano"
 fi
 exit 0

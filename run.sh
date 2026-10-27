@@ -32,44 +32,26 @@ if [ -z "$GEMINI_API_KEY" ]; then
   eval "$(grep -m1 '^export GEMINI_API_KEY=' "$HOME/.bashrc")"
 fi
 
-# Guardar el dispositivo de salida original
-ORIG_SINK="$(pactl get-default-sink 2>/dev/null)"
-
 # Rutina: que estén en marcha los servicios que necesita (audio, escritorio, red); arranca los que pueda.
 "$DIR/comprobar_servicios.sh"
 
 # Rutina: perfil, micro, ganancia y altavoces como funcionaban (corrige y lo anota en el log).
 "$DIR/comprobar_audio.sh"
 
-# Cancelación de eco acústico y supresión de ruido (filtra los audios del sistema y altavoces).
-if ! pactl list short sources | grep -q echo-cancel-source; then
-  pactl load-module module-echo-cancel aec_method=webrtc \
-    source_name=echo-cancel-source sink_name=echo-cancel-sink \
-    aec_args="analog_gain_control=0 digital_gain_control=1 high_pass_filter=1 noise_suppression=1" >/dev/null 2>&1
-  sleep 1
+# Cancelación de eco acústico y supresión de ruido. El cancelador ya NO se carga aquí: vive en
+# ~/.config/pipewire/pipewire.conf.d/50-delta-echo-cancel.conf, con monitor.mode = true.
+#
+# Antes se cargaba a mano y se ponía echo-cancel-sink como salida por defecto del sistema para
+# que el micro no captase la música. Costaba dos cosas: un `systemctl --user restart pipewire`
+# descargaba el módulo y dejaba a Delta sorda al eco sin avisar, y TODO el audio del sistema
+# atravesaba un AEC sintonizado para voz, que con música fuerte saturaba y se comía la voz del
+# usuario. En monitor.mode el cancelador lee la referencia del monitor del sink por defecto:
+# la música va directa a los altavoces y el AEC la sigue conociendo para restarla del micro.
+if pactl list short sources | grep -q echo-cancel-source; then
+  echo "🔊 audio: OK (micro → cancelador de eco → Delta; música directa a los altavoces)"
+else
+  echo "🔊 audio: ⚠️ no existe echo-cancel-source: revisar 50-delta-echo-cancel.conf"
 fi
-pw-link -l 2>/dev/null | grep -A1 '^alsa_input.*:capture_FL' | grep -q echo-cancel-capture \
-  && echo "🔊 audio: OK (micro → cancelador de eco → Delta, salida por altavoces del portátil)" \
-  || echo "🔊 audio: ⚠️ el cancelador de eco NO está enganchado al micro"
-
-# Configurar echo-cancel-sink como salida por defecto para que todo el audio del sistema
-# (navegador, vídeos, música) pase por el cancelador de eco y el micrófono no lo capte.
-if pactl list short sinks | grep -q echo-cancel-sink; then
-  pactl set-default-sink echo-cancel-sink 2>/dev/null || true
-  for id in $(pactl list short sink-inputs 2>/dev/null | awk '{print $1}'); do
-    pactl move-sink-input "$id" echo-cancel-sink 2>/dev/null || true
-  done
-fi
-
-cleanup() {
-  if [ -n "$ORIG_SINK" ]; then
-    pactl set-default-sink "$ORIG_SINK" 2>/dev/null || true
-    for id in $(pactl list short sink-inputs 2>/dev/null | awk '{print $1}'); do
-      pactl move-sink-input "$id" "$ORIG_SINK" 2>/dev/null || true
-    done
-  fi
-}
-trap cleanup EXIT INT TERM
 
 case " $* " in *" --sin-panel "*) ;; *)
   [ -n "$WAYLAND_DISPLAY$DISPLAY" ] && { "$DIR/panel/ventana.sh" >/dev/null 2>&1 9>&- & VENTANA=$!; } ;;
