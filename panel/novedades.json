@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-27",
+  "t": "La música ya no pasa por el cancelador de eco: sale directa a los altavoces (o al monitor por HDMI) y el cancelador la escucha solo como referencia para restarla del micro. Se acabó el crepiteo al poner música y Delta deja de confundir la canción con tu voz. El cancelador se carga ahora desde la configuración de PipeWire, así que sobrevive a un reinicio del sonido. El botón de emergencia del menú de la hora pasa a «↺ Volver a v7», que ya lleva este arreglo.",
+  "como": "pon música y háblame a la vez",
+  "voz": false
+ },
+ {
+  "f": "2026-10-27",
   "t": "Nueva pantalla «Cámara» en la web del móvil (justo antes de Sistema): imagen en directo de la GoPro y estado de la impresora (progreso, tiempo, temperaturas, capa) para vigilar una impresión desde fuera de casa. Sale de la caja de la impresora, así funciona con el portátil apagado (también desde el enlace de la página «PC apagado»). Solo la cuenta dueña por Tailscale",
   "como": "desliza hasta la pantalla Cámara de la web del móvil",
   "voz": false
