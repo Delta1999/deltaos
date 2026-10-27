@@ -6,6 +6,7 @@ After=network-online.target
 ExecStart=/usr/bin/python3 /opt/delta-pasarela/pasarela.py
 Environment=PC_IP=100.108.136.98
 Environment=PC_HOST=fedora.tail630f35.ts.net
+EnvironmentFile=-/etc/delta-pasarela.env
 DynamicUser=yes
 ProtectSystem=strict
 ProtectHome=yes

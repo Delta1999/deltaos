@@ -85,6 +85,7 @@ main{display:grid;place-items:center;min-height:0}
 #paginas::-webkit-scrollbar{display:none}
 .pag{flex:0 0 100%;scroll-snap-align:start;scroll-snap-stop:always;padding:0 16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;min-height:0;scrollbar-width:none}
 .pag::-webkit-scrollbar{display:none}
+#pcam iframe{flex:1 1 auto;min-height:0;width:100%;border:0;border-radius:var(--radio);background:#000;color-scheme:dark}
 #p0 main{flex:1}
 #p1c,#p2c{display:flex;flex-direction:column;gap:18px}
 .fila>div b .lbl{font-size:12px}
@@ -173,6 +174,8 @@ footer{display:flex;justify-content:space-between;align-items:center}
   <section class="pag" id="p3" aria-label="Día y semana"><span class="lbl">Hoy</span><div id="tira"></div>
     <span class="lbl">Semana</span><div id="semg" class="sem"></div>
     <span class="lbl">Avisos</span><div id="lista" class="lista"></div></section>
+  <section class="pag" id="pcam" aria-label="Cámara"><span class="lbl">Cámara</span>
+    <iframe id="camara" title="Cámara de la impresora" allow="fullscreen" referrerpolicy="no-referrer"></iframe></section>
   <section class="pag" id="p4" aria-label="Sistema"><span class="lbl">Sistema</span><div id="p4c"></div>
     <span class="lbl">Avisos en este móvil</span>
     <button id="avisos" type="button">Activar avisos</button>
@@ -471,6 +474,10 @@ function marcarPagina() {
   [...$('puntos').children].forEach((p, k) => p.classList.toggle('on', k === pag));
   $('barra').classList.toggle('fuera', pag !== 0);  // fuera de la de Delta, el orbe pequeño sigue a mano
   try { localStorage.setItem('delta-pag', pag); } catch {}
+  // la imagen de la caja de la impresora (sirve con el PC apagado) solo se pide con esta página a la vista
+  const CAM = 'https://delta.tail630f35.ts.net/camara?embed=1', hay = PAGS.children[pag] === $('pcam');
+  const quiero = hay ? CAM : 'about:blank';  // quitar el src no descarga el marco: hay que dejarlo en blanco
+  if ($('camara').getAttribute('src') !== quiero) $('camara').setAttribute('src', quiero);
 }
 PAGS.addEventListener('scroll', marcarPagina, {passive: true});
 try { PAGS.scrollLeft = (+localStorage.getItem('delta-pag') || 0) * PAGS.clientWidth; } catch {}

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<link rel="icon" type="image/png" href="/iconos/icono-192.png">
+<title>Cámara</title>
+<style>
+:root{--bg:#000;--text:#e8e8e8;--dim:#999;--accent:#d71921;--line:#333;--ok:#fff;--mono:"Space Mono",ui-monospace,Menlo,monospace}
+*{box-sizing:border-box;margin:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+body{display:flex;flex-direction:column;gap:14px;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
+body.embed{padding:0}
+body.embed .top,body.embed .volver{display:none}
+.top{display:flex;justify-content:space-between;align-items:center}
+.lbl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.estado{display:flex;align-items:center;gap:7px}
+.estado i{width:9px;height:9px;border-radius:50%;border:1px solid var(--dim)}
+body.directo .estado i{background:var(--accent);border-color:var(--accent);animation:late 1.6s ease-in-out infinite}
+body.directo .estado{color:var(--ok)}
+@keyframes late{50%{opacity:.25}}
+.visor{position:relative;aspect-ratio:4/3;background:#000;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+.aviso{position:absolute;inset:0;display:grid;place-content:center;gap:6px;text-align:center;padding:24px;line-height:1.5;background:rgba(0,0,0,.82)}
+.aviso b{font-family:var(--mono);font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:#fff;font-weight:400}
+.aviso span{font-size:14px;color:var(--dim)}
+.aviso[hidden]{display:none}
+#pant{position:absolute;right:8px;top:8px;width:44px;height:44px;display:grid;place-items:center;color:var(--text);
+  background:rgba(0,0,0,.55);border:1px solid var(--line);border-radius:12px;cursor:pointer}
+#pant svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8}
+.imp{display:grid;gap:9px;border-top:1px solid var(--line);padding-top:14px}
+.imp[hidden]{display:none}
+.gran{font-family:var(--mono);font-size:24px;line-height:1.1;color:#fff;letter-spacing:.02em}
+.barra{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.barra i{display:block;height:100%;width:0;background:#fff;border-radius:3px;transition:width .6s}
+.fila{display:flex;justify-content:space-between;gap:12px;font-family:var(--mono);font-size:12px;color:var(--dim)}
+.fila span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acciones{display:grid;gap:10px}
+button.acc{font:inherit;font-size:16px;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:12px;
+  padding:15px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em}
+button.acc:active{background:#fff;color:#000}
+.volver{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:center;padding:6px}
+@media (prefers-reduced-motion:reduce){body.directo .estado i{animation:none}.barra i{transition:none}}
+</style>
+</head>
+<body>
+<div class="top"><span class="lbl">Cámara</span><span class="lbl estado" aria-live="polite"><i></i><span id="est">Conectando</span></span></div>
+<div class="visor">
+  <video id="video" muted playsinline autoplay disablepictureinpicture aria-label="Imagen de la cámara en directo"></video>
+  <div class="aviso" id="aviso"><b id="at">Conectando</b><span id="ax">Buscando la cámara…</span></div>
+  <button id="pant" type="button" aria-label="Pantalla completa"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</div>
+<section class="imp" id="imp" hidden aria-live="polite">
+  <span class="lbl">Impresora</span>
+  <div class="gran" id="ig">--</div>
+  <div class="barra"><i id="ib"></i></div>
+  <div class="fila"><span id="ia"></span><span id="ir"></span></div>
+  <div class="fila"><span id="it"></span><span id="ic"></span></div>
+</section>
+<div class="acciones"><button class="acc" id="act" type="button">Actualizar</button></div>
+<a class="volver" href="/">Volver a Delta</a>
+<script src="/camara/hls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const V = $("video"), SRC = "/camara/live/amba.m3u8";
+document.body.classList.toggle("embed", new URLSearchParams(location.search).has("embed"));
+
+let reintento = 0, camara = null;
+function ver(estado, titulo, texto) {  // estado: directo | sin
+  document.body.classList.toggle("directo", estado === "directo");
+  $("est").textContent = estado === "directo" ? "En directo" : "Sin imagen";
+  $("aviso").hidden = estado === "directo";
+  if (titulo) { $("at").textContent = titulo; $("ax").textContent = texto; }
+}
+let hls = null;
+function conectar() {
+  clearTimeout(reintento);
+  soltar();
+  if (window.Hls && Hls.isSupported()) {   // Chrome/Android: hls.js lo pasa a MSE; Safari/iOS lo reproducen solos
+    hls = new Hls({liveSyncDurationCount: 12, maxBufferLength: 8, enableWorker: false});
+    hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) V.dispatchEvent(new Event("error")); });
+    hls.loadSource(SRC);
+    hls.attachMedia(V);
+  } else {
+    V.src = SRC;
+  }
+  V.play().catch(() => {});
+}
+function soltar() {  // sin pestaña a la vista no se pide vídeo: ni batería ni datos
+  if (hls) { hls.destroy(); hls = null; }
+  V.removeAttribute("src"); V.load();
+}
+
+V.addEventListener("playing", () => ver("directo"));
+V.addEventListener("error", () => {
+  ver("sin", camara === false ? "Sin imagen" : "Reconectando", camara === false
+    ? "La GoPro está apagada, sin batería o sin WiFi. Cuando vuelva, se reconecta sola." : "Se corta un momento…");
+  clearTimeout(reintento);
+  reintento = setTimeout(conectar, 3000);
+});
+// En directo la imagen no se acaba: si el reloj del vídeo no avanza durante 9 s, se vuelve a pedir
+let ult = -1, quieto = 0;
+setInterval(() => {
+  if (document.hidden || (!hls && !V.getAttribute("src"))) return;
+  if (V.currentTime !== ult) { ult = V.currentTime; quieto = 0; return; }
+  if (++quieto >= 3) { quieto = 0; ver("sin", "Reconectando", "Se corta un momento…"); conectar(); }
+}, 3000);
+document.addEventListener("visibilitychange", () => document.hidden ? soltar() : conectar());
+
+const hm = s => s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min` : `${Math.max(1, Math.round(s / 60))} min`;
+const ESTADOS = {printing: "Imprimiendo", paused: "En pausa", complete: "Terminada", standby: "En reposo", error: "Error", cancelled: "Cancelada"};
+function pintarImpresora(i) {
+  $("imp").hidden = !i;
+  if (!i) return;
+  const activa = i.estado === "printing" || i.estado === "paused";
+  $("ig").textContent = (ESTADOS[i.estado] || i.estado) + (activa ? ` ${Math.round(i.progreso * 100)} %` : "");
+  $("ib").style.width = (activa || i.estado === "complete" ? Math.round(i.progreso * 100) : 0) + "%";
+  $("ia").textContent = i.archivo || "";
+  $("ir").textContent = activa && i.restante != null ? `quedan ${hm(i.restante)}` : (i.transcurrido ? `duró ${hm(i.transcurrido)}` : "");
+  $("it").textContent = `Boquilla ${i.boquilla[0]}/${i.boquilla[1]}° · Cama ${i.cama[0]}/${i.cama[1]}°`;
+  $("ic").textContent = i.capa ? `capa ${i.capa[0]}/${i.capa[1]}` : "";
+}
+async function mirar() {
+  try {
+    const e = await (await fetch("/camara/estado", {cache: "no-store"})).json();
+    camara = e.camara;
+    pintarImpresora(e.impresora);
+    if (!camara && !document.body.classList.contains("directo")) ver("sin", "Sin imagen", "La GoPro está apagada, sin batería o sin WiFi. Cuando vuelva, se reconecta sola.");
+  } catch (_) {
+    camara = null;
+    ver("sin", "Sin conexión", "No llego a la caja de la impresora. ¿Tienes Tailscale activo en el móvil?");
+  }
+}
+
+$("pant").onclick = () => (V.requestFullscreen || V.webkitEnterFullscreen || V.webkitRequestFullscreen).call(V);
+$("act").onclick = () => { ver("sin", "Conectando", "Buscando la cámara…"); conectar(); mirar(); };
+conectar();
+mirar();
+setInterval(mirar, 5000);
+</script>
+</body>
+</html>

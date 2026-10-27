@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-27",
+  "t": "Nueva pantalla «Cámara» en la web del móvil (justo antes de Sistema): imagen en directo de la GoPro y estado de la impresora (progreso, tiempo, temperaturas, capa) para vigilar una impresión desde fuera de casa. Sale de la caja de la impresora, así funciona con el portátil apagado (también desde el enlace de la página «PC apagado»). Solo la cuenta dueña por Tailscale",
+  "como": "desliza hasta la pantalla Cámara de la web del móvil",
+  "voz": false
+ },
+ {
+  "f": "2026-10-27",
   "t": "La visión ya ve por la GoPro Hero 3 (alta y de frente) en vez de la webcam inclinada del portátil: cara, hombros y manos al 100 % en la prueba, y la webcam al 0 %. La GoPro llega por WiFi a la caja de la impresora y de ahí al PC por Tailscale; la webcam queda desactivada en vision.json",
   "como": "enciende la visión",
   "voz": true
