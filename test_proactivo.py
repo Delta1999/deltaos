@@ -12,6 +12,8 @@ def limpiar():
     proactivo._ultimo.clear(); proactivo._pasadas.clear(); proactivo._seguidas.clear()
     acciones.ST["privacidad"] = False
     acciones.ST["no_molestar"] = 0
+    acciones.ST["silencio"] = 0
+    acciones.ST.pop("silenciados", None)
 
 
 # ---------- qué merece decirse ----------
@@ -81,5 +83,19 @@ assert asyncio.run(acciones.avisar("x", notificar=False, motivo="calor", urgente
 # Sin motivo es algo que pidió el usuario (alarma, recordatorio): no se filtra ni en privacidad.
 assert asyncio.run(acciones.avisar("x", notificar=False)) is None
 limpiar()
+
+# ---------- silencio total: ni lo que pidió el usuario ----------
+assert not acciones.silencio_total()
+assert "Hecho: silencio total." in asyncio.run(proactivo.silencio_total(""))
+assert acciones.silencio_total()
+assert asyncio.run(acciones.avisar("Alarma: pizza", notificar=False, movil="Alarma: pizza")) == "Callado: silencio total."
+assert acciones.ST["silenciados"] == ["Alarma: pizza"]
+r = asyncio.run(proactivo.silencio_total("0"))
+assert "Alarma: pizza" in r and not acciones.silencio_total(), r
+assert asyncio.run(proactivo.silencio_total("mañana")).startswith("Error")
+assert asyncio.run(proactivo.silencio_total("9999")).startswith("Error")
+assert "30 minutos" in asyncio.run(proactivo.silencio_total("30")) and acciones.silencio_total()
+limpiar()
+assert not acciones.silencio_total(), "limpiar() lo quita"
 
 print("OK: Delta avisa de calor, memoria, disco y batería, y se calla cuando toca")

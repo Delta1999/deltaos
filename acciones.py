@@ -67,6 +67,11 @@ PUERTA = None  # proactivo.py la pone; sin ese módulo, avisar() no filtra nada
 PUSH_MOVIL = None  # movil.py la pone: async f(texto) manda una notificación al móvil por KDE Connect
 
 
+def silencio_total():
+    """¿Está pedido el silencio total (2026-10-27)? Ni voz, ni notificación, ni sonido de alarma: nada avisa."""
+    return time.monotonic() < ST.get("silencio", 0)
+
+
 async def avisar(texto: str, notificar=True, motivo=None, urgente=False, espera=0.0, movil=None):
     """Aviso proactivo: notificación de escritorio y el modelo lo dice en voz alta.
     Sin sesión (colgada en reposo o reconectando): se guarda y se despierta; assistant.py lo dice al conectar.
@@ -74,7 +79,13 @@ async def avisar(texto: str, notificar=True, motivo=None, urgente=False, espera=
     Con «motivo» es Delta quien decide hablar, así que pasa por la puerta de proactivo.py
     (privacidad, no molestar, de noche, no repetirse). Sin motivo es algo que pidió el usuario
     —una alarma, un recordatorio, un trabajo que termina— y eso no se filtra nunca.
-    «movil»: frase corta para el usuario que además sale como notificación en su móvil (el «texto» es para el modelo)."""
+    «movil»: frase corta para el usuario que además sale como notificación en su móvil (el «texto» es para el modelo).
+    En silencio total no sale nada, ni lo que pidió el usuario: se apunta en ST["silenciados"] para contárselo al quitarlo."""
+    if silencio_total():
+        ST.setdefault("silenciados", []).append(movil or texto[:120])
+        del ST["silenciados"][:-20]
+        print(f"🔇 silencio total: no aviso «{texto[:60]}»")
+        return "Callado: silencio total."
     if movil and PUSH_MOVIL is not None:
         tarea(PUSH_MOVIL(movil))
     if motivo is not None and PUERTA is not None:
@@ -1044,7 +1055,9 @@ FUSIONES = {
                "accion=parar_alarma). También es el CALENDARIO: «apunta en el calendario que el jueves tengo médico a las 17:30» "
                "(texto «médico», a_las «jueves 17:30»; sale en la línea de la semana del panel). ver: los pendientes y la hora y fecha de aquí (consúltala siempre que te pregunten la hora, el día o la fecha). cancelar: los que contengan texto, o «todos». "
                "no_molestar: deja de avisar por tu cuenta un rato («no me molestes», «déjame en paz», «silencio»); lo "
-               "que él te pidió sigue sonando, y sin en_minutos (o con 0) vuelves a avisar.",
+               "que él te pidió sigue sonando, y sin en_minutos (o con 0) vuelves a avisar. "
+               "silencio_total: «silencio total», «no me avises de nada»: no dices ni notificas NINGÚN aviso ni alerta, tampoco "
+               "alarmas ni recordatorios, hasta que te diga que acabó (accion=silencio_total con en_minutos=0) o pasen en_minutos.",
                {"texto": "programar: qué recordar («sacar la pizza»); cancelar: parte del texto o «todos»",
                 "en_minutos": "programar: dentro de cuántos minutos, p.ej. 20 o 1.5; no_molestar: cuántos callado",
                 "a_las": "programar: hora HH:MM (la próxima vez que llegue); con día, «jueves 17:30», «mañana 09:00», «pasado mañana 10:00» "
@@ -1053,7 +1066,8 @@ FUSIONES = {
                 "repetir": "programar: vacío | diario"},
                {"programar": _r("programar_aviso"), "ver": _r("ver_avisos"),
                 "cancelar": _r("cancelar_aviso", {"cual": "texto"}), "parar_alarma": _r("parar_alarma"),
-                "no_molestar": _r("no_molestar", {"minutos": "en_minutos"})}),
+                "no_molestar": _r("no_molestar", {"minutos": "en_minutos"}),
+                "silencio_total": _r("silencio_total", {"minutos": "en_minutos"})}),
     "claude": ("Claude Code y Cherry (Plan B). mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, fondos, voz, "
                "herramientas…) ya con Claude Code; si no corre prisa, memoria accion=anotar_mejora. "
                "cherry: Plan B cuando Claude no tenga tokens o el usuario pida expresamente usar Cherry («mejora esto con Cherry», «dile a Cherry que cambie esto»); "

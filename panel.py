@@ -195,6 +195,7 @@ def snapshot(ST):
         "v": _panel_version(),
         "mic": mic, "salud": _salud(ST, mic), "lat": ST.get("lat"), "priv": bool(ST.get("privacidad")), "umbrales": umbrales.para_panel(),
         "vista": _vista_actual(), "nomol": ST.get("no_molestar", 0) > ahora,
+        "silencio": ST.get("silencio", 0) > ahora,
         "vivo": ST.get("vivo", 0) > ahora,  # directo de pantalla: el panel enciende el REC
         "tarjeta": _tarjeta_viva(ahora),
         "estado": _estado(ST),
@@ -1083,6 +1084,9 @@ def contexto(ST):
         c.append("impresora sin conexión")
     nuevas = [n for n in S["notifs"] if n["id"] > _visto]
     _visto = max([_visto] + [n["id"] for n in nuevas])
+    if acciones.silencio_total():  # silencio total: ni el saludo cuenta avisos ni alertas
+        c = [x for x in c if not x.startswith("impresora")]
+        nuevas = []
     c += [f"aviso {n['tipo']}: {n['txt']}" for n in nuevas[-3:]]
     cl = ST.get("claude", {})
     if cl.get("estado") in ("trabajando", "esperando permiso"):

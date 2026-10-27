@@ -145,8 +145,39 @@ async def no_molestar(minutos=""):
     return f"Hecho: no le molesto durante {n:g} minutos. Lo que me pidió expresamente sigue sonando."
 
 
+async def silencio_total(minutos=""):
+    """Silencio total: ni lo de iniciativa propia ni lo que el usuario encargó (alarmas, recordatorios, trabajos).
+    Sin minutos dura hasta que él lo quite; al quitarlo cuenta lo que se calló."""
+    m = str(minutos).strip().replace(",", ".")
+    try:
+        if m and float(m) == 0:
+            m = "0"  # 0, 0.0…
+    except ValueError:
+        pass
+    if m in ("0", "fin", "ya", "basta", "quitar"):
+        acciones.ST["silencio"] = 0
+        perdidos = acciones.ST.pop("silenciados", [])
+        if not perdidos:
+            return "Hecho: vuelvo a avisar. Mientras tanto no se ha callado nada."
+        return f"Hecho: vuelvo a avisar. Se callaron {len(perdidos)}: " + "; ".join(perdidos[-8:]) + ". Cuéntaselo en una frase."
+    if m == "":
+        acciones.ST["silencio"] = float("inf")
+        acciones.ST.pop("silenciados", None)
+        return "Hecho: silencio total. No aviso ni notifico nada, tampoco alarmas ni recordatorios, hasta que lo quite."
+    try:
+        n = float(m)
+    except ValueError:
+        return 'Error: minutos tiene que ser un número (o vacío para no limitarlo, 0 para quitarlo), p.ej. "60".'
+    if not 0 < n <= 24 * 60:
+        return "Error: entre 1 minuto y 24 horas."
+    acciones.ST["silencio"] = time.monotonic() + n * 60
+    acciones.ST.pop("silenciados", None)
+    return f"Hecho: silencio total durante {n:g} minutos. No aviso ni notifico nada, tampoco alarmas."
+
+
 acciones.PUERTA = puede  # acciones.avisar() la consulta; sin este módulo cargado, avisa como siempre
 acciones.ETIQUETAS["no_molestar"] = "No molestar"
+acciones.ETIQUETAS["silencio_total"] = "Silencio total"
 # Se registra plana pero la absorbe la fusión «avisos»: el presupuesto de herramientas está lleno.
 acciones.registrar([
     acciones._fn("no_molestar",
@@ -154,4 +185,9 @@ acciones.registrar([
                  "«silencio»). Las alarmas y los recordatorios que él te pidió siguen sonando. Sin minutos, "
                  "o con 0, vuelves a avisar.",
                  {"minutos": _s("cuántos minutos callar; vacío o 0 para volver a avisar")}),
-], (no_molestar,))
+    acciones._fn("silencio_total",
+                 "Silencio total: no dices ni notificas NINGÚN aviso ni alerta (alarmas y recordatorios incluidos) hasta que "
+                 "el usuario lo quite («silencio total», «no me avises de nada»). Sin minutos dura hasta que lo quite; "
+                 "con 0 lo quitas y te devuelve lo que se calló, que le cuentas en una frase.",
+                 {"minutos": _s("cuántos minutos; vacío = hasta que lo quite; 0 = quitarlo")}),
+], (no_molestar, silencio_total))

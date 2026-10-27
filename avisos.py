@@ -141,6 +141,8 @@ async def parar_alarma():
 
 # ---------- disparo ----------
 def _sonar(nombre):
+    if acciones.silencio_total():
+        return
     subprocess.Popen(["paplay", str(SONIDOS / nombre)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -160,7 +162,7 @@ async def _alarma_en_bucle():
 
 async def _disparar(a, retraso):
     tarde = f" (con {round(retraso / 60)} min de retraso: el ordenador estaba apagado o suspendido)" if retraso > 120 else ""
-    if a["tipo"] == "alarma":
+    if a["tipo"] == "alarma" and not acciones.silencio_total():
         acciones.tarea(_alarma_en_bucle())
         await acciones.avisar(f"Alarma: {a['texto']}{tarde}. Sigue sonando hasta que el usuario diga que pares (avisos accion=parar_alarma).",
                            movil=f"Alarma: {a['texto']}{tarde}")
