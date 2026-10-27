@@ -47,6 +47,19 @@ fijar 'Digital Capture Volume' '60,60'  # 0 dB
 
 pactl list short sources | grep -q "$MIC" || log "⚠️ SIN MICRO tras corregir el perfil: revisar a mano"
 
+# El mute del sink es otra capa, por encima de ALSA: el 2026-10-27 el PC arrancó con el mezclador
+# guardado en silencio, el script dejó los controles de ALSA bien y dijo «audio: OK», pero la salida
+# seguía muda. Delta oía y contestaba, y el usuario no la oía.
+if [ "$(pactl get-sink-mute @DEFAULT_SINK@ 2>/dev/null)" != "Mute: no" ]; then
+  pactl set-sink-mute @DEFAULT_SINK@ 0 2>/dev/null \
+    && log "la salida estaba silenciada → sonido restablecido" \
+    || log "⚠️ la salida está silenciada y no he podido quitarlo: revisar a mano"
+fi
+VOL=$(pactl get-sink-volume @DEFAULT_SINK@ 2>/dev/null | grep -oP '^Volume:.*?\K[0-9]+(?=%)' | head -1)
+if [ -n "$VOL" ] && [ "$VOL" -lt 20 ]; then
+  pactl set-sink-volume @DEFAULT_SINK@ 70% 2>/dev/null && log "volumen de salida al $VOL% → 70%"
+fi
+
 # El cancelador cargado antes de que existiera el micro queda sordo: recargarlo.
 # Ya no vale `pactl unload-module`: el cancelador no se carga a mano, lo trae PipeWire desde
 # ~/.config/pipewire/pipewire.conf.d/50-delta-echo-cancel.conf. Reiniciar PipeWire lo recarga
