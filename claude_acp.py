@@ -17,6 +17,7 @@ from acp.helpers import text_block
 
 import acciones
 import panel
+import revision_delta
 from acciones import ST, WORMHOLE, AQUI, avisar, _confirmar, _run
 
 COMANDO = ("npx", "-y", "@agentclientprotocol/claude-agent-acp")
@@ -171,13 +172,16 @@ async def _turno(mensaje, propio=None, voz=True, nueva=None):
         final = _estado["texto"].strip() or "(sin texto)"
         if LIMITE.search(final):  # límite de tokens o sesión de Claude Code
             raise RuntimeError(f"Límite de tokens de Claude Code alcanzado: {final[:160]}")
+        rev = ""
         if propio:
-            await _registrar(propio[0], propio[1], final)
+            despues = await _registrar(propio[0], propio[1], final)
+            rev = await _revisar(propio[0], propio[1], despues)
         _estado.update(estado="libre", ultimo="hecho")
-        panel.notificar("info", f"Claude Code terminó: {cab[:60]}")
+        panel.notificar("alerta" if rev and "VERDE" not in rev[:40] else "info", f"Claude Code terminó: {cab[:60]}" + (f" · {rev[:90]}" if rev else ""))
         if voz:
-            await avisar(f"Claude Code ha terminado. Resume al usuario en una o dos frases: {final[-1200:]}",
-                         movil=f"Claude Code ha terminado: {cab[:80]}")
+            await avisar(f"Claude Code ha terminado. Resume al usuario en una o dos frases: {final[-1200:]}"
+                         + (f"\n{rev}\nDi también el veredicto de la revisión (verde o roja) y, si es roja o no hay veredicto, el motivo." if rev else ""),
+                         movil=f"Claude Code ha terminado: {cab[:80]}" + (f" ({rev[:60]})" if rev else ""))
     except asyncio.CancelledError:
         _estado["estado"] = "libre"
         raise
@@ -244,6 +248,53 @@ async def _registrar(peticion, antes, final):
         nov.write_text(json.dumps(lista, ensure_ascii=False, indent=1))
     except Exception as e:
         print(f"novedades: {e}")
+    return despues
+
+
+REVISION_MAX = 300  # s que se le dan al revisor antes de dejar el cambio «sin veredicto»
+
+
+async def _revisar(peticion, antes, despues):
+    """Revisión independiente del cambio recién hecho (sesión ACP nueva, solo petición + diff): devuelve una línea
+    «Revisión independiente: VERDE|ROJA|SIN VEREDICTO — …» que también queda en el registro, o "" si no hubo cambios."""
+    nuevos = sorted(despues[1] - antes[1])
+    if antes[0] == despues[0] and not nuevos:
+        return ""
+    tarea_antes = _estado["tarea"]
+    try:
+        ver = f"git diff {antes[0]} {despues[0]}"
+        _, diff = await _run(["git", "-C", str(AQUI)] + ver.split()[1:], timeout=30)
+        ficheros = []
+        for n in nuevos[:5]:
+            try:
+                ficheros.append((n, (AQUI / n).read_text(errors="replace")[:revision_delta.MAX_NUEVO]))
+            except OSError:
+                pass
+        _estado.update(tarea=f"Revisión independiente: {peticion[:90]}", pasos=[], plan=[], texto="")
+        sid = (await _conn.new_session(cwd=str(AQUI))).session_id
+        try:  # que el revisor no pueda editar
+            await _conn.set_session_mode(session_id=sid, mode_id="plan")
+        except Exception as e:
+            print(f"ACP revisión: sin modo plan ({e})")
+        try:
+            await asyncio.wait_for(_conn.prompt(session_id=sid, prompt=[text_block(revision_delta.prompt(peticion, diff, ficheros, ver))]),
+                                   REVISION_MAX)
+            v, detalle = revision_delta.veredicto(_estado["texto"])
+        except asyncio.TimeoutError:
+            await _conn.cancel(session_id=sid)
+            v, detalle = None, f"el revisor tardó más de {REVISION_MAX} s"
+        detalle = re.sub(r"\s+", " ", detalle).strip()
+        linea = f"Revisión independiente: {v or 'SIN VEREDICTO'}" + (f" — {detalle[:500]}" if detalle else "")
+    except Exception as e:  # una revisión que falla nunca tumba el cambio ya hecho
+        linea = f"Revisión independiente: SIN VEREDICTO — no se pudo revisar ({e})"
+    finally:
+        _estado["tarea"] = tarea_antes
+    try:
+        with REGISTRO.open("a") as f:
+            f.write(f"\n**{linea}**\n")
+    except OSError as e:
+        print(f"registro de revisión: {e}")
+    return linea
 
 
 def ocupado():

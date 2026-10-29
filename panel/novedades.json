@@ -1,6 +1,11 @@
 [
  {
   "f": "2026-10-30",
+  "t": "Revisión al terminar: cuando Claude acaba un cambio en el propio Delta, otra sesión de Claude Code que solo ve la petición y el diff (nunca el razonamiento de quien lo hizo) lo revisa en solo lectura y da luz VERDE o ROJA con los defectos concretos. Queda en CAMBIOS_DELTA.md, sale en el panel y Delta te lo cuenta. Si el revisor no sigue el formato, pone «sin veredicto»: nunca da verde por defecto.",
+  "como": "pídele a Claude que cambie algo de Delta"
+ },
+ {
+  "f": "2026-10-30",
   "t": "Nueva conversación en la pantalla «Agentes»: el icono bajo el título abre un selector con Claude Code (agentes genéricos y especialistas, frameworks de plugins, modo Workflow y modo Juez) o DeltaOS (hablarle, cambiar algo de él, plan B Cherry). Al dejar el ratón sobre cada opción explica lo que hace; al elegirla escribes la tarea y se abre una sesión de Claude Code nueva que sale en la constelación.",
   "como": "pulsa el icono de nueva conversación bajo «Agentes»",
   "voz": false
