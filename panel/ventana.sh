@@ -63,7 +63,7 @@ ORBE_PID= ORBE_PUESTO= ORBE_NUEVO= ORBE_W= ORBE_EN=
 ORBE_POS="${XDG_RUNTIME_DIR:-/tmp}/delta-orbe-pos"  # una línea «pantalla x y» por pantalla: dónde lo dejó el usuario al arrastrarlo
 lanzar_orbe() {  # no espera: su arranque (~6-10 s) va en paralelo al de Chromium
   kill -0 "$ORBE_PID" 2>/dev/null && return
-  /usr/bin/python3 "$DIR/orbe_flotante.py" "$URL" >/dev/null 2>&1 &   # python del sistema: PyGObject y WebKit no están en el .venv
+  /usr/bin/python3 "$DIR/orbe_flotante.py" "$URL" >/dev/null 2>&1 8>&- &   # python del sistema: PyGObject y WebKit no están en el .venv
   ORBE_PID=$! ORBE_PUESTO= ORBE_W= ORBE_EN= ORBE_NUEVO=1
 }
 orbe_sitio() {  # $1 = destino. Imprime «x y»: donde lo dejó el usuario en esa pantalla, y si no, la esquina de siempre
@@ -113,7 +113,8 @@ orbe() {  # $1 = destino, $2 = vista
     kill -USR2 "$ORBE_PID" 2>/dev/null; ORBE_PUESTO=
   fi
 }
-trap 'kill $ORBE_PID 2>/dev/null' EXIT INT TERM
+trap 'kill $ORBE_PID 2>/dev/null' EXIT
+trap 'exit' INT TERM   # un trap sin exit hacía que kill no la parase (run.sh la mata al salir)
 
 # Regla de KWin: la ventana nace ya en su pantalla, sin aparecer antes en la otra y saltar
 regla() {
@@ -140,6 +141,18 @@ preparar_chromium() {
   fi
 }
 
+# Un solo panel (2026-10-29: un arranque fallido dejó una ventana.sh huérfana y, al arrancar otra, había dos
+# ventanas). Si ya hay otra ventana.sh, esta la releva: se para a la vieja y se cierra su Chromium.
+LOCK="${XDG_RUNTIME_DIR:-/tmp}/delta-ventana.lock"
+exec 8<>"$LOCK"
+if ! flock -n 8; then
+  kill "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null
+  flock -w 5 8 || exit 0
+fi
+echo $$ > "$LOCK"
+pkill -f "user-data-dir=$DIR/.chromium" 2>/dev/null
+for i in $(seq 20); do pgrep -f "user-data-dir=$DIR/.chromium" >/dev/null || break; sleep .25; done
+
 D=$(destino); [ -n "$D" ] && regla "$D"
 for i in $(seq 30); do curl -sf "$URL" >/dev/null && break; sleep 1; done
 preparar_chromium
@@ -148,7 +161,7 @@ lanzar_orbe  # siempre, aunque se arranque en panel: así el primer «modo invis
 # Chromium y no Chrome: Chrome ya no admite --load-extension, y sinmarcos/ deja incrustar webs en el panel
 chromium-browser --user-data-dir="$DIR/.chromium" --load-extension="$DIR/sinmarcos" --app="$URL/" --no-first-run \
   --hide-crash-restore-bubble --disable-session-crashed-bubble --no-recovery-component --no-default-browser-check \
-  --disable-features=Translate,OptimizationGuideOnDeviceModel --autoplay-policy=no-user-gesture-required &
+  --disable-features=Translate,OptimizationGuideOnDeviceModel --autoplay-policy=no-user-gesture-required 8>&- &
 CH=$!
 # Wayland ignora --window-position: se coloca con KWin una vez aparece la ventana
 for i in $(seq 200); do W=$(kdotool search --class "chrome.*127.0.0.1|127.0.0.1" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep .1; done

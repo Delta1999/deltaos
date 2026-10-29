@@ -64,7 +64,14 @@ fi
 case " $* " in *" --sin-panel "*) ;; *)
   [ -n "$WAYLAND_DISPLAY$DISPLAY" ] && { "$DIR/panel/ventana.sh" >/dev/null 2>&1 9>&- & VENTANA=$!; } ;;
 esac
-cleanup_ventana() { [ -n "$VENTANA" ] && pkill -f "user-data-dir=$DIR/panel/.chromium" 2>/dev/null; }
-trap 'cleanup_ventana; cleanup' EXIT INT TERM
+# Primero el vigilante: si Delta muere mientras ventana.sh aún espera al panel (hasta 30 s), sin esto
+# lanzaba su Chromium después y se quedaba huérfano (2026-10-29: dos ventanas del panel).
+cleanup_ventana() {
+  [ -n "$VENTANA" ] || return 0
+  kill "$VENTANA" 2>/dev/null
+  pkill -f "user-data-dir=$DIR/panel/.chromium" 2>/dev/null
+  return 0
+}
+trap cleanup_ventana EXIT INT TERM
 
 "$DIR/.venv/bin/python3" "$DIR/assistant.py" "$@"
