@@ -1026,11 +1026,6 @@ acciones.registrar([
                  "Búsqueda rápida en internet: devuelve los datos relevantes para contestar de palabra. Úsala por defecto "
                  "cuando te pidan buscar o averiguar algo.",
                  {"consulta": acciones._s("qué buscar")}),
-    acciones._fn("investigar",
-                 f"SOLO si el usuario pide expresamente investigar a fondo o un informe. Investigación profunda multi-salto en segundo plano: varias búsquedas web encadenadas + los documentos de "
-                 f"{BIBLIOTECA}, cruza fuentes y deja un informe con citas que se muestra en el panel. Para preguntas que "
-                 "el usuario pide así («investiga a fondo», «hazme un informe»); si solo pide buscar algo, usa buscar.",
-                 {"pregunta": acciones._s("la pregunta completa a investigar")}),
     acciones._fn("editar_informe",
                  "Edita un informe que generaste con investigar (por defecto el que está en el visor): subrayar en rojo, "
                  "poner en rojo, resaltar, añadir notas o comentarios, reescribir, añadir o quitar datos o secciones. "
@@ -1089,4 +1084,4 @@ acciones.registrar([
                  "Cambia el estilo visual de DeltaOS entre Nothing Design System e iOS / Apple Design (Human Interface Guidelines / Liquid Glass). "
                  "Úsalo cuando diga «pon el diseño ios», «activa el tema apple», «pon el diseño nothing», «cambia al estilo apple», «cambia de tema»…",
                  {"tema": acciones._s("nothing | ios (o apple); vacío para alternar")}),
-], (pasar_cos, mostrar_en_tira, mostrar, buscar, investigar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, fondo, pantalla_completa, leer_pegado, energia, reiniciar_delta, mover_a_pantalla, quitar_de_tira, cambiar_tema))
+], (pasar_cos, mostrar_en_tira, mostrar, buscar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, fondo, pantalla_completa, leer_pegado, energia, reiniciar_delta, mover_a_pantalla, quitar_de_tira, cambiar_tema))

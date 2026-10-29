@@ -1163,8 +1163,7 @@ FUSIONES = {
     "documentos": ("Secretario, en ~/Documentos/Delta/documentos. crear: redacta carta, instancia, reclamación, resumen, "
                    "acta, lista, apuntes, dossier, notas dictadas… SOLO cuando pide un archivo o documento («hazme un PDF», "
                    "«redáctame», «toma nota de esto en un archivo/documento»); «apunta en notas…» NO es esto, es memoria "
-                   "accion=nota_guardar; con buscar=sí busca antes en la web y cita fuentes; para investigar a fondo usa investigar y "
-                   "luego convertir. convertir: un informe o documento ya hecho a pdf, docx u odt. enviar_al_movil: lo "
+                   "accion=nota_guardar; con buscar=sí busca antes en la web y cita fuentes; convertir: un informe o documento ya hecho a pdf, docx u odt. enviar_al_movil: lo "
                    "manda al móvil por KDE Connect (los informes van en PDF).",
                    {"encargo": "crear: qué documento y para qué, con TODOS los datos; si dicta el texto, cópialo literal",
                     "nombre": "convertir/enviar_al_movil: parte del nombre del documento o informe",

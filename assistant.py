@@ -535,7 +535,7 @@ async def main():
                     "Si hay atajo sin terminal (p. ej. Spectacle con Meta+Mayús+R para grabar la pantalla), díselo en una frase. Si el comando lo puedes lanzar tú y él prefiere, ofrécete con ejecutar_shell (con su sí si cambia algo). "
                     "Si te pide la receta, NO la ejecutes: solo cópiala. "
                     "Si te piden enseñar, ver o abrir algo para mirarlo, usa mostrar (sale en el panel); abrir es solo para el navegador o apps del escritorio. "
-                    "buscar: úsala cuando te pidan buscar algo y di los datos clave; investigar SOLO si piden expresamente investigación a fondo. "
+                    "buscar: úsala cuando te pidan buscar algo y di los datos clave; no existe modo informe ni investigación a fondo (se quitó para ahorrar cuota): si la piden, haz una búsqueda normal. "
                     "Skills: si una tarea encaja con una skill instalada, léela con skills accion=usar y síguela. Si no tienes ninguna que encaje y es algo que hará falta a menudo, "
                     "búscala con skills accion=buscar e instálala con accion=instalar (pregúntale antes si la instalas), y dile cuál has instalado. Skills instaladas:\n" + deltaos.resumen_skills() + "\n"
                     "Averías y mejoras del propio Delta (panel, barra, voz, herramientas) van a Claude Code (o Cherry si pide Cherry): "

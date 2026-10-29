@@ -252,8 +252,7 @@ acciones.registrar([
                  "Secretario: redacta un documento y lo guarda en ~/Documentos/Delta/documentos (carta, instancia, "
                  "reclamación, resumen, acta, lista, apuntes, dossier, notas dictadas…). Úsalo cuando pida «hazme un PDF», "
                  "«redáctame», «escríbeme una carta», «ponlo en un documento», «toma nota de esto en un archivo» (si dice «apunta en notas…», NO es esto). Con "
-                 "buscar=sí hace antes unas búsquedas web y cita las fuentes. Para un informe de investigación a fondo usa "
-                 "investigar y luego convertir_documento.",
+                 "buscar=sí hace antes unas búsquedas web y cita las fuentes.",
                  {"encargo": acciones._s("qué documento quiere y para qué, con TODOS los datos que haya dado; si dicta "
                                          "el texto, cópialo literal"),
                   "formato": acciones._s("pdf (por defecto) | docx (Word) | odt | txt | md"),

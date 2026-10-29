@@ -5,7 +5,7 @@ Repositorio canónico: `~/gemini-live-assistant`. Trabaja aquí, sobre estos arc
 ## Mapa
 - `assistant.py` — bucle principal: micro, palabra «Delta», sesión Gemini Live (`gemini-3.8-live`), instrucciones del sistema.
 - `acciones.py` — herramientas que usa Gemini (`acciones._fn` + `acciones.registrar`), estado compartido `ST`, `avisar()`.
-- `deltaos.py` — DeltaOS: visor del panel, buscar, investigar (informes en HTML), editar_informe, skills, fondo, leer_pegado.
+- `deltaos.py` — DeltaOS: visor del panel, buscar, editar_informe (la investigación a fondo «investigar» está desactivada desde el 29/10: gastaba demasiada cuota), skills, fondo, leer_pegado.
 - `claude_acp.py` — Claude Code por ACP: `hablar_con_claude` (repo WORMHOLE) y `mejorar_delta` (este repo, con registro).
 - `panel.py` + `panel/index.html` + `panel/fondo.js` — panel web en 127.0.0.1:7876 (aiohttp + WebSocket; `S` = estado que se difunde).
 - `secretario.py` — documentos (crear_documento, convertir_documento).
