@@ -290,7 +290,7 @@ async def nueva_conversacion(instruccion, texto):
     global _tarea
     if ocupado():
         return f"Claude Code sigue ocupado con: {_estado['tarea']}. Espera a que termine o cancélalo."
-    _tarea = acciones.tarea(_turno(f"{instruccion}\n\nTarea del usuario: {texto}", nueva=texto, voz=False))
+    _tarea = acciones.tarea(_turno(f"{texto}\n\n[Modo de trabajo pedido por el usuario] {instruccion}", nueva=texto, voz=False))
     return "Conversación nueva enviada a Claude Code. Los pasos salen en esta pantalla."
 
 
