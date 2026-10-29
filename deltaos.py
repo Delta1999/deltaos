@@ -901,8 +901,10 @@ async def pantalla_completa(que):
     if que == "tiempo":
         await panel._abrir_tiempo()  # Nothing Weather entero en el visor
         return "Hecho: Nothing Weather en pantalla."
-    if que not in ("impresora", "sistema", "salir"):
-        return "Error: que es impresora | tiempo | sistema | salir."
+    if que not in ("impresora", "sistema", "agentes", "salir"):
+        return "Error: que es impresora | tiempo | sistema | agentes | salir."
+    if que == "agentes":
+        panel.vista("panel")  # en barra u oculto no se vería
     panel.S["completa"] = {"que": que, "id": time.time()}
     return f"Hecho: {que} a pantalla completa." if que != "salir" else "Hecho: vuelvo al panel."
 

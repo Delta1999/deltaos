@@ -36,6 +36,7 @@ import secretario  # noqa: F401  (documentos PDF/Word/texto)
 import habitos  # noqa: F401  (calendario de hábitos: registra sus rutas en el panel y sus herramientas)
 import estudio  # noqa: F401  (modo estudiante: clase → tema anotado)
 import mcp_puente  # noqa: F401  (conectores MCP: mcp.json → herramienta «conectores»)
+import agentes  # mapa en vivo de los agentes (pantalla completa «Agentes»): ruta /agentes.json
 import firetv  # tele del salón (Fire TV por ADB): herramienta tele_salon y estado en el panel
 import voz_movil  # hablar desde el móvil por Tailscale: la web /movil hace de micro y altavoz
 import proactivo  # noqa: F401  (habla por su cuenta, y sabe cuándo callarse)
@@ -559,6 +560,7 @@ async def main():
     acciones.tarea(mcp_puente.vigilar())  # sostiene las sesiones MCP; sin conectores activos, sale sola
     acciones.tarea(proactivo.vigilar())
     acciones.tarea(vision_delta.vigilar())
+    acciones.tarea(agentes.vigilar())  # guarda 20 min de historia para poder rebobinar
     acciones.tarea(firetv.vigilar())  # estado para el panel y Alexa fuera tras cada arranque del stick
 
     acciones.tarea(audio_input_loop())  # el micro vive siempre; la sesión va y viene

@@ -58,12 +58,12 @@ window.fondoEspera = d => {
   if (nuevo && ultId !== null) { fuera = 0; desde = performance.now() - ESPERA; escena = null; manual = null; forzado = d.fondo.escena !== 'auto'; }
   if (d.fondo) ultId = d.fondo.id; else if (ultId === null) ultId = 0;
   const c = d.completa;  // pantalla completa pedida por voz (la del arranque no cuenta)
-  if (c && c.id !== ultCompleta && ultCompleta !== null) { ultCompleta = c.id; c.que === 'salir' ? salir() : window.pantallaCompleta(c.que); return; }
+  if (c && c.id !== ultCompleta && ultCompleta !== null) { ultCompleta = c.id; c.que === 'salir' ? (salir(), window.Agentes && window.Agentes.cerrar()) : c.que === 'agentes' ? window.Agentes && window.Agentes.abrir() : window.pantallaCompleta(c.que); return; }
   if (ultCompleta === null) ultCompleta = c ? c.id : 0;
   // el orbe y la gota son su propio sistema: puesto, se queda aunque le hables (pedido el 2026-10-21). Se quita
   // igual que siempre: doble clic, Esc o la rueda.
   const pegado = on && (escena === 'orbe' || escena === 'blob');
-  const quiere = (forzado || pegado || d.estado === 'dormido') && !d.visor && !d.confirma && !document.body.classList.contains('chuleta') && !document.body.classList.contains('minimizado')
+  const quiere = (forzado || pegado || d.estado === 'dormido') && !d.visor && !d.confirma && !document.body.classList.contains('chuleta') && !document.body.classList.contains('agentes') && !document.body.classList.contains('minimizado')
     && !document.body.classList.contains('widget')  // el orbe flotante es su propia ventana: ahí no hay salvapantallas
     && !$('cel').classList.contains('on') && performance.now() > fuera;
   if (!quiere) desde = null; else if (desde === null) desde = performance.now();

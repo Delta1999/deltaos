@@ -1,5 +1,10 @@
 [
  {
+  "f": "2026-10-29",
+  "t": "Pantalla «Agentes»: ves en vivo a Delta, las sesiones de Claude Code y sus subagentes y OmniRoute; cada uno con su herramienta, su modelo y de dónde viene (Claude, OmniRoute o Gemini), cómo se pasan el trabajo, en constelación o en carriles, y una barra para rebobinar los últimos 20 minutos. También con el botón Agentes de la cabecera.",
+  "como": "enséñame los agentes"
+ },
+ {
   "f": "2026-10-27",
   "t": "Silencio total: Delta no te habla ni te notifica de NINGÚN aviso ni alerta (voz, notificación de escritorio, móvil, alarmas y recordatorios incluidos) hasta que lo quites; al quitarlo te cuenta lo que se calló. En la barra pone SILENCIO TOTAL. Distinto de «no molestar», que deja sonar lo que pediste.",
   "como": "silencio total"

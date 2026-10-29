@@ -650,7 +650,7 @@ def ip_para_la_tele():
         return None
 
 
-_VERSIONADOS = ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "three.module.js")
+_VERSIONADOS = ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "agentes.js", "three.module.js")
 
 
 def _con_version(nombre, tipo):
@@ -976,7 +976,7 @@ async def start(ST, voz):
         app.router.add_get("/", lambda r: _con_version("index.html", "text/html"))
         app.router.add_get("/ws", _ws)
         app.router.add_static("/fonts", AQUI / "panel" / "fonts")
-        for js in ("fondo.js", "orbe.js", "blob.js", "tiempo.js"):
+        for js in ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "agentes.js"):
             app.router.add_get("/" + js, lambda r, js=js: _con_version(js, "application/javascript"))
         for js in ("three.module.js", "novedades.json"):
             app.router.add_get("/" + js, lambda r, js=js: web.FileResponse(AQUI / "panel" / js, headers=nc))
