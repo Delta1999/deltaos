@@ -56,6 +56,14 @@ body.agentes #agentes{display:flex}
 #agentes .ag-pie .ag-t{font-family:var(--mono);font-size:12px;color:var(--text-secondary);min-width:120px;text-align:right}
 #agentes .ag-pie button{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--border-visible);border-radius:999px;padding:6px 13px;background:transparent;color:var(--text-primary);cursor:pointer}
 #agentes .ag-pie button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#agentes .ag-decir{display:none;align-items:center;gap:10px;padding:9px 22px;border-top:1px solid var(--border);background:var(--surface)}
+#agentes .ag-decir.on{display:flex}
+#agentes .ag-decir label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--text-secondary);white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+#agentes .ag-decir label b{color:var(--text-primary);font-weight:600}
+#agentes .ag-decir input{flex:1;min-width:0;background:var(--bg);color:var(--text-primary);border:1px solid var(--border-visible);border-radius:999px;padding:8px 14px;font-family:var(--sans);font-size:14px}
+#agentes .ag-decir input:disabled{opacity:.5}
+#agentes .ag-decir button{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--accent);border-radius:999px;padding:7px 14px;background:var(--accent);color:#fff;cursor:pointer}
+#agentes .ag-decir .res{font-size:12px;color:var(--text-secondary);max-width:340px}
 #agentes .ag-vacio{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-family:var(--mono);font-size:13px;pointer-events:none}
 @media(max-width:900px){#agentes .ag-lista,#agentes .ag-leyenda{display:none}}
 `;
@@ -70,6 +78,7 @@ raiz.innerHTML = `
   <button class="ag-x" id="ag-cerrar" title="Esc">Cerrar ✕</button></div>
 <div class="ag-cuerpo"><div class="ag-lienzo" id="ag-lienzo"><canvas id="ag-cv"></canvas><div class="ag-vacio" id="ag-vacio"></div><div class="ag-tip" id="ag-tip"></div></div>
   <div class="ag-lista" id="ag-lista"></div></div>
+<form class="ag-decir" id="ag-decir" autocomplete="off"><label id="ag-dl"></label><input id="ag-di" maxlength="2000"><button type="submit">Enviar</button><span class="res" id="ag-dr"></span></form>
 <div class="ag-pie"><button id="ag-vivo" class="on">● En directo</button><input type="range" id="ag-rango" min="0" max="1" step="0.5" value="1"><span class="ag-t" id="ag-t"></span></div>`;
 document.body.appendChild(raiz);
 const cv = $('ag-cv'), ctx = cv.getContext('2d');
@@ -125,8 +134,34 @@ function lista(t) {
       <div class="ch"><span style="border-color:${o[1]};color:${o[1]}">${o[0]}</span>${n.tipo === 'sub' && n.tarea ? `<span>${esc(corto(n.nombre, 20))}</span>` : ''}<span>${esc(nombreModelo(n.modelo))}</span>${n.ruta ? `<span>${esc(corto(n.ruta, 28))}</span>` : ''}${n.tok ? `<span>${n.parcial ? '≥' : ''}${n.tok} tok</span>` : ''}</div>
       ${usa ? `<div class="us">▸ ${esc(corto(usa, 90))}</div>` : ''}${n.tarea && !(n.tipo === 'sub') ? `<div class="ta">${esc(corto(n.tarea, 110))}</div>` : ''}</div>`;
   }).join('');
+  decirPon();
   $('ag-vacio').textContent = vis.length <= 1 ? 'Sin agentes trabajando ahora mismo. Rebobina la barra para ver lo de hace unos minutos.' : '';
 }
+
+// ---------- hablarle al agente ----------
+let decirA = null;
+function decirPon() {
+  const n = sel && D.nodos.find(x => x.id === sel), f = $('ag-decir');
+  f.classList.toggle('on', !!n);
+  if (!n) { decirA = null; return; }
+  if (decirA !== n.id) { decirA = n.id; $('ag-di').value = ''; $('ag-dr').textContent = ''; }
+  const ok = n.hablable;
+  $('ag-dl').innerHTML = `Decirle a <b>${esc(corto(titulo(n), 26))}</b>`;
+  $('ag-di').disabled = !ok;
+  $('ag-di').placeholder = ok ? 'Escríbele y pulsa Intro…' : 'Es otro proceso: desde aquí solo se puede leer';
+  f.querySelector('button').style.display = ok ? '' : 'none';
+}
+$('ag-decir').onsubmit = e => {
+  e.preventDefault();
+  const t = $('ag-di').value.trim();
+  if (!t || !decirA) return;
+  $('ag-dr').textContent = window.enviarWS && window.enviarWS({decir: {a: decirA, texto: t}}) ? 'Enviando…' : 'Sin conexión con el panel.';
+};
+addEventListener('decir_res', e => {
+  const r = e.detail || {};
+  $('ag-dr').textContent = r.msg || '';
+  if (r.ok) $('ag-di').value = '';
+});
 
 // ---------- constelación ----------
 function objetivos(vis, W, H) {
@@ -359,6 +394,10 @@ function cerrar() {
   abierto = false; clearInterval(timer); cancelAnimationFrame(raf);
   document.body.classList.remove('agentes');
 }
-addEventListener('keydown', e => { if (e.key === 'Escape' && abierto) cerrar(); });
+addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !abierto) return;
+  if (document.activeElement === $('ag-di')) { $('ag-di').blur(); sel = null; ultLista = 0; return; }
+  cerrar();
+});
 window.Agentes = {abrir, cerrar, alternar: () => (abierto ? cerrar() : abrir()), abierto: () => abierto};
 const btn = $('b-ag'); if (btn) btn.onclick = () => window.Agentes.alternar();

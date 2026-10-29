@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-29",
+  "t": "Hablarle a un agente desde la pantalla «Agentes»: pulsa un agente de Delta (él mismo o su Claude Code) y escríbele en el cuadro de abajo. Los demás procesos (sesiones de escritorio, subagentes, OmniRoute) solo se leen.",
+  "como": "clic en el agente y escribe en «Decirle a…»",
+  "voz": false
+ },
+ {
+  "f": "2026-10-29",
   "t": "Pantalla «Agentes»: ves en vivo a Delta, las sesiones de Claude Code y sus subagentes y OmniRoute; cada uno con su herramienta, su modelo y de dónde viene (Claude, OmniRoute o Gemini), cómo se pasan el trabajo, en constelación o en carriles, y una barra para rebobinar los últimos 20 minutos. También con el botón Agentes de la cabecera.",
   "como": "enséñame los agentes"
  },

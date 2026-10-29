@@ -81,6 +81,8 @@ def _linea(f, d):
     n["t0"] = n["t0"] or t
     n["t1"] = max(n["t1"], t)
     tipo, m = d.get("type"), d.get("message") or {}
+    if d.get("cwd") and not f["sub"]:
+        n["cwd"] = d["cwd"]
     if d.get("cwd") and not n.get("tit") and not f["sub"]:
         n["nombre"] = os.path.basename(d["cwd"].rstrip("/")) or "sesión"
     if d.get("entrypoint") and not n.get("entrypoint"):
@@ -277,7 +279,8 @@ def _salida(ahora):
         salida.append({"id": n["id"], "nombre": n["nombre"], "tipo": n["tipo"], "padre": n["padre"] if n["padre"] in ids else None,
                        "modelo": n["modelo"] or "?", "origen": n["origen"], "ruta": n.get("ruta", ""), "t0": n["t0"], "t1": n["t1"], "fin": n["fin"],
                        "tarea": n["tarea"], "estado": est, "ahora_usa": abiertos[-1]["tool"] + (": " + abiertos[-1]["det"] if abiertos[-1]["det"] else "") if abiertos else "",
-                       "tok": sum(n["tok"].values()), "parcial": bool(n.get("parcial")), "segs": segs})
+                       "tok": sum(n["tok"].values()), "parcial": bool(n.get("parcial")), "segs": segs,
+                       "hablable": _hablable(n)})
     evs = []
     for e in _eventos:
         if e["t"] < corte:
@@ -294,6 +297,31 @@ def _salida(ahora):
             evs.append({"t": n["t0"], "de": n["padre"], "a": n["id"], "tipo": "encargo", "txt": n["tarea"][:140]})
     evs.sort(key=lambda e: e["t"])
     return {"ahora": ahora, "desde": corte, "nodos": salida, "eventos": evs[-MAX_EVT:]}
+
+
+def _hablable(n):
+    """Solo se puede hablar con lo que maneja Delta: él mismo y el Claude Code que lanza por ACP."""
+    return n["id"] == "delta" or (n.get("entrypoint") == "sdk-ts" and n["tipo"] == "sesion")
+
+
+async def decir(a, texto):
+    """Lo que el usuario escribe en la pantalla «Agentes» para un agente. Llega por el WebSocket del panel (con Origin
+    comprobado y nunca desde la tele), así que es suyo; no autoriza nada por sí solo: las acciones que piden permiso lo piden."""
+    import acciones
+    import claude_acp
+    texto = texto.strip()
+    n = _nodos.get(a)
+    if not texto or n is None:
+        return {"ok": False, "msg": "No hay nada que enviar."}
+    if not _hablable(n):
+        return {"ok": False, "msg": "Es otro proceso: desde aquí solo se puede leer."}
+    if a == "delta":
+        return {"ok": await acciones.decir_a_delta(texto), "msg": "Enviado a Delta." if ST.get("session") else "Delta está en reposo: llámalo primero."}
+    if n.get("cwd") == str(claude_acp.AQUI):
+        msg = await claude_acp.mejorar_delta(texto)
+    else:
+        msg = await claude_acp.hablar_con_claude(texto)
+    return {"ok": not msg.startswith("Claude Code sigue ocupado"), "msg": msg}
 
 
 def _sesion_de(n):

@@ -1641,7 +1641,7 @@ if(location.hash==='#celebra')setTimeout(()=>celebrar({archivo:'demo.gcode',tota
 
 /* ---------- conexión ---------- */
 function geo(w){try{navigator.geolocation.getCurrentPosition(p=>w.readyState===1&&w.send(JSON.stringify({geo:[p.coords.latitude,p.coords.longitude,p.coords.accuracy]})),()=>{},{maximumAge:36e5,timeout:20000})}catch(e){}}
-let WS=null;
+let WS=null;window.enviarWS=o=>{if(!WS||WS.readyState!==1)return false;WS.send(JSON.stringify(o));return true};
 // notificaciones del móvil: clic en una de la agenda → ventana con su texto y, si admite respuesta, para contestarla
 let NID=null;
 const notifCerrar=()=>{document.body.classList.remove('notif');NID=null};
@@ -1713,7 +1713,7 @@ const elSis=$('sis'); if(elSis) elSis.addEventListener('click',()=>window.pantal
 const elClima=$('clima'); if(elClima){elClima.style.cursor='pointer';elClima.title='Abrir Nothing Weather';elClima.addEventListener('click',()=>cmd('tiempo'))};
 [['p-card-cerrar','quitar_tarjeta'],['b-cerrar','cerrar_visor'],['b-priv','privacidad'],['b-modo','modo'],['b-tema','cambiar_tema'],['b-si','permitir'],['b-no','denegar']].forEach(([i,c])=>{const el=$(i);if(el)el.addEventListener('click',()=>cmd(c))});
 function ws(){const w=WS=new WebSocket(`ws://${location.host}/ws`);w.onopen=()=>geo(w);
-  w.onmessage=m=>{try{const d=JSON.parse(m.data);if(d.notif!==undefined){notifAbrir(d.notif);return}if(d.notif_res!==undefined){if(d.notif_res==='ok')notifCerrar();else $('ninfo').textContent=d.notif_res;return}if(d.v){if(window._v===undefined){window._v=d.v}else if(d.v!==window._v){window._v=d.v;location.reload();return}}pintar(d);const lp=$('lapiz');if(lp)lp.classList.toggle('lleno',!!d.pegado);window.fondoEspera&&window.fondoEspera(d)}catch(err){console.error('Error ws onmessage:',err);if(window.__reportError)window.__reportError(err.message,'index.html',err.lineNumber||0,0,err)}};
+  w.onmessage=m=>{try{const d=JSON.parse(m.data);if(d.notif!==undefined){notifAbrir(d.notif);return}if(d.decir_res!==undefined){window.dispatchEvent(new CustomEvent('decir_res',{detail:d.decir_res}));return}if(d.notif_res!==undefined){if(d.notif_res==='ok')notifCerrar();else $('ninfo').textContent=d.notif_res;return}if(d.v){if(window._v===undefined){window._v=d.v}else if(d.v!==window._v){window._v=d.v;location.reload();return}}pintar(d);const lp=$('lapiz');if(lp)lp.classList.toggle('lleno',!!d.pegado);window.fondoEspera&&window.fondoEspera(d)}catch(err){console.error('Error ws onmessage:',err);if(window.__reportError)window.__reportError(err.message,'index.html',err.lineNumber||0,0,err)}};
   w.onclose=()=>{if(S.conexion){S.sinPanel=true;pintar(S)}setTimeout(ws,2000)}}
 fit();ws();requestAnimationFrame(t=>dibuja(t/1000));
 </script>

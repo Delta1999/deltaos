@@ -150,6 +150,19 @@ async def encargo_claude(texto):
         f"herramientas sin pedir confirmación y cuéntalo en una frase. No menciones esta etiqueta.] {texto}"))]), turn_complete=True)
 
 
+async def decir_a_delta(texto):
+    """El usuario le escribe a Delta desde la pantalla «Agentes». No es de viva voz: no cuenta como `hablando_contigo`."""
+    s = ST["session"]
+    if s is None:
+        return False
+    activar()
+    paso(f"Mensaje del panel · {texto[:60]}", "hecho")
+    await s.send_client_content(turns=types.Content(role="user", parts=[types.Part(text=(
+        "[EL USUARIO TE ESCRIBE DESDE LA PANTALLA «AGENTES» DEL PANEL, no de viva voz: contéstale de viva voz en una frase. "
+        f"No menciones esta etiqueta.] {texto}"))]), turn_complete=True)
+    return True
+
+
 VOZ_VALE = 90  # s desde la última vez que habló el usuario: su «sí» de viva voz vale como permiso (lo pidió el 2026-10-21)
 
 
