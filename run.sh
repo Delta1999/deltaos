@@ -27,9 +27,17 @@ if [ ! -t 1 ]; then
   done >> "$DIR/assistant.log") 2>&1
 fi
 
-# La clave vive en ~/.bashrc; run.sh no es interactivo, así que la extraemos aquí.
+# La clave vive en .env (gitignored); run.sh no es interactivo, así que la leemos aquí.
+# 2026-10-29: un instalador ajeno reescribió ~/.bashrc el 28/10 y Delta salía al arrancar sin clave;
+# ~/.bashrc y ~/.zshrc quedan solo como respaldo.
+if [ -z "$GEMINI_API_KEY" ] && [ -f "$DIR/.env" ]; then
+  eval "$(grep -m1 '^export GEMINI_API_KEY=' "$DIR/.env")"
+fi
 if [ -z "$GEMINI_API_KEY" ]; then
-  eval "$(grep -m1 '^export GEMINI_API_KEY=' "$HOME/.bashrc")"
+  for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    [ -f "$rc" ] && eval "$(grep -m1 '^export GEMINI_API_KEY=' "$rc")"
+    [ -n "$GEMINI_API_KEY" ] && break
+  done
 fi
 
 # Rutina: que estén en marcha los servicios que necesita (audio, escritorio, red); arranca los que pueda.
