@@ -27,6 +27,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # El servidor de Google Live gestiona su propio heartbeat; enviar pings locales
 # causa timeout 1011 cuando el ancho de banda está copado por audio y vídeo.
 import acciones
+import gemini_uso
 import claude_acp  # noqa: F401  (registra sus herramientas en acciones)
 import avisos
 import movil  # noqa: F401
@@ -354,6 +355,7 @@ async def receive_and_play_loop(session):
                     SESSION_HANDLE.update(h=upd.new_handle, t=time.monotonic())
                 if response.usage_metadata:
                     panel.uso(response.usage_metadata)
+                    gemini_uso.registrar("voz", "gemini-3.8-live", um=response.usage_metadata, herramienta=acciones.ST.get("herramienta"))
                 if response.tool_call:
                     acciones.tarea(acciones.atender(session, response.tool_call))
                 if response.go_away:  # el servidor cortará en time_left: reconectar con el handle sin cortar una frase

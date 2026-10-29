@@ -8,6 +8,7 @@ import html
 import json
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 from urllib.parse import quote, unquote
@@ -18,6 +19,7 @@ from google import genai
 from google.genai import types
 
 import acciones
+import gemini_uso
 import panel
 from acciones import ST, HOME, AQUI, avisar, paso, _run, _clip
 
@@ -129,10 +131,35 @@ panel.RUTAS.append(("/archivo", _archivo))
 _cli = None
 
 
+class _Medido:
+    """Envuelve client.aio.models: cada generate_content queda en gemini_uso.jsonl (quién llamó, tokens, error)."""
+
+    def __init__(self, modelos):
+        self._m = modelos
+
+    def generate_content(self, **kw):
+        origen = sys._getframe(1).f_code.co_name  # síncrono: aquí el marco de arriba es el de quien llama
+        return self._medir(origen, kw)
+
+    async def _medir(self, origen, kw):
+        tools = getattr(kw.get("config"), "tools", None) or []
+        busq = any(getattr(t, "google_search", None) for t in tools)
+        t0 = time.time()
+        try:
+            r = await self._m.generate_content(**kw)
+        except BaseException as e:  # también la cancelación del wait_for que corta por tiempo
+            gemini_uso.registrar(origen, kw.get("model"), busqueda=busq, seg=time.time() - t0, herramienta=ST.get("herramienta"),
+                                 error=str(getattr(e, "code", None) or ("tiempo agotado" if isinstance(e, asyncio.CancelledError) else type(e).__name__)))
+            raise
+        gemini_uso.registrar(origen, kw.get("model"), um=r.usage_metadata, busqueda=busq, seg=time.time() - t0,
+                             herramienta=ST.get("herramienta"))
+        return r
+
+
 def _gem():
     global _cli
     _cli = _cli or genai.Client()
-    return _cli.aio.models
+    return _Medido(_cli.aio.models)
 
 
 LLAMADA_MAX = 150    # s por llamada a Gemini: sin tope, una colgada dejó la investigación muda 20 min (21/10)

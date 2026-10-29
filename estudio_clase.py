@@ -8,6 +8,7 @@ Cada etapa deja su caché en ~/Documentos/Delta/estudio/temaNN/<clase>/ y se rea
 """
 import argparse
 import fcntl
+import gemini_uso
 import json
 import os
 import re
@@ -97,6 +98,7 @@ def generar(modelo, contenido, esquema, intentos=6):
         try:
             r = gem().models.generate_content(model=modelo, contents=contenido, config=types.GenerateContentConfig(
                 response_mime_type="application/json", response_json_schema=esquema, temperature=0.4))
+            gemini_uso.registrar("estudio_clase", modelo, um=r.usage_metadata)
             if r.prompt_feedback and r.prompt_feedback.block_reason:
                 raise Bloqueado(r.prompt_feedback.block_reason.name)
             return json.loads(r.text)
