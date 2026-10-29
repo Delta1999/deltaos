@@ -328,6 +328,28 @@ async def decir(a, texto="", accion=None):
     return {"ok": not msg.startswith("Claude Code sigue ocupado"), "msg": msg}
 
 
+async def nueva(id_, texto=""):
+    """El selector «Nueva conversación» de la pantalla Agentes: abre una conversación con lo elegido (el cliente solo manda el id)."""
+    import acciones
+    import agentes_catalogo
+    import claude_acp
+    texto = texto.strip()
+    a = agentes_catalogo.arranque(id_)
+    if a is None:
+        return {"ok": False, "msg": "Eso ya no está en el catálogo."}
+    if not texto:
+        return {"ok": False, "msg": "Escribe qué quieres que haga."}
+    cliente, instruccion, _ = a
+    if cliente == "claude":
+        msg = await claude_acp.nueva_conversacion(instruccion, texto)
+        return {"ok": not msg.startswith("Claude Code sigue ocupado"), "msg": msg}
+    if instruccion == "hablar":
+        return {"ok": await acciones.decir_a_delta(texto), "msg": "Enviado a Delta." if ST.get("session") else "Delta está en reposo: llámalo primero."}
+    if instruccion == "cambiar":
+        return {"ok": True, "msg": await claude_acp.mejorar_delta(texto)}
+    return {"ok": True, "msg": await acciones.mejorar_delta_cherry(texto)}
+
+
 def _sesion_de(n):
     s = n.get("sesion", "")
     return s[:-6] if s.endswith(".jsonl") else s or None

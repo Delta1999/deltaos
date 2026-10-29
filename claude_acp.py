@@ -149,10 +149,12 @@ async def cerrar():
             pass
 
 
-async def _turno(mensaje, propio=None, voz=True):
-    """propio = (petición, foto «antes») cuando es un cambio en el propio Delta: otra sesión, con el repo de Delta como cwd."""
-    global _tarea, _sid_delta
-    _estado.update(estado="trabajando", tarea=(propio[0] if propio else mensaje)[:120], pasos=[], plan=[], texto="", inicio=time.time(),
+async def _turno(mensaje, propio=None, voz=True, nueva=None):
+    """propio = (petición, foto «antes») cuando es un cambio en el propio Delta: otra sesión, con el repo de Delta como cwd.
+    nueva = lo que ve el usuario como tarea cuando es una conversación nueva (selector de la pantalla Agentes): sesión ACP nueva."""
+    global _tarea, _sid, _sid_delta
+    cab = propio[0] if propio else (nueva or mensaje)
+    _estado.update(estado="trabajando", tarea=cab[:120], pasos=[], plan=[], texto="", inicio=time.time(),
                    auto=acciones.autorizado())  # encargada por Claude Code: sus permisos se dan solos hasta que acabe
     try:
         if _conn is None:
@@ -163,6 +165,8 @@ async def _turno(mensaje, propio=None, voz=True):
                 await _conn.set_session_mode(session_id=_sid_delta, mode_id="acceptEdits")
             except Exception as e:
                 print(f"ACP: sin modo acceptEdits ({e})")
+        if nueva and not propio:
+            _sid = (await _conn.new_session(cwd=str(WORMHOLE))).session_id
         await _conn.prompt(session_id=_sid_delta if propio else _sid, prompt=[text_block(mensaje)])
         final = _estado["texto"].strip() or "(sin texto)"
         if LIMITE.search(final):  # límite de tokens o sesión de Claude Code
@@ -170,10 +174,10 @@ async def _turno(mensaje, propio=None, voz=True):
         if propio:
             await _registrar(propio[0], propio[1], final)
         _estado.update(estado="libre", ultimo="hecho")
-        panel.notificar("info", f"Claude Code terminó: {(propio[0] if propio else mensaje)[:60]}")
+        panel.notificar("info", f"Claude Code terminó: {cab[:60]}")
         if voz:
             await avisar(f"Claude Code ha terminado. Resume al usuario en una o dos frases: {final[-1200:]}",
-                         movil=f"Claude Code ha terminado: {(propio[0] if propio else mensaje)[:80]}")
+                         movil=f"Claude Code ha terminado: {cab[:80]}")
     except asyncio.CancelledError:
         _estado["estado"] = "libre"
         raise
@@ -279,6 +283,15 @@ async def hablar_con_claude(mensaje):
         return f"Claude Code sigue ocupado con: {_estado['tarea']}. Espera a que termine o cancélalo."
     _tarea = acciones.tarea(_turno(mensaje))
     return "Enviado a Claude Code. Trabaja en segundo plano, los pasos salen en el panel y te aviso al terminar. Es la misma conversación: recuerda lo anterior."
+
+
+async def nueva_conversacion(instruccion, texto):
+    """Conversación nueva con Claude Code (sesión ACP nueva): `instruccion` es el arranque del modo o agente elegido."""
+    global _tarea
+    if ocupado():
+        return f"Claude Code sigue ocupado con: {_estado['tarea']}. Espera a que termine o cancélalo."
+    _tarea = acciones.tarea(_turno(f"{instruccion}\n\nTarea del usuario: {texto}", nueva=texto, voz=False))
+    return "Conversación nueva enviada a Claude Code. Los pasos salen en esta pantalla."
 
 
 async def estado_claude():

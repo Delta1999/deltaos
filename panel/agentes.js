@@ -85,13 +85,34 @@ body.agentes #agentes{display:flex}
 #agentes .ag-pm .her div{word-break:break-word}
 #agentes .ag-vacio{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-family:var(--mono);font-size:13px;pointer-events:none}
 @media(max-width:1400px){#agentes .ag-ley2{display:none}}
+#agentes .ag-tit{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+#agentes .ag-nueva{display:flex;align-items:center;justify-content:center;width:34px;height:28px;border:1px solid var(--border-visible);border-radius:999px;background:transparent;color:var(--text-primary);cursor:pointer;padding:0}
+#agentes .ag-nueva:hover,#agentes .ag-nueva.on{background:var(--text-primary);color:var(--bg)}
+#agentes .nv{position:fixed;z-index:25;width:min(460px,calc(100vw - 16px));max-height:72vh;overflow:auto;background:var(--surface-raised);border:1px solid var(--border-visible);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);display:none;flex-direction:column;gap:10px}
+#agentes .nv.on{display:flex}
+#agentes .nv .nv-seg{display:flex;border:1px solid var(--border-visible);border-radius:999px;overflow:hidden;align-self:flex-start}
+#agentes .nv .nv-seg button{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);background:transparent;border:0;padding:6px 14px;cursor:pointer}
+#agentes .nv .nv-seg button.on{background:var(--text-primary);color:var(--bg)}
+#agentes .nv .nv-s{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:5px}
+#agentes .nv .nv-g{display:flex;flex-wrap:wrap;gap:6px}
+#agentes .nv .nv-i{font-size:12px;border:1px solid var(--border-visible);border-radius:999px;padding:4px 11px;background:transparent;color:var(--text-primary);cursor:pointer}
+#agentes .nv .nv-i:hover{border-color:var(--text-primary)}
+#agentes .nv .nv-i.modo{border-color:var(--accent);color:var(--accent)}
+#agentes .nv .nv-d{font-size:12px;line-height:1.4;color:var(--text-secondary);border-top:1px solid var(--border);padding-top:9px;min-height:50px}
+#agentes .nv .nv-h{display:flex;align-items:center;gap:8px}
+#agentes .nv .nv-h b{font-size:14px;color:var(--text-display);flex:1}
+#agentes .nv .nv-h button{border:0;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:15px}
+#agentes .nv textarea{width:100%;box-sizing:border-box;background:var(--bg);color:var(--text-primary);border:1px solid var(--border-visible);border-radius:10px;padding:8px 10px;font-family:var(--sans);font-size:13px;resize:vertical}
+#agentes .nv form{display:flex;flex-direction:column;gap:7px;align-items:flex-end}
+#agentes .nv form button{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--accent);border-radius:999px;padding:6px 14px;background:var(--accent);color:#fff;cursor:pointer}
+#agentes .nv .nv-res{font-size:12px;color:var(--text-secondary)}
 @media(max-width:900px){#agentes .ag-lista,#agentes .ag-leyenda{display:none}}
 `;
 const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 const raiz = document.createElement('div');
 raiz.id = 'agentes';
 raiz.innerHTML = `
-<div class="ag-top"><h2 class="dot">AGENTES</h2><span class="ag-n" id="ag-n"></span><button class="ag-x" id="ag-oc" style="display:none"></button><span class="ag-sp"></span>
+<div class="ag-top"><div class="ag-tit"><h2 class="dot">AGENTES</h2><button class="ag-nueva" id="ag-nueva" title="Nueva conversación" aria-label="Nueva conversación"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M12 8v5M9.5 10.5h5"/></svg></button></div><span class="ag-n" id="ag-n"></span><button class="ag-x" id="ag-oc" style="display:none"></button><span class="ag-sp"></span>
   <span class="ag-leyenda"><span><i style="background:${ORIGEN.claude[1]}"></i>Claude</span><span><i style="background:${ORIGEN.omniroute[1]}"></i>OmniRoute</span><span><i style="background:${ORIGEN.gemini[1]}"></i>Gemini</span></span>
   <span class="ag-leyenda ag-ley2"><span><i style="background:#5B9BF6"></i>R leer</span><span><i style="background:#E8A33D"></i>E editar</span><span><i style="background:#5FD38D"></i>$ shell</span><span><i style="background:#A78BFA"></i>⇆ agente</span><span><i style="background:#3CC8C8"></i>⌕ web</span></span>
   <span class="ag-seg" id="ag-vista"><button data-v="const">Constelación</button><button data-v="carriles">Carriles</button></span>
@@ -99,7 +120,8 @@ raiz.innerHTML = `
   <button class="ag-x" id="ag-cerrar" title="Esc">Cerrar ✕</button></div>
 <div class="ag-cuerpo"><div class="ag-lienzo" id="ag-lienzo"><canvas id="ag-cv"></canvas><div class="ag-vacio" id="ag-vacio"></div><div class="ag-tip" id="ag-tip"></div><div class="ag-pm" id="ag-pm"></div></div>
   <div class="ag-lista" id="ag-lista"></div></div>
-<div class="ag-pie"><button id="ag-vivo" class="on">● En directo</button><input type="range" id="ag-rango" min="0" max="1" step="0.5" value="1"><span class="ag-t" id="ag-t"></span></div>`;
+<div class="ag-pie"><button id="ag-vivo" class="on">● En directo</button><input type="range" id="ag-rango" min="0" max="1" step="0.5" value="1"><span class="ag-t" id="ag-t"></span></div>
+<div class="nv" id="nv"></div>`;
 document.body.appendChild(raiz);
 const cv = $('ag-cv'), ctx = cv.getContext('2d');
 
@@ -511,6 +533,60 @@ cv.addEventListener('mousemove', e => {
 cv.addEventListener('mouseleave', () => { $('ag-tip').style.display = 'none'; });
 cv.addEventListener('click', e => { const h = bajo(e); sel = h && h.q.id !== sel ? h.q.id : null; ultLista = 0; });
 
+// ---------- nueva conversación: el selector permanente bajo el título ----------
+// Claude Code (agentes, frameworks, modos Workflow y Juez) o DeltaOS. El catálogo se lee del disco (agentes_catalogo.py) y
+// al lanzar solo viaja el id elegido y el texto: la sesión ACP nueva sale en la constelación como un nodo más.
+let CAT = null, nvAbierto = false, nvCli = lee('ag_nv_cli', 'claude'), nvSel = null, nvCierre = 0;
+const nv = $('nv'), NV_AYUDA = 'Pasa el ratón por una opción para ver qué hace; púlsala para empezar con ella.';
+const nvItems = (l, cls = '') => l.map(a => `<button class="nv-i ${cls}" data-id="${esc(a.id)}" data-d="${esc(a.d)}">${esc(a.n)}</button>`).join('');
+const nvBloque = (t, l, cls) => l.length ? `<div><div class="nv-s">${t}</div><div class="nv-g">${nvItems(l, cls)}</div></div>` : '';
+function nvTodos() { return CAT ? [...CAT.claude.agentes, ...CAT.claude.frameworks, ...CAT.claude.modos, ...CAT.delta] : []; }
+function nvPinta() {
+  if (!CAT) { nv.innerHTML = '<div class="nv-d" id="nv-d">Cargando el catálogo…</div>'; return; }
+  const a = nvSel && nvTodos().find(x => x.id === nvSel);
+  if (a) {
+    nv.innerHTML = `<div class="nv-h"><button data-a="atras" title="Volver">←</button><b>${esc(a.n)}</b></div><div class="nv-d">${esc(a.d)}</div>
+      <form id="nv-f"><textarea id="nv-t" rows="4" maxlength="2000" placeholder="${a.g === 'delta' ? 'Qué le dices o le pides a Delta…' : '¿Qué quieres que haga?'}"></textarea><button type="submit">Empezar</button></form><div class="nv-res" id="nv-res"></div>`;
+    setTimeout(() => { const t = $('nv-t'); if (t) t.focus(); }, 30);
+    return;
+  }
+  const c = CAT.claude, esp = c.agentes.filter(x => x.g === 'especialista');
+  nv.innerHTML = `<div class="nv-seg"><button data-c="claude" class="${nvCli === 'claude' ? 'on' : ''}">Claude Code</button><button data-c="delta" class="${nvCli === 'delta' ? 'on' : ''}">DeltaOS</button></div>`
+    + (nvCli === 'claude'
+      ? nvBloque('Genéricos', c.agentes.filter(x => x.g === 'genérico')) + nvBloque('Especialistas', esp) + nvBloque('Frameworks de plugins', c.frameworks) + nvBloque('Modos', c.modos, 'modo')
+      : nvBloque('Delta', CAT.delta))
+    + `<div class="nv-d" id="nv-d">${NV_AYUDA}</div>`;
+}
+function nvCierra() { nvAbierto = false; nvSel = null; clearTimeout(nvCierre); nv.classList.remove('on'); $('ag-nueva').classList.remove('on'); }
+function nvAbre() {
+  nvAbierto = true; nvSel = null; nv.classList.add('on'); $('ag-nueva').classList.add('on'); nvPinta();
+  const r = $('ag-nueva').getBoundingClientRect(); nv.style.left = Math.max(8, r.left) + 'px'; nv.style.top = r.bottom + 8 + 'px';
+  if (!(window.enviarWS && window.enviarWS({catalogo: 1}))) nv.innerHTML = '<div class="nv-d">Sin conexión con el panel.</div>';
+}
+$('ag-nueva').addEventListener('click', e => { e.stopPropagation(); nvAbierto ? nvCierra() : nvAbre(); });
+document.addEventListener('click', e => { if (nvAbierto && !nv.contains(e.target) && !e.target.closest('#ag-nueva')) nvCierra(); });
+nv.addEventListener('mouseover', e => {
+  const d = $('nv-d'); if (!d || nvSel) return;
+  const b = e.target.closest('[data-d]'); d.textContent = b ? b.dataset.d : NV_AYUDA;
+});
+nv.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.c) { nvCli = b.dataset.c; guarda('ag_nv_cli', nvCli); nvPinta(); }
+  else if (b.dataset.id) { nvSel = b.dataset.id; nvPinta(); }
+  else if (b.dataset.a === 'atras') { nvSel = null; nvPinta(); }
+});
+nv.addEventListener('submit', e => {
+  e.preventDefault();
+  const t = $('nv-t').value.trim(), r = $('nv-res'); if (!t) { r.textContent = 'Escribe qué quieres que haga.'; return; }
+  r.textContent = window.enviarWS && window.enviarWS({nueva: {id: nvSel, texto: t}}) ? 'Enviando…' : 'Sin conexión con el panel.';
+});
+nv.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'nv-t') { e.preventDefault(); $('nv-f').requestSubmit(); } });
+addEventListener('catalogo_res', e => { CAT = e.detail; if (nvAbierto && !nvSel) nvPinta(); });
+addEventListener('nueva_res', e => {
+  const r = e.detail || {}, el = $('nv-res'); if (el) el.textContent = r.msg || '';
+  if (r.ok) nvCierre = setTimeout(nvCierra, 1600);
+});
+
 function abrir() {
   if (abierto) return;
   abierto = true; vivo = true; sel = null; pos = {}; ult = performance.now();
@@ -521,11 +597,12 @@ function abrir() {
 }
 function cerrar() {
   if (!abierto) return;
-  abierto = false; menuCierra(); clearInterval(timer); cancelAnimationFrame(raf);
+  abierto = false; nvCierra(); menuCierra(); clearInterval(timer); cancelAnimationFrame(raf);
   document.body.classList.remove('agentes');
 }
 addEventListener('keydown', e => {
   if (e.key !== 'Escape' || !abierto) return;
+  if (nvAbierto) { nvCierra(); return; }
   if (document.activeElement === $('pm-i')) { sel = null; menuCierra(); return; }
   cerrar();
 });

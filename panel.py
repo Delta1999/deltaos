@@ -690,6 +690,13 @@ async def _ws(request):
                     import agentes
                     r = msg["decir"]
                     await ws.send_str(json.dumps({"decir_res": await agentes.decir(str(r.get("a")), str(r.get("texto", ""))[:2000], r.get("accion") if r.get("accion") == "cancelar" else None)}))
+                if msg.get("catalogo"):  # el selector «Nueva conversación»: lo que se puede lanzar, leído del disco
+                    import agentes_catalogo
+                    await ws.send_str(json.dumps({"catalogo_res": await asyncio.to_thread(agentes_catalogo.catalogo)}))
+                if isinstance(msg.get("nueva"), dict):  # y su lanzamiento: solo el id elegido y el texto, nunca rutas
+                    import agentes
+                    r = msg["nueva"]
+                    await ws.send_str(json.dumps({"nueva_res": await agentes.nueva(str(r.get("id")), str(r.get("texto", ""))[:2000])}))
                 if isinstance(msg.get("notif_abrir"), str):  # clic en una notificación del móvil: su texto, solo a quien pregunta
                     import movil
                     await ws.send_str(json.dumps({"notif": await movil.notificacion(msg["notif_abrir"])}))
