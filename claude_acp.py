@@ -127,8 +127,11 @@ async def _conectar():
     global _conn, _pila, _sid
     _pila = AsyncExitStack()
     try:
+        # Sin ANTHROPIC_*: las heredadas del arranque (clave de OmniRoute/Gemini) hacen que el adaptador ACP
+        # falle con «Authentication required» (29/10/2026); sin ellas usa el inicio de sesión de Claude Code.
+        env = {k: v for k, v in os.environ.items() if not k.startswith("ANTHROPIC_")}
         _conn, _ = await _pila.enter_async_context(acp.spawn_agent_process(
-            _Cliente(), *COMANDO, cwd=str(WORMHOLE), env={**os.environ, "DELTA_ORIGEN": "1"}))
+            _Cliente(), *COMANDO, cwd=str(WORMHOLE), env={**env, "DELTA_ORIGEN": "1"}))
         await _conn.initialize(protocol_version=acp.PROTOCOL_VERSION)
         _sid = (await _conn.new_session(cwd=str(WORMHOLE))).session_id
     except BaseException:
