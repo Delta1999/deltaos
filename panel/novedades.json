@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-29",
+  "t": "En la constelación de «Agentes», cada agente lleva a su alrededor las herramientas que lanza (leer, editar, shell, agente, web), unidas a él por un hilo y desvaneciéndose con el tiempo; los subagentes cuelgan de su agente con una flecha y el tipo de subagente, y en carriles se enlazan con un codo. La herramienta activa muestra su detalle.",
+  "como": "mira cómo cuelgan las herramientas de cada esfera",
+  "voz": false
+ },
+ {
+  "f": "2026-10-29",
   "t": "Menú de cada agente en la pantalla «Agentes»: al pulsar una esfera se abre junto a ella con el estado en vivo, un cuadro para escribirle (a Delta y a su Claude Code) con respuestas rápidas, «Cancelar tarea», las últimas herramientas, copiar tarea o id y ocultar el agente. Los demás procesos son solo lectura.",
   "como": "clic en la esfera de un agente",
   "voz": false

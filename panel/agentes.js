@@ -14,6 +14,11 @@ const VERDE = '#5FD38D';
 const HERR = [[/^(Read|Glob|Grep|LS|NotebookRead)$/, '#5B9BF6'], [/^(Write|Edit|MultiEdit|NotebookEdit)$/, '#E8A33D'], [/^Bash/, '#5FD38D'],
               [/^(Agent|Task|SendMessage)$/, '#A78BFA'], [/^(Web|mcp__.*(search|fetch))/i, '#3CC8C8']];
 const colorHerr = t => (HERR.find(([r]) => r.test(t)) || [0, '#8A8A8A'])[1];
+const glifo = t => /^(Read|Glob|Grep|LS|NotebookRead)$/.test(t) ? 'R' : /^(Write|Edit|MultiEdit|NotebookEdit)$/.test(t) ? 'E' : /^Bash/.test(t) ? '$'
+  : /^(Agent|Task|SendMessage)$/.test(t) ? '⇆' : /^(Web|mcp__.*(search|fetch))/i.test(t) ? '⌕' : /^mcp__/.test(t) ? 'M' : '·';
+const nomHerr = t => String(t).replace(/^mcp__/, '').split('__').pop();
+const RADIO = {delta: 34, sesion: 27, sub: 19, router: 25};
+const sats = {};  // «agente|inicio» -> {a, rad}: posición suavizada de cada herramienta que orbita a su agente
 const titulo = n => (n.tipo === 'sub' && n.tarea ? n.tarea : n.nombre);
 const nombreModelo = m => String(m || '?').replace(/^claude-/, '').replace(/^anthropic\//, '');
 
@@ -79,6 +84,7 @@ body.agentes #agentes{display:flex}
 #agentes .ag-pm .her{font-family:var(--mono);font-size:11px;color:var(--text-secondary);display:flex;flex-direction:column;gap:3px;max-height:150px;overflow:auto}
 #agentes .ag-pm .her div{word-break:break-word}
 #agentes .ag-vacio{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-family:var(--mono);font-size:13px;pointer-events:none}
+@media(max-width:1400px){#agentes .ag-ley2{display:none}}
 @media(max-width:900px){#agentes .ag-lista,#agentes .ag-leyenda{display:none}}
 `;
 const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
@@ -87,6 +93,7 @@ raiz.id = 'agentes';
 raiz.innerHTML = `
 <div class="ag-top"><h2 class="dot">AGENTES</h2><span class="ag-n" id="ag-n"></span><button class="ag-x" id="ag-oc" style="display:none"></button><span class="ag-sp"></span>
   <span class="ag-leyenda"><span><i style="background:${ORIGEN.claude[1]}"></i>Claude</span><span><i style="background:${ORIGEN.omniroute[1]}"></i>OmniRoute</span><span><i style="background:${ORIGEN.gemini[1]}"></i>Gemini</span></span>
+  <span class="ag-leyenda ag-ley2"><span><i style="background:#5B9BF6"></i>R leer</span><span><i style="background:#E8A33D"></i>E editar</span><span><i style="background:#5FD38D"></i>$ shell</span><span><i style="background:#A78BFA"></i>⇆ agente</span><span><i style="background:#3CC8C8"></i>⌕ web</span></span>
   <span class="ag-seg" id="ag-vista"><button data-v="const">Constelación</button><button data-v="carriles">Carriles</button></span>
   <span class="ag-seg" id="ag-ventana" title="Ancho de la vista de carriles"><button data-w="120">2 min</button><button data-w="300">5 min</button><button data-w="1200">20 min</button></span>
   <button class="ag-x" id="ag-cerrar" title="Esc">Cerrar ✕</button></div>
@@ -146,7 +153,7 @@ function lista(t) {
     const usa = s.seg ? `${s.seg.tool}${s.seg.det ? ': ' + s.seg.det : ''}` : '';
     return `<div class="ag-c ${n.id === sel ? 'sel' : ''} ${on ? '' : 'off'}" data-id="${esc(n.id)}"><div class="l1"><span class="pt ${on ? 'on' : ''}" style="background:${on ? o[1] : ''}"></span><b>${esc(corto(titulo(n), 30))}</b><span class="ag-n" style="margin-left:auto">${esc(s.e)}</span></div>
       <div class="ch"><span style="border-color:${o[1]};color:${o[1]}">${o[0]}</span>${n.tipo === 'sub' && n.tarea ? `<span>${esc(corto(n.nombre, 20))}</span>` : ''}<span>${esc(nombreModelo(n.modelo))}</span>${n.ruta ? `<span>${esc(corto(n.ruta, 28))}</span>` : ''}${n.tok ? `<span>${n.parcial ? '≥' : ''}${n.tok} tok</span>` : ''}</div>
-      ${usa ? `<div class="us">▸ ${esc(corto(usa, 90))}</div>` : ''}${n.tarea && !(n.tipo === 'sub') ? `<div class="ta">${esc(corto(n.tarea, 110))}</div>` : ''}</div>`;
+      ${usa ? `<div class="us">▸ ${esc(corto(usa, 90))}</div>` : ''}${n.tarea && !(n.tipo === 'sub') ? `<div class="ta">${esc(corto(n.tarea, 110))}</div>` : ''}${n.padre && D.nodos.find(z => z.id === n.padre) ? `<div class="ta">↳ de ${esc(corto(titulo(D.nodos.find(z => z.id === n.padre)), 40))}</div>` : ''}</div>`;
   }).join('');
   menuVivo(t);
   $('ag-oc').style.display = ocultos.size ? '' : 'none'; $('ag-oc').textContent = `Mostrar ${ocultos.size} oculto${ocultos.size > 1 ? 's' : ''}`;
@@ -275,13 +282,23 @@ function pintaConst(t, W, H, dt) {
   }
   rects = [];
   const est = new Map(vis.map(n => [n.id, estadoEn(n, t)]));
-  // aristas
+  // aristas: de quien encarga a quien trabaja, con flecha y el tipo de subagente
   for (const n of vis) {
     const a = pos[n.padre && por.has(n.padre) ? n.padre : null], b = pos[n.id];
     if (!a || !b) continue;
     const on = activo(est.get(n.id).e), c = (ORIGEN[n.origen] || ORIGEN.claude)[1];
-    ctx.strokeStyle = c; ctx.globalAlpha = on ? .75 : .22; ctx.lineWidth = on ? 2 : 1; ctx.setLineDash([]);
+    ctx.strokeStyle = c; ctx.fillStyle = c; ctx.globalAlpha = on ? .8 : .38; ctx.lineWidth = on ? 2.2 : 1.4; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    const d = Math.hypot(b.x - a.x, b.y - a.y) || 1, ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, rr = (RADIO[n.tipo] || 20) + 5;
+    if (d > rr + 30) {
+      const tx = b.x - ux * rr, ty = b.y - uy * rr;
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx - ux * 9 - uy * 5, ty - uy * 9 + ux * 5); ctx.lineTo(tx - ux * 9 + uy * 5, ty - uy * 9 - ux * 5); ctx.fill();
+    }
+    const rot = n.tipo === 'sub' ? n.nombre : n.padre === 'delta' ? 'ACP' : '';
+    if (rot && d > 90) {
+      ctx.globalAlpha = on ? .95 : .6; ctx.font = `9.5px ${estilo.mono}`; ctx.textAlign = 'center'; ctx.fillStyle = estilo.dim;
+      ctx.fillText(corto(rot, 20), (a.x + b.x) / 2, (a.y + b.y) / 2 - 6);
+    }
   }
   const rt = por.get('omniroute');  // el enrutador: línea discontinua hacia lo que sirve
   if (rt) for (const n of vis) if (n.origen === 'omniroute' && n.tipo !== 'router' && pos[n.id] && pos.omniroute) {
@@ -306,7 +323,7 @@ function pintaConst(t, W, H, dt) {
   for (const n of vis) {
     const p = pos[n.id], s = est.get(n.id), on = activo(s.e), o = ORIGEN[n.origen] || ORIGEN.claude;
     const edad = Math.min(1, (performance.now() - (vistos[n.id] || 0)) / 500);
-    const r = ({delta: 34, sesion: 27, sub: 19, router: 25}[n.tipo] || 20) * (0.4 + 0.6 * edad);
+    const r = (RADIO[n.tipo] || 20) * (0.4 + 0.6 * edad);
     const pul = on ? 1 + 0.07 * Math.sin(performance.now() / 160) : 1;
     ctx.globalAlpha = (n.id === sel || !sel ? 1 : .45) * (s.e === 'hecho' ? .6 : 1);
     if (on) { ctx.shadowColor = o[1]; ctx.shadowBlur = 24; }
@@ -323,15 +340,60 @@ function pintaConst(t, W, H, dt) {
     ctx.fillText(corto(titulo(n), 24), p.x, p.y + r + 17);
     ctx.font = `10.5px ${estilo.mono}`; ctx.fillStyle = estilo.dim;
     ctx.fillText(corto(nombreModelo(n.modelo), 26), p.x, p.y + r + 30);
-    if (s.seg) {
-      const txt = corto(`${s.seg.tool}${s.seg.det ? ': ' + s.seg.det : ''}`, 34), w = ctx.measureText(txt).width + 14;
-      ctx.fillStyle = colorHerr(s.seg.tool); ctx.globalAlpha *= .95;
-      ctx.beginPath(); ctx.roundRect(p.x - w / 2, p.y + r + 36, w, 18, 9); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.fillText(txt, p.x, p.y + r + 49);
-    }
     ctx.globalAlpha = 1;
     rects.push({id: n.id, x: p.x - r, y: p.y - r, w: 2 * r, h: 2 * r, circ: true, cx: p.x, cy: p.y, r});
   }
+  // herramientas: cada llamada orbita a su agente, unida a él por un hilo (la última, en el centro del arco)
+  const dir = new Map(vis.map(n => [n.id, [0, 0]]));
+  for (const n of vis) {
+    const pa = n.padre && por.has(n.padre) && n.tipo !== 'router' ? n.padre : null;
+    if (!pa || !pos[pa] || !pos[n.id]) continue;
+    const a = pos[pa], b = pos[n.id], d = Math.hypot(b.x - a.x, b.y - a.y) || 1, u = [(b.x - a.x) / d, (b.y - a.y) / d];
+    dir.get(pa)[0] += u[0]; dir.get(pa)[1] += u[1]; dir.get(n.id)[0] -= u[0]; dir.get(n.id)[1] -= u[1];
+  }
+  const vivas = new Set(), k2 = 1 - Math.pow(0.002, dt);
+  for (const n of vis) {
+    const p = pos[n.id], v = dir.get(n.id), r = (RADIO[n.tipo] || 20), aN = (n.id === sel || !sel ? 1 : .45);
+    let c = -v[0], sn = -v[1]; const m = Math.hypot(c, sn);
+    if (m < .3) { c = 0; sn = -1; } else { c /= m; sn /= m; }
+    let ang0 = Math.atan2(sn, c);  // el arco de herramientas se queda por arriba y a los lados: abajo va el nombre
+    if (ang0 > .45) ang0 -= 2 * Math.PI;
+    if (ang0 < -Math.PI - .45) ang0 = c >= 0 ? .45 : -Math.PI - .45;
+    ang0 = Math.max(-Math.PI - .45 + 1, Math.min(.45 - 1, ang0));
+    let pilla = false;
+    const reciente = n.segs.filter(g => g.t0 <= t && (g.abierto && vivo || g.t1 == null || t - g.t1 < 45)).slice(-5);
+    for (let i = reciente.length - 1, j = 0; i >= 0; i--, j++) {
+      const g = reciente[i], act = g.t0 <= t && t <= (g.abierto && vivo ? Infinity : g.t1), edad = act ? 0 : t - g.t1;
+      const key = `${n.id}|${g.t0}`; vivas.add(key);
+      const meta = ang0 + (j % 2 ? 1 : -1) * Math.ceil(j / 2) * .5, rad = r + 46;
+      const e = sats[key] || (sats[key] = {a: ang0, rad: r});
+      e.a += (meta - e.a) * k2; e.rad += (rad - e.rad) * k2;
+      const x = p.x + Math.cos(e.a) * e.rad, y = p.y + Math.sin(e.a) * e.rad;
+      const col = n.tipo === 'router' ? ORIGEN.omniroute[1] : colorHerr(g.tool), rd = act ? 9 + 1.2 * Math.sin(performance.now() / 140) : 6.5;
+      ctx.globalAlpha = aN * (act ? 1 : Math.max(.28, 1 - edad / 45 * .72));
+      ctx.strokeStyle = col; ctx.lineWidth = act ? 2 : 1; ctx.beginPath(); ctx.moveTo(p.x + Math.cos(e.a) * r, p.y + Math.sin(e.a) * r); ctx.lineTo(x, y); ctx.stroke();
+      if (act) { ctx.shadowColor = col; ctx.shadowBlur = 14; }
+      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, rd, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+      if (!g.ok) { ctx.strokeStyle = '#E5484D'; ctx.lineWidth = 2; ctx.stroke(); }
+      ctx.fillStyle = '#000'; ctx.font = `700 ${act ? 10 : 9}px ${estilo.mono}`; ctx.textAlign = 'center'; ctx.fillText(glifo(g.tool), x, y + 3.5);
+      if (act && !pilla) {
+        pilla = true;
+        let dcha = Math.cos(e.a) >= 0;
+        const txt = corto(`${nomHerr(g.tool)}${g.det ? ': ' + g.det : ''}`, 30);
+        ctx.font = `600 10.5px ${estilo.mono}`;
+        const w = ctx.measureText(txt).width + 10;
+        if (dcha && x + rd + 3 + w > W - 6) dcha = false; else if (!dcha && x - rd - 3 - w < 6) dcha = true;
+        ctx.textAlign = dcha ? 'left' : 'right';
+        const bx = dcha ? x + rd + 3 : x - rd - 3 - w;
+        ctx.fillStyle = estilo.sup; ctx.globalAlpha *= .92; ctx.beginPath(); ctx.roundRect(bx, y - 9, w, 18, 9); ctx.fill();
+        ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = aN;
+        ctx.fillStyle = estilo.fg; ctx.fillText(txt, bx + (dcha ? 5 : w - 5), y + 3.5);
+      }
+      ctx.globalAlpha = 1;
+      rects.push({id: n.id, x: x - 9, y: y - 9, w: 18, h: 18, circ: true, cx: x, cy: y, r: 9, seg: g});
+    }
+  }
+  for (const k in sats) if (!vivas.has(k)) delete sats[k];
 }
 
 // ---------- carriles ----------
@@ -351,13 +413,14 @@ function pintaCarriles(t, W, H) {
     ctx.globalAlpha = .35; ctx.beginPath(); ctx.moveTo(x(u), TOP - 6); ctx.lineTo(x(u), H); ctx.stroke(); ctx.globalAlpha = 1;
     const d = new Date(u * 1000); ctx.fillText(d.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit', second: w <= 150 ? '2-digit' : undefined}), x(u), TOP - 12);
   }
-  const fy = new Map();
+  const fy = new Map(), fila = new Map(), prof = n => { let d = 0; for (let q = n; q.padre && por.has(q.padre) && d < 6; q = por.get(q.padre)) d++; return d; };
   orden.forEach((n, i) => {
     const y = TOP + i * hFila, mid = y + hFila / 2, o = ORIGEN[n.origen] || ORIGEN.claude, s = estadoEn(n, t), on = activo(s.e);
     fy.set(n.id, mid);
     if (n.id === sel) { ctx.fillStyle = estilo.sup; ctx.globalAlpha = .6; ctx.fillRect(0, y, W, hFila); ctx.globalAlpha = 1; }
     ctx.strokeStyle = estilo.borde; ctx.globalAlpha = .4; ctx.beginPath(); ctx.moveTo(0, y + hFila); ctx.lineTo(W, y + hFila); ctx.stroke(); ctx.globalAlpha = 1;
-    const sangr = n.tipo === 'sub' ? 14 : 0;
+    const sangr = Math.min(3, prof(n)) * 14;
+    fila.set(n.id, {mid, sangr});
     ctx.fillStyle = o[1]; ctx.beginPath(); ctx.arc(12 + sangr, mid - 5, 4, 0, 7); ctx.fill();
     ctx.textAlign = 'left'; ctx.fillStyle = estilo.fg; ctx.font = `600 12px ${estilo.sans}`; ctx.fillText(corto(titulo(n), 22 - sangr / 7), 22 + sangr, mid - 1);
     ctx.fillStyle = estilo.dim; ctx.font = `10px ${estilo.mono}`; ctx.fillText(corto(nombreModelo(n.modelo), 24), 22 + sangr, mid + 12);
@@ -373,6 +436,14 @@ function pintaCarriles(t, W, H) {
       rects.push({id: n.id, x: a, y: y + 7, w: bw, h: hFila - 14, seg: sg});
     }
   });
+  // quién pertenece a quién: codo desde el punto del padre al del hijo
+  for (const n of orden) {
+    const a = fila.get(n.padre), b = fila.get(n.id);
+    if (!a || !b) continue;
+    const c = (ORIGEN[n.origen] || ORIGEN.claude)[1];
+    ctx.strokeStyle = c; ctx.lineWidth = 1.4; ctx.globalAlpha = .6; ctx.beginPath();
+    ctx.moveTo(12 + a.sangr, a.mid - 1); ctx.lineTo(12 + a.sangr, b.mid - 5); ctx.lineTo(12 + b.sangr - 5, b.mid - 5); ctx.stroke(); ctx.globalAlpha = 1;
+  }
   // mensajes entre agentes: flechas entre carriles
   for (const e of D.eventos) {
     if (e.t < t0 || e.t > t || !fy.has(e.de) || !fy.has(e.a)) continue;
