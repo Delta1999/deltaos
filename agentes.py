@@ -236,6 +236,42 @@ def _delta(ahora):
         _claude_prev = cl
 
 
+def teclado_inicio(texto, modelo):
+    """Modo teclado (teclado.py): lo que el usuario escribe en el panel abre un movimiento Delta → «Teclado» con el modelo de OmniRoute."""
+    ahora = time.time()
+    n = _nodo("teclado", nombre="Teclado", tipo="sesion", padre="delta", modelo=modelo.split("/")[-1], tarea=texto.replace("\n", " ")[:140], fin=None)
+    n["t0"] = n["t0"] or ahora
+    n["t1"], n["ult"] = ahora, "piensa"
+    n["segs"].append({"id": f"k{ahora}", "tool": "OmniRoute", "det": modelo.split("/")[-1], "t0": ahora, "t1": None, "ok": True})  # la espera del modelo
+    del n["segs"][:-MAX_SEGS]
+    _evento(ahora, "delta", "teclado", "encargo", texto)
+
+
+def teclado_herramienta(nombre, det=""):
+    n = _nodo("teclado")
+    seg = {"id": f"k{time.time()}", "tool": nombre, "det": " ".join(det.split())[:90], "t0": time.time(), "t1": None, "ok": True}
+    n["segs"].append(seg)
+    del n["segs"][:-MAX_SEGS]
+    n["t1"], n["ult"] = seg["t0"], "usa"
+    return seg
+
+
+def teclado_herramienta_fin(seg, ok=True):
+    seg["t1"], seg["ok"] = time.time(), ok
+    n = _nodo("teclado")
+    n["t1"], n["ult"] = seg["t1"], "piensa"
+
+
+def teclado_fin(respuesta, modelo=""):
+    ahora = time.time()
+    n = _nodo("teclado", modelo=modelo.split("/")[-1] or None, texto=respuesta)
+    n["t1"], n["ult"] = ahora, "reposo"
+    for s in n["segs"]:
+        if s["t1"] is None:
+            s["t1"] = ahora
+    _evento(ahora, "teclado", "delta", "resultado", respuesta)
+
+
 def _salida(ahora):
     corte = ahora - VENTANA
     llamadas = _omniroute(ahora)

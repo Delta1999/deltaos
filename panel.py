@@ -650,7 +650,7 @@ def ip_para_la_tele():
         return None
 
 
-_VERSIONADOS = ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "agentes.js", "three.module.js")
+_VERSIONADOS = ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "agentes.js", "teclado.js", "three.module.js")
 
 
 def _con_version(nombre, tipo):
@@ -664,6 +664,17 @@ def _con_version(nombre, tipo):
         v = (AQUI / "panel" / n).stat().st_mtime_ns
         txt = txt.replace(f"'/{n}'", f"'/{n}?v={v}'").replace(f'"/{n}"', f'"/{n}?v={v}"')
     return web.Response(text=txt, content_type=tipo, headers={"Cache-Control": "no-cache"})
+
+
+async def _teclado(ws, texto, modelo):
+    """Aparte del bucle del WebSocket: una orden con herramientas tarda y el panel debe seguir recibiendo estado."""
+    import teclado
+    try:
+        r = await teclado.enviar(texto[:4000], modelo)
+    except Exception as e:
+        r = {"ok": False, "msg": f"Error: {e}"}
+    if not ws.closed:
+        await ws.send_str(json.dumps({"teclado_res": r}))
 
 
 async def _ws(request):
@@ -690,6 +701,13 @@ async def _ws(request):
                     import agentes
                     r = msg["decir"]
                     await ws.send_str(json.dumps({"decir_res": await agentes.decir(str(r.get("a")), str(r.get("texto", ""))[:2000], r.get("accion") if r.get("accion") == "cancelar" else None)}))
+                if isinstance(msg.get("teclado"), dict):  # el bocadillo del modo teclado: solo el texto y el id del modelo
+                    import teclado
+                    r = msg["teclado"]
+                    acciones.tarea(_teclado(ws, str(r.get("texto", "")), str(r.get("modelo", ""))))
+                if msg.get("omni"):  # el panel «OmniRoute»: modelos, cuotas y gasto (solo lectura)
+                    import teclado
+                    await ws.send_str(json.dumps({"omni_res": await asyncio.to_thread(teclado.info)}))
                 if msg.get("catalogo"):  # el selector «Nueva conversación»: lo que se puede lanzar, leído del disco
                     import agentes_catalogo
                     await ws.send_str(json.dumps({"catalogo_res": await asyncio.to_thread(agentes_catalogo.catalogo)}))
@@ -987,7 +1005,7 @@ async def start(ST, voz):
         app.router.add_get("/", lambda r: _con_version("index.html", "text/html"))
         app.router.add_get("/ws", _ws)
         app.router.add_static("/fonts", AQUI / "panel" / "fonts")
-        for js in ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "agentes.js"):
+        for js in ("fondo.js", "orbe.js", "blob.js", "tiempo.js", "agentes.js", "teclado.js"):
             app.router.add_get("/" + js, lambda r, js=js: _con_version(js, "application/javascript"))
         for js in ("three.module.js", "novedades.json"):
             app.router.add_get("/" + js, lambda r, js=js: web.FileResponse(AQUI / "panel" / js, headers=nc))
