@@ -157,7 +157,7 @@ RUIDO_VALE = 60  # s que vale una racha de <noise>; mic_clip decae solo, «ruido
 
 
 def _mic(ST):
-    if ST.get("privacidad"):
+    if ST.get("privacidad") or acciones.silencio_total():
         return {"nivel": 0, "db": None, "estado": "off"}
     viva = time.monotonic() - ST.get("mic_t", 0) < 2
     rms = ST.get("mic_rms", 0)

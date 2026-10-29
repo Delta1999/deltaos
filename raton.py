@@ -7,7 +7,7 @@ botones vuelven a hacer lo de siempre.
   ventanas → escuchar, como si hubiera oído «Delta»; si ya escucha, a dormir (stand-by); si la interfaz está en
              el salón (firetv.py), la trae al portátil y escucha
   ZOOM     → pulsación corta: privacidad on/off (al soltar)
-             mantenido 2 s: silencio total on/off (29/10/2026): Delta queda mudo y no avisa de nada hasta que se
+             mantenido 2 s: silencio total on/off (29/10/2026): Delta queda mudo, sordo (micro descartado) y no avisa de nada hasta que se
              vuelva a mantener; suena un click al activarlo y dos al quitarlo
 Solo stdlib: se lee struct input_event a pelo."""
 import asyncio
@@ -82,7 +82,7 @@ async def _alternar_silencio(ST):
         await proactivo.silencio_total("")
         acciones.dormir_ahora()  # corta lo que esté diciendo; el audio nuevo lo descarta assistant.py
         clic(True)
-        panel.notificar("info", "Silencio total ACTIVADO: mudo y sin avisos hasta que mantengas ZOOM 2 s")
+        panel.notificar("info", "Silencio total ACTIVADO: mudo, micro apagado y sin avisos hasta que mantengas ZOOM 2 s")
 
 
 def _hacer(ST, orden):
