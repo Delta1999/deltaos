@@ -1051,13 +1051,11 @@ FUSIONES = {
                   {"estado": _r("estado_impresora"), "historial": _r("historial_impresora"),
                    "avisar_antes": _r("programar_aviso_impresora")}),
     "avisos": ("Temporizadores, recordatorios y alarmas (sobreviven a reinicios). programar: «avísame en 20 minutos», "
-               "«recuérdame a las 18:30 llamar a Juan», «despiértame a las 8» (tipo alarma: suena en bucle hasta "
-               "accion=parar_alarma). También es el CALENDARIO: «apunta en el calendario que el jueves tengo médico a las 17:30» "
-               "(texto «médico», a_las «jueves 17:30»; sale en la línea de la semana del panel). ver: los pendientes y la hora y fecha de aquí (consúltala siempre que te pregunten la hora, el día o la fecha). cancelar: los que contengan texto, o «todos». "
-               "no_molestar: deja de avisar por tu cuenta un rato («no me molestes», «déjame en paz», «silencio»); lo "
-               "que él te pidió sigue sonando, y sin en_minutos (o con 0) vuelves a avisar. "
-               "silencio_total: «silencio total», «no me avises de nada»: no dices ni notificas NINGÚN aviso ni alerta, tampoco "
-               "alarmas ni recordatorios, hasta que te diga que acabó (accion=silencio_total con en_minutos=0) o pasen en_minutos.",
+               "«recuérdame a las 18:30 llamar a Juan», «despiértame a las 8» (tipo alarma: suena en bucle hasta accion=parar_alarma). "
+               "También es el CALENDARIO: «apunta en el calendario que el jueves tengo médico a las 17:30» (texto «médico», a_las «jueves 17:30»; sale en la semana del panel). "
+               "ver: los pendientes y la hora y fecha de aquí (consúltala siempre que pregunten la hora, el día o la fecha). cancelar: los que contengan texto, o «todos». "
+               "no_molestar: dejas de avisar por tu cuenta un rato («no me molestes», «déjame en paz»); lo que él pidió sigue sonando; sin en_minutos (o 0) vuelves a avisar. "
+               "silencio_total: «silencio total», «no me avises de nada»: ningún aviso ni alerta, tampoco alarmas ni recordatorios, hasta que diga que acabó (en_minutos=0) o pasen en_minutos.",
                {"texto": "programar: qué recordar («sacar la pizza»); cancelar: parte del texto o «todos»",
                 "en_minutos": "programar: dentro de cuántos minutos, p.ej. 20 o 1.5; no_molestar: cuántos callado",
                 "a_las": "programar: hora HH:MM (la próxima vez que llegue); con día, «jueves 17:30», «mañana 09:00», «pasado mañana 10:00» "
@@ -1068,35 +1066,23 @@ FUSIONES = {
                 "cancelar": _r("cancelar_aviso", {"cual": "texto"}), "parar_alarma": _r("parar_alarma"),
                 "no_molestar": _r("no_molestar", {"minutos": "en_minutos"}),
                 "silencio_total": _r("silencio_total", {"minutos": "en_minutos"})}),
-    "claude": ("Claude Code y Cherry (Plan B). mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, fondos, voz, "
-               "herramientas…) ya con Claude Code; si no corre prisa, memoria accion=anotar_mejora. "
-               "cherry: Plan B cuando Claude no tenga tokens o el usuario pida expresamente usar Cherry («mejora esto con Cherry», «dile a Cherry que cambie esto»); "
-               "hablar: el repo WORMHOLE (CAD, piezas, impresión), UNA conversación persistente que recuerda lo "
-               "anterior (vale «ahora hazlo más grueso»), trabaja en segundo plano y avisa; úsala para toda petición de "
-               "código, CAD o archivos del repo. tarea_suelta: un disparo sin memoria (pide confirmación). "
-               "estado: qué hace ahora. cancelar: interrumpe su tarea.",
+    "claude": ("Claude Code y Cherry (Plan B). mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, fondos, voz, herramientas…) ya, con Claude Code; si no corre prisa, memoria accion=anotar_mejora. "
+               "cherry: Plan B cuando Claude no tenga tokens o pida expresamente Cherry («mejora esto con Cherry», «dile a Cherry que…»). "
+               "hablar: el repo WORMHOLE (CAD, piezas, impresión), UNA conversación persistente que recuerda lo anterior («ahora hazlo más grueso»), en segundo plano y avisa; para toda petición de código, CAD o archivos del repo. "
+               "tarea_suelta: un disparo sin memoria (pide confirmación). estado: qué hace ahora. cancelar: interrumpe su tarea.",
                {"mensaje": "hablar/tarea_suelta/mejorar_delta/cherry: lo que quieres que haga, completo y con las palabras del usuario"},
                {"mejorar_delta": _r("mejorar_delta", {"peticion": "mensaje"}),
                 "cherry": _r("mejorar_delta_cherry", {"peticion": "mensaje"}),
                 "hablar": _r("hablar_con_claude"), "tarea_suelta": _r("preguntar_a_claude", {"tarea": "mensaje"}),
                 "estado": _r("estado_claude"), "cancelar": _r("cancelar_claude")}),
     "memoria": ("MEMORIA y NOTAS: dos cosas distintas. "
-                "MEMORIA = datos sobre el usuario que debes tener siempre presentes («recuerda que mi casco es talla M», "
-                "«olvida lo de…»). recordar: guarda ese DATO. buscar: rebusca en TODO lo que te ha contado alguna vez; "
-                "las que ves al despertar son solo las últimas, así que si pregunta por algo dicho hace tiempo, BUSCA antes "
-                "de decir que no lo sabes. olvidar: borra los datos que contengan texto. anotar_mejora: el buzón para "
-                "Claude Code de TODO lo que falle o falte en Delta, sea avería o mejora (el usuario las confunde, da igual), "
-                "y aunque diga «apúntalo», «recuérdalo», «para mañana» o «díselo a Claude»: NUNCA con recordar. Si pide "
-                "arreglarlo YA, claude accion=mejorar_delta. "
-                "NOTAS = el cajón desastre del usuario, privado y solo en este ordenador; solo las lees cuando te las pide. "
-                "nota_guardar: «apunta en notas que…», «anota en mis notas…», «nota rápida…», «guárdame esta idea…»; "
-                "el texto LITERAL, sin resumir ni corregir, y responde solo «Anotado». nota_listar: «¿qué tengo en notas "
-                "de esta semana?» (cuando = hoy | ayer | semana | mes; n = cuántas, 5 por defecto; si quiere verlas en "
-                "pantalla, pasa el resultado a vista accion=tarjeta). nota_buscar: «busca en mis notas lo del PETG». "
-                "nota_borrar: «borra la última nota», «borra la nota del PETG»; di cuál has borrado. "
-                "NO son notas: «avísame a las 10 de…» (avisos); «apunta como mejora…» (anotar_mejora); «apúntamelo ahí», "
-                "«ponlo en pantalla» (vista accion=tarjeta, que solo ENSEÑA); «pasa a apuntes la clase» (apuntes); "
-                "«hazme un documento» (documentos).",
+                "MEMORIA = datos sobre el usuario que debes tener siempre presentes («recuerda que mi casco es talla M», «olvida lo de…»). "
+                "recordar: guarda ese DATO. buscar: rebusca en TODO lo que te ha contado; las que ves al despertar son solo las últimas, así que si pregunta por algo dicho hace tiempo, BUSCA antes de decir que no lo sabes. "
+                "olvidar: borra los datos que contengan texto. anotar_mejora: buzón para Claude Code de TODO lo que falle o falte en Delta, sea avería o mejora (las confunde, da igual), aunque diga «apúntalo», «recuérdalo», «para mañana» o «díselo a Claude»: NUNCA con recordar. Si pide arreglarlo YA, claude accion=mejorar_delta. "
+                "NOTAS = su cajón desastre, privado y solo en este ordenador; solo las lees si te las pide. "
+                "nota_guardar: «apunta en notas que…», «nota rápida…», «guárdame esta idea…»; texto LITERAL, sin resumir ni corregir, y responde solo «Anotado». "
+                "nota_listar: «¿qué tengo en notas de esta semana?» (para verlas en pantalla, pasa el resultado a vista accion=tarjeta). nota_buscar: «busca en mis notas lo del PETG». nota_borrar: «borra la última nota», «borra la del PETG»; di cuál has borrado. "
+                "NO son notas: «avísame a las 10 de…» (avisos); «apunta como mejora…» (anotar_mejora); «apúntamelo ahí», «ponlo en pantalla» (vista accion=tarjeta); «pasa a apuntes la clase» (apuntes); «hazme un documento» (documentos).",
                 {"texto": "recordar: el dato; buscar/nota_buscar: qué buscar; olvidar/nota_borrar: fragmento (nota_borrar sin texto, "
                           "o «la última»: la más reciente); anotar_mejora: la mejora descrita con claridad; nota_guardar: la nota, literal",
                  "etiqueta": "nota_guardar: una palabra opcional para clasificarla (p.ej. impresion)",
@@ -1125,27 +1111,16 @@ FUSIONES = {
                 **{a: _r("controlar_musica", fijo={"accion": a}) for a in _MUSICA}}),
     "vista": ("Tu interfaz. panel / invisible: panel completo, o sin panel y solo el ORBE flotando en una esquina del "
               "escritorio («modo invisible», «quítate de en medio», «no quiero verte», «déjame solo el orbe»). "
-              "El orbe es tu cara cuando no hay panel: un clic encima enseña la barra de estado 5 s, el doble clic abre "
-              "el panel entero y arrastrándolo se cambia de sitio; eso lo hace el usuario con el ratón, tú no. "
+              "Con el orbe, un clic enseña la barra de estado 5 s, el doble clic abre el panel y arrastrarlo lo mueve (lo hace él con el ratón, tú no). "
               "OJO: «la barra» es SIEMPRE invisible, nunca panel; panel es solo «panel completo», «abre la interfaz entera». "
-              "tema: cambia el diseño visual de DeltaOS entre Nothing y Apple/iOS, cual = nothing | ios | alternar («diseño de apple», «pon el tema de ios», «diseño de nothing», «cambia el diseño»). "
-              "quitar_tarjeta: quita la tarjeta que hayas puesto (en el panel o en la barra del orbe) y lo que haya en ella (web, mapa, informe), sin cambiar de modo («quita eso», «quita eso de la barra», «quita el informe de la barra», «ya lo he visto»). "
-              "oculto: quita también el orbe y no deja nada en pantalla («quita el orbe», «quita la barra», «fuera todo», «no dejes nada»); sigues escuchando igual, y con invisible vuelve. "
-              "pantalla: cual = interfaz (el panel, y con él el orbe del modo invisible) | todo, y donde = "
-              "otra | arriba | abajo | izquierda | derecha | principal | ultrawide: la lleva a esa pantalla y se queda ahí aunque "
-              "cambies de modo («mueve la interfaz a la otra pantalla», «el orbe a la pantalla de arriba», «todo a la "
-              "ultrawide»). Para el panel usa siempre esta y no ventanas. "
-              "tarjeta: enseña algo escrito en una tarjeta que se quita sola: en el panel completo flota sobre el panel, y en modo invisible el orbe abre la barra debajo de sí y la deja abierta mientras dure. Para cifras, listas, "
-              "resultados, lo que haya salido en la terminal o los datos de algo que te han pedido buscar: lo que se lee "
-              "mejor que se oye («apúntamelo ahí», «ponlo en pantalla», «enséñamelo»); solo ENSEÑA, no guarda nada: «apunta en notas…» es memoria accion=nota_guardar. Con imagen = ruta del disco (de "
-              "Imágenes, Descargas, Escritorio o Documentos/Delta) o URL, enseña además una foto, captura o plano. "
-              "Para una web, un mapa, una búsqueda o un producto usa mostrar: en modo invisible el visor sale dentro de "
-              "la barra que abre el orbe. "
-              "fondo: la pone YA a pantalla completa en el panel (y es la que sale al dormir), cual = auto (la de por defecto, el orbe 1; ya no rotan solas) | orbe1 (el ORBE 1: una esfera de "
-              "alambre que ondula con la voz; es la de por defecto y no se quita al hablarte) | orbe2 (el ORBE 2: la misma esfera pero sólida, una gota blanca con barniz que se deforma con la voz; tampoco se quita al hablarte) | reloj | impresion | tiempo (estación meteo a pantalla completa) («pon el reloj de fondo», «pon el orbe 1», «pon el orbe 2», «salvapantallas»). pantalla_completa: cual = impresora (la "
-              "pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema "
-              "(procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», "
-              "«¿qué está comiendo RAM?»).",
+              "tema: diseño visual Nothing o Apple/iOS, cual = nothing | ios | alternar («diseño de apple», «pon el tema de ios»). "
+              "quitar_tarjeta: quita la tarjeta puesta (panel o barra del orbe) y lo que haya en ella (web, mapa, informe), sin cambiar de modo («quita eso», «quita el informe de la barra», «ya lo he visto»). "
+              "oculto: quita también el orbe y no deja nada en pantalla («quita el orbe», «fuera todo»); sigues escuchando, y con invisible vuelve. "
+              "pantalla: cual = interfaz (el panel y con él el orbe) | todo, y donde = otra | arriba | abajo | izquierda | derecha | principal | ultrawide: la lleva a esa pantalla y se queda ahí («mueve la interfaz a la otra pantalla», «todo a la ultrawide»). Para el panel usa siempre esta y no ventanas. "
+              "tarjeta: enseña algo escrito en una tarjeta que se quita sola (flota sobre el panel; con el orbe, la barra se abre debajo y se queda mientras dure). Para cifras, listas, resultados, lo que salió en la terminal o datos de algo que pidió buscar: lo que se lee mejor que se oye («apúntamelo ahí», «ponlo en pantalla»); solo ENSEÑA, no guarda: «apunta en notas…» es memoria accion=nota_guardar. Con imagen = ruta del disco (Imágenes, Descargas, Escritorio o Documentos/Delta) o URL, enseña además una foto, captura o plano. "
+              "Una web, mapa, búsqueda o producto va con mostrar (con el orbe, el visor sale en la barra). "
+              "fondo: la pone YA a pantalla completa en el panel (y es la que sale al dormir), cual = auto (el orbe 1; ya no rotan solas) | orbe1 (esfera de alambre que ondula con la voz; por defecto, no se quita al hablarte) | orbe2 (la esfera sólida, gota blanca con barniz; tampoco se quita) | reloj | impresion | tiempo (estación meteo) («pon el reloj de fondo», «pon el orbe 2», «salvapantallas»). "
+              "pantalla_completa: cual = impresora (pieza 3D en vivo con capas, tiempos, temperaturas, histórico…) | tiempo (Nothing Weather entero) | sistema (procesos por RAM y cuáles se pueden cerrar; enséñalo y dilo) | salir («ponme la impresora en grande», «¿qué está comiendo RAM?»).",
               {"cual": "tema: nothing | ios | alternar; fondo: auto | orbe1 | orbe2 | reloj | impresion | tiempo; pantalla_completa: impresora | tiempo | sistema | salir; "
                        "pantalla: interfaz | todo",
                "donde": "pantalla: otra | arriba | abajo | izquierda | derecha | principal | ultrawide",
@@ -1176,10 +1151,10 @@ FUSIONES = {
                "lee su ESTADO.md para decir dónde se dejó.",
                {"nombre": "proyectos: parte del nombre del proyecto, opcional"},
                {"trabajos": _r("ver_trabajos"), "proyectos": _r("estado_proyectos")}),
-    "pantalla": ("Lo que ves de la pantalla del usuario. detalle: una captura nítida AHORA, para leer texto "
-                 "pequeño, código o algo que no distingues. en_vivo: modo directo, la ves casi continua en vez de "
-                 "cada 8 segundos, para «mira lo que estoy haciendo» o «sígueme mientras monto esto»; sin minutos "
-                 "la paras. En reposo ya la ves cada 8 segundos: no hace falta pedir nada para mirar.",
+    "pantalla": ("Lo que ves de la pantalla del usuario: por defecto NADA, solo lo que él te pida. detalle: UNA captura nítida AHORA, "
+                 "para «mira mi pantalla», «¿qué pone aquí?», leer texto pequeño o código. en_vivo: modo directo, la ves casi "
+                 "continua, para «mira lo que estoy haciendo» o «sígueme mientras monto esto»; sin minutos la paras. "
+                 "Si te pregunta por algo que está en su pantalla, mírala primero con detalle.",
                  {"minutos": "en_vivo: cuántos minutos en directo (1-30); vacío o 0 para parar"},
                  {"detalle": _r("mirar_detalle"), "en_vivo": _r("ver_en_vivo")}),
     "clima": ("consultar: el tiempo ahora y la previsión de hasta 3 días; sin lugar, donde está el usuario. Úsala siempre "

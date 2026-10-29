@@ -179,7 +179,8 @@ async def _salto(pregunta, pedir="Investiga con búsquedas y responde con datos 
     try:
         r = await asyncio.wait_for(_gem().generate_content(
             model=MODELO, contents=f"{pedir}: {pregunta}",
-            config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())])), LLAMADA_MAX)
+            config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())],
+                                               thinking_config=types.ThinkingConfig(thinking_level="LOW"))), LLAMADA_MAX)
     except genai.errors.ClientError as e:
         if e.code != 429:
             raise
