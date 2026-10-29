@@ -149,9 +149,17 @@ async def _json(prompt):
 
 async def _salto(pregunta, pedir="Investiga con búsquedas y responde con datos concretos, cifras y fechas"):
     """Una búsqueda con Google: respuesta + fuentes web reales (grounding)."""
-    r = await asyncio.wait_for(_gem().generate_content(
-        model=MODELO, contents=f"{pedir}: {pregunta}",
-        config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())])), LLAMADA_MAX)
+    try:
+        r = await asyncio.wait_for(_gem().generate_content(
+            model=MODELO, contents=f"{pedir}: {pregunta}",
+            config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())])), LLAMADA_MAX)
+    except genai.errors.ClientError as e:
+        if e.code != 429:
+            raise
+        # 29/10/2026: el 429 llegaba como «problema técnico» y se pasó a Claude como avería, que no es.
+        raise RuntimeError("Se ha agotado la cuota de búsquedas de Google de la clave de Gemini (error 429). "
+                           "No es una avería: se repone sola pasado un tiempo. Díselo así al usuario, "
+                           "sin llamarlo «problema técnico» ni pasarlo a Claude.") from e
     gm = r.candidates[0].grounding_metadata if r.candidates else None
     fuentes = [(c.web.title or c.web.uri, c.web.uri) for c in (gm.grounding_chunks or []) if c.web] if gm else []
     return pregunta, r.text or "", fuentes
