@@ -689,7 +689,7 @@ async def _ws(request):
                 if isinstance(msg.get("decir"), dict):  # el cuadro «Decirle algo» de la pantalla Agentes
                     import agentes
                     r = msg["decir"]
-                    await ws.send_str(json.dumps({"decir_res": await agentes.decir(str(r.get("a")), str(r.get("texto", ""))[:2000])}))
+                    await ws.send_str(json.dumps({"decir_res": await agentes.decir(str(r.get("a")), str(r.get("texto", ""))[:2000], r.get("accion") if r.get("accion") == "cancelar" else None)}))
                 if isinstance(msg.get("notif_abrir"), str):  # clic en una notificación del móvil: su texto, solo a quien pregunta
                     import movil
                     await ws.send_str(json.dumps({"notif": await movil.notificacion(msg["notif_abrir"])}))

@@ -18,7 +18,7 @@ const titulo = n => (n.tipo === 'sub' && n.tarea ? n.tarea : n.nombre);
 const nombreModelo = m => String(m || '?').replace(/^claude-/, '').replace(/^anthropic\//, '');
 
 let D = null, recvT = 0, vivo = true, Tfijo = 0, vista = lee('ag_vista', 'const'), ventana = +lee('ag_ventana', 300);
-let abierto = false, timer = 0, raf = 0, sel = null, estilo = {}, rects = [], pos = {}, vistos = {}, ultLista = 0;
+let ocultos = new Set(JSON.parse(lee('ag_ocultos', '[]'))), abierto = false, timer = 0, raf = 0, sel = null, estilo = {}, rects = [], pos = {}, vistos = {}, ultLista = 0;
 
 // ---------- DOM ----------
 const css = `
@@ -56,14 +56,28 @@ body.agentes #agentes{display:flex}
 #agentes .ag-pie .ag-t{font-family:var(--mono);font-size:12px;color:var(--text-secondary);min-width:120px;text-align:right}
 #agentes .ag-pie button{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--border-visible);border-radius:999px;padding:6px 13px;background:transparent;color:var(--text-primary);cursor:pointer}
 #agentes .ag-pie button.on{background:var(--accent);border-color:var(--accent);color:#fff}
-#agentes .ag-decir{display:none;align-items:center;gap:10px;padding:9px 22px;border-top:1px solid var(--border);background:var(--surface)}
-#agentes .ag-decir.on{display:flex}
-#agentes .ag-decir label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--text-secondary);white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
-#agentes .ag-decir label b{color:var(--text-primary);font-weight:600}
-#agentes .ag-decir input{flex:1;min-width:0;background:var(--bg);color:var(--text-primary);border:1px solid var(--border-visible);border-radius:999px;padding:8px 14px;font-family:var(--sans);font-size:14px}
-#agentes .ag-decir input:disabled{opacity:.5}
-#agentes .ag-decir button{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--accent);border-radius:999px;padding:7px 14px;background:var(--accent);color:#fff;cursor:pointer}
-#agentes .ag-decir .res{font-size:12px;color:var(--text-secondary);max-width:340px}
+#agentes .ag-pm{position:absolute;left:0;top:0;width:min(310px,calc(100% - 16px));z-index:3;background:var(--surface-raised);border:1px solid var(--border-visible);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);display:none;flex-direction:column;gap:9px;visibility:hidden}
+#agentes .ag-pm.on{display:flex}
+#agentes .ag-pm .h{display:flex;align-items:center;gap:8px}
+#agentes .ag-pm .h b{font-size:14px;font-weight:600;color:var(--text-display);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#agentes .ag-pm .pt{width:8px;height:8px;border-radius:50%;flex:none;background:var(--text-disabled)}
+#agentes .ag-pm .pt.on{animation:agp 1s infinite}
+#agentes .ag-pm .x{border:0;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:14px;padding:2px 4px}
+#agentes .ag-pm .ch{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--text-secondary);display:flex;gap:6px;flex-wrap:wrap}
+#agentes .ag-pm .ch span{border:1px solid var(--border-visible);border-radius:999px;padding:1px 8px}
+#agentes .ag-pm .vivo{font-family:var(--mono);font-size:11.5px;color:var(--text-primary);word-break:break-word;line-height:1.35}
+#agentes .ag-pm form{display:flex;gap:6px}
+#agentes .ag-pm input{flex:1;min-width:0;background:var(--bg);color:var(--text-primary);border:1px solid var(--border-visible);border-radius:999px;padding:7px 12px;font-family:var(--sans);font-size:13px}
+#agentes .ag-pm form button{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--accent);border-radius:999px;padding:6px 11px;background:var(--accent);color:#fff;cursor:pointer}
+#agentes .ag-pm .q,#agentes .ag-pm .ac{display:flex;gap:6px;flex-wrap:wrap}
+#agentes .ag-pm .q button,#agentes .ag-pm .ac button{font-size:11.5px;border:1px solid var(--border-visible);border-radius:999px;padding:3px 10px;background:transparent;color:var(--text-primary);cursor:pointer}
+#agentes .ag-pm .ac button.pel{border-color:#d9534f;color:#d9534f}
+#agentes .ag-pm .ac button.on{background:var(--text-primary);color:var(--bg)}
+#agentes .ag-pm .res{font-size:12px;color:var(--text-secondary);min-height:0;word-break:break-word}
+#agentes .ag-pm .res:empty{display:none}
+#agentes .ag-pm .solo{font-size:12px;color:var(--text-secondary)}
+#agentes .ag-pm .her{font-family:var(--mono);font-size:11px;color:var(--text-secondary);display:flex;flex-direction:column;gap:3px;max-height:150px;overflow:auto}
+#agentes .ag-pm .her div{word-break:break-word}
 #agentes .ag-vacio{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-family:var(--mono);font-size:13px;pointer-events:none}
 @media(max-width:900px){#agentes .ag-lista,#agentes .ag-leyenda{display:none}}
 `;
@@ -71,14 +85,13 @@ const st = document.createElement('style'); st.textContent = css; document.head.
 const raiz = document.createElement('div');
 raiz.id = 'agentes';
 raiz.innerHTML = `
-<div class="ag-top"><h2 class="dot">AGENTES</h2><span class="ag-n" id="ag-n"></span><span class="ag-sp"></span>
+<div class="ag-top"><h2 class="dot">AGENTES</h2><span class="ag-n" id="ag-n"></span><button class="ag-x" id="ag-oc" style="display:none"></button><span class="ag-sp"></span>
   <span class="ag-leyenda"><span><i style="background:${ORIGEN.claude[1]}"></i>Claude</span><span><i style="background:${ORIGEN.omniroute[1]}"></i>OmniRoute</span><span><i style="background:${ORIGEN.gemini[1]}"></i>Gemini</span></span>
   <span class="ag-seg" id="ag-vista"><button data-v="const">Constelación</button><button data-v="carriles">Carriles</button></span>
   <span class="ag-seg" id="ag-ventana" title="Ancho de la vista de carriles"><button data-w="120">2 min</button><button data-w="300">5 min</button><button data-w="1200">20 min</button></span>
   <button class="ag-x" id="ag-cerrar" title="Esc">Cerrar ✕</button></div>
-<div class="ag-cuerpo"><div class="ag-lienzo" id="ag-lienzo"><canvas id="ag-cv"></canvas><div class="ag-vacio" id="ag-vacio"></div><div class="ag-tip" id="ag-tip"></div></div>
+<div class="ag-cuerpo"><div class="ag-lienzo" id="ag-lienzo"><canvas id="ag-cv"></canvas><div class="ag-vacio" id="ag-vacio"></div><div class="ag-tip" id="ag-tip"></div><div class="ag-pm" id="ag-pm"></div></div>
   <div class="ag-lista" id="ag-lista"></div></div>
-<form class="ag-decir" id="ag-decir" autocomplete="off"><label id="ag-dl"></label><input id="ag-di" maxlength="2000"><button type="submit">Enviar</button><span class="res" id="ag-dr"></span></form>
 <div class="ag-pie"><button id="ag-vivo" class="on">● En directo</button><input type="range" id="ag-rango" min="0" max="1" step="0.5" value="1"><span class="ag-t" id="ag-t"></span></div>`;
 document.body.appendChild(raiz);
 const cv = $('ag-cv'), ctx = cv.getContext('2d');
@@ -114,6 +127,7 @@ function estadoEn(n, t) {
   return {e: n.fin && t >= n.fin ? 'hecho' : 'reposo', seg: null};
 }
 function visible(n, t) {
+  if (ocultos.has(n.id)) return false;
   if (n.t0 > t + 1) return false;
   if (n.tipo === 'delta') return true;
   if (n.tipo === 'router') return n.segs.some(s => s.t1 <= t + 1 && t - s.t1 < 300);
@@ -134,33 +148,77 @@ function lista(t) {
       <div class="ch"><span style="border-color:${o[1]};color:${o[1]}">${o[0]}</span>${n.tipo === 'sub' && n.tarea ? `<span>${esc(corto(n.nombre, 20))}</span>` : ''}<span>${esc(nombreModelo(n.modelo))}</span>${n.ruta ? `<span>${esc(corto(n.ruta, 28))}</span>` : ''}${n.tok ? `<span>${n.parcial ? '≥' : ''}${n.tok} tok</span>` : ''}</div>
       ${usa ? `<div class="us">▸ ${esc(corto(usa, 90))}</div>` : ''}${n.tarea && !(n.tipo === 'sub') ? `<div class="ta">${esc(corto(n.tarea, 110))}</div>` : ''}</div>`;
   }).join('');
-  decirPon();
+  menuVivo(t);
+  $('ag-oc').style.display = ocultos.size ? '' : 'none'; $('ag-oc').textContent = `Mostrar ${ocultos.size} oculto${ocultos.size > 1 ? 's' : ''}`;
   $('ag-vacio').textContent = vis.length <= 1 ? 'Sin agentes trabajando ahora mismo. Rebobina la barra para ver lo de hace unos minutos.' : '';
 }
 
-// ---------- hablarle al agente ----------
-let decirA = null;
-function decirPon() {
-  const n = sel && D.nodos.find(x => x.id === sel), f = $('ag-decir');
-  f.classList.toggle('on', !!n);
-  if (!n) { decirA = null; return; }
-  if (decirA !== n.id) { decirA = n.id; $('ag-di').value = ''; $('ag-dr').textContent = ''; }
-  const ok = n.hablable;
-  $('ag-dl').innerHTML = `Decirle a <b>${esc(corto(titulo(n), 26))}</b>`;
-  $('ag-di').disabled = !ok;
-  $('ag-di').placeholder = ok ? 'Escríbele y pulsa Intro…' : 'Es otro proceso: desde aquí solo se puede leer';
-  f.querySelector('button').style.display = ok ? '' : 'none';
+// ---------- menú del agente (junto a su esfera) ----------
+let menuDe = null, herAbierto = false;
+const RAPIDAS = [['¿Qué haces?', '¿Qué estás haciendo ahora mismo? Respóndeme en una frase.'], ['Resume', 'Resume en pocas frases lo que has hecho hasta ahora.'],
+                 ['Sigue', 'Sigue con lo que estabas haciendo.']];
+const copia = async (txt, ok) => { try { await navigator.clipboard.writeText(txt); $('pm-res').textContent = ok; } catch (e) { $('pm-res').textContent = 'No he podido copiar.'; } };
+const esAcp = n => n.hablable && n.id !== 'delta';
+function menuArma(n) {
+  menuDe = n.id; herAbierto = false;
+  const m = $('ag-pm'), o = ORIGEN[n.origen] || ORIGEN.claude;
+  m.innerHTML = `<div class="h"><span class="pt" id="pm-pt"></span><b>${esc(corto(titulo(n), 34))}</b><button class="x" data-a="cerrar" title="Cerrar el menú">✕</button></div>
+    <div class="ch"><span style="border-color:${o[1]};color:${o[1]}">${o[0]}</span><span>${esc(nombreModelo(n.modelo))}</span>${n.ruta ? `<span>${esc(corto(n.ruta, 26))}</span>` : ''}</div>
+    <div class="vivo" id="pm-vivo"></div>
+    ${n.hablable ? `<form id="pm-f" autocomplete="off"><input id="pm-i" maxlength="2000" placeholder="Decirle algo…"><button type="submit">Enviar</button></form>
+      <div class="q">${RAPIDAS.map(([t], i) => `<button data-q="${i}">${esc(t)}</button>`).join('')}</div>`
+      : '<div class="solo">Es otro proceso: desde aquí solo se puede leer.</div>'}
+    <div class="res" id="pm-res"></div>
+    <div class="ac">${esAcp(n) ? '<button class="pel" data-a="cancelar">Cancelar tarea</button>' : ''}<button data-a="her" id="pm-her">Últimas herramientas</button>${n.tarea ? '<button data-a="tarea">Copiar tarea</button>' : ''}<button data-a="id">Copiar id</button>${n.id !== 'delta' ? '<button data-a="ocultar">Ocultar</button>' : ''}</div>
+    <div class="her" id="pm-hl" style="display:none"></div>`;
+  m.classList.add('on');
+  const i = $('pm-i'); if (i) setTimeout(() => i.focus(), 30);
 }
-$('ag-decir').onsubmit = e => {
+function menuVivo(t) {
+  const n = sel && D.nodos.find(x => x.id === sel);
+  if (!n || ocultos.has(n.id)) { menuCierra(); return; }
+  if (menuDe !== n.id) menuArma(n);
+  const s = estadoEn(n, t), on = activo(s.e), o = ORIGEN[n.origen] || ORIGEN.claude;
+  $('pm-pt').className = 'pt' + (on ? ' on' : ''); $('pm-pt').style.background = on ? o[1] : '';
+  const usa = s.seg ? `${s.seg.tool}${s.seg.det ? ': ' + s.seg.det : ''}` : '';
+  $('pm-vivo').textContent = `${s.e}${usa ? ' ▸ ' + corto(usa, 80) : ''}${n.tok ? ` · ${n.parcial ? '≥' : ''}${n.tok} tok` : ''}`;
+  if (herAbierto) $('pm-hl').innerHTML = n.segs.slice(-8).reverse().map(g => `<div>${esc(g.tool)}${g.det ? ': ' + esc(corto(g.det, 60)) : ''} · ${esc(fmt(g.t1 - g.t0))}${g.ok ? '' : ' · falló'}</div>`).join('') || '<div>Sin herramientas todavía.</div>';
+  $('pm-her').classList.toggle('on', herAbierto); $('pm-hl').style.display = herAbierto ? '' : 'none';
+}
+function menuCierra() { menuDe = null; $('ag-pm').classList.remove('on'); $('ag-pm').innerHTML = ''; }
+function menuPos(W, H) {
+  const m = $('ag-pm'); if (!menuDe) return;
+  const q = rects.find(r => r.id === menuDe && !r.seg && !r.evento);
+  if (!q) { m.style.visibility = 'hidden'; return; }
+  const w = m.offsetWidth, h = m.offsetHeight;
+  let x, y;
+  if (q.circ) { x = q.cx + q.r + 56; if (x + w > W - 8) x = q.cx - q.r - 56 - w; y = q.cy - h / 2; }
+  else { x = q.x + q.w + 10; y = q.y; }
+  x = Math.max(8, Math.min(x, W - w - 8)); y = Math.max(8, Math.min(y, H - h - 8));
+  m.style.transform = `translate(${x}px,${y}px)`; m.style.visibility = 'visible';
+}
+const manda = o => { $('pm-res').textContent = window.enviarWS && window.enviarWS({decir: {a: menuDe, ...o}}) ? 'Enviando…' : 'Sin conexión con el panel.'; };
+$('ag-pm').addEventListener('submit', e => {
   e.preventDefault();
-  const t = $('ag-di').value.trim();
-  if (!t || !decirA) return;
-  $('ag-dr').textContent = window.enviarWS && window.enviarWS({decir: {a: decirA, texto: t}}) ? 'Enviando…' : 'Sin conexión con el panel.';
-};
+  const t = $('pm-i').value.trim(); if (t) manda({texto: t});
+});
+$('ag-pm').addEventListener('click', e => {
+  const n = D && D.nodos.find(x => x.id === menuDe), b = e.target.closest('button'); if (!b || !n) return;
+  if (b.dataset.q) { manda({texto: RAPIDAS[+b.dataset.q][1]}); return; }
+  const a = b.dataset.a;
+  if (a === 'cerrar') { sel = null; menuCierra(); }
+  else if (a === 'cancelar') manda({accion: 'cancelar'});
+  else if (a === 'her') herAbierto = !herAbierto;
+  else if (a === 'tarea') copia(n.tarea, 'Tarea copiada.');
+  else if (a === 'id') copia(n.id, 'Id copiado.');
+  else if (a === 'ocultar') { ocultos.add(n.id); guarda('ag_ocultos', JSON.stringify([...ocultos])); sel = null; menuCierra(); }
+  ultLista = 0;
+});
+$('ag-oc').onclick = () => { ocultos.clear(); guarda('ag_ocultos', '[]'); ultLista = 0; };
 addEventListener('decir_res', e => {
-  const r = e.detail || {};
-  $('ag-dr').textContent = r.msg || '';
-  if (r.ok) $('ag-di').value = '';
+  const r = e.detail || {}, el = $('pm-res'), i = $('pm-i');
+  if (el) el.textContent = r.msg || '';
+  if (r.ok && i) i.value = '';
 });
 
 // ---------- constelación ----------
@@ -340,6 +398,7 @@ function bucle(ms) {
   if (!D) return;
   const t = Tver();
   vista === 'const' ? pintaConst(t, W, H, dt) : pintaCarriles(t, W, H);
+  menuPos(W, H);
   if (performance.now() - ultLista > 500) { ultLista = performance.now(); lista(t); }
   $('ag-t').textContent = vivo ? 'en directo' : `hace ${fmt(ahoraLive() - t)}`;
   if (vivo) $('ag-rango').value = t;
@@ -391,12 +450,12 @@ function abrir() {
 }
 function cerrar() {
   if (!abierto) return;
-  abierto = false; clearInterval(timer); cancelAnimationFrame(raf);
+  abierto = false; menuCierra(); clearInterval(timer); cancelAnimationFrame(raf);
   document.body.classList.remove('agentes');
 }
 addEventListener('keydown', e => {
   if (e.key !== 'Escape' || !abierto) return;
-  if (document.activeElement === $('ag-di')) { $('ag-di').blur(); sel = null; ultLista = 0; return; }
+  if (document.activeElement === $('pm-i')) { sel = null; menuCierra(); return; }
   cerrar();
 });
 window.Agentes = {abrir, cerrar, alternar: () => (abierto ? cerrar() : abrir()), abierto: () => abierto};

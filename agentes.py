@@ -304,17 +304,21 @@ def _hablable(n):
     return n["id"] == "delta" or (n.get("entrypoint") == "sdk-ts" and n["tipo"] == "sesion")
 
 
-async def decir(a, texto):
+async def decir(a, texto="", accion=None):
     """Lo que el usuario escribe en la pantalla «Agentes» para un agente. Llega por el WebSocket del panel (con Origin
     comprobado y nunca desde la tele), así que es suyo; no autoriza nada por sí solo: las acciones que piden permiso lo piden."""
     import acciones
     import claude_acp
     texto = texto.strip()
     n = _nodos.get(a)
-    if not texto or n is None:
+    if n is None or not (texto or accion):
         return {"ok": False, "msg": "No hay nada que enviar."}
     if not _hablable(n):
         return {"ok": False, "msg": "Es otro proceso: desde aquí solo se puede leer."}
+    if accion == "cancelar":
+        if a == "delta":
+            return {"ok": False, "msg": "A Delta no se le cancela nada: ya se calla si le hablas."}
+        return {"ok": True, "msg": await claude_acp.cancelar_claude()}
     if a == "delta":
         return {"ok": await acciones.decir_a_delta(texto), "msg": "Enviado a Delta." if ST.get("session") else "Delta está en reposo: llámalo primero."}
     if n.get("cwd") == str(claude_acp.AQUI):

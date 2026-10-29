@@ -1,8 +1,8 @@
 [
  {
   "f": "2026-10-29",
-  "t": "Hablarle a un agente desde la pantalla «Agentes»: pulsa un agente de Delta (él mismo o su Claude Code) y escríbele en el cuadro de abajo. Los demás procesos (sesiones de escritorio, subagentes, OmniRoute) solo se leen.",
-  "como": "clic en el agente y escribe en «Decirle a…»",
+  "t": "Menú de cada agente en la pantalla «Agentes»: al pulsar una esfera se abre junto a ella con el estado en vivo, un cuadro para escribirle (a Delta y a su Claude Code) con respuestas rápidas, «Cancelar tarea», las últimas herramientas, copiar tarea o id y ocultar el agente. Los demás procesos son solo lectura.",
+  "como": "clic en la esfera de un agente",
   "voz": false
  },
  {
