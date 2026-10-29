@@ -395,6 +395,8 @@ async def receive_and_play_loop(session):
                             if part.text and not getattr(part, 'thought', False):
                                 print(part.text, end="", flush=True)
                             if part.inline_data:
+                                if acciones.silencio_total():  # silencio total: mudo, también al contestar (ratón: ZOOM 2 s)
+                                    continue
                                 audio_data = part.inline_data.data
                                 tv = acciones.ST.pop("t_voz", None)
                                 if tv and not acciones.ST["hablando"] and time.monotonic() - tv < 8:
