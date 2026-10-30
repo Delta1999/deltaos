@@ -667,13 +667,13 @@ function nvModelos() {
   return `<div><div class="nv-s">${nvCli === 'claude' ? 'Modelo' : 'Modelo para «Cambiar algo de Delta»'}</div><div class="nv-g">`
     + `<button class="nv-i ${act ? '' : 'on'}" data-combo="" data-d="${esc(def[1])}">${esc(def[0])}</button>`
     + (CAT.combos || []).map(c => `<button class="nv-i ${act === c.id ? 'on' : ''}" data-combo="${esc(c.id)}" data-d="${esc(c.id + ' · ' + c.d)}">${esc(c.n)}</button>`).join('')
-    + '</div></div>';
+    + '</div>' + (CAT.desvio ? `<div class="nv-mod">Ojo: OmniRoute manda lo que ve como código a ${esc(CAT.desvio)}; Claude Code suele acabar ahí.</div>` : '') + '</div>';
 }
 function nvPinta() {
   if (!CAT) { nv.innerHTML = '<div class="nv-d" id="nv-d">Cargando el catálogo…</div>'; return; }
   const a = nvSel && nvTodos().find(x => x.id === nvSel);
   if (a) {
-    const cb = nvComboAct(), mod = !nvConCombo(a.id) ? '' : cb ? `OmniRoute · ${cb.id}` : a.g === 'delta' ? 'Modelo por defecto' : 'Claude directo';
+    const cb = nvComboAct(), mod = !nvConCombo(a.id) ? '' : cb ? `OmniRoute · ${cb.id}` + (CAT.desvio && cb.id !== CAT.desvio ? ` (lo que parezca código, a ${CAT.desvio})` : '') : a.g === 'delta' ? 'Modelo por defecto' : 'Claude directo';
     nv.innerHTML = `<div class="nv-h"><button data-a="atras" title="Volver">←</button><b>${esc(a.n)}</b></div><div class="nv-d">${esc(a.d)}</div>${mod ? `<div class="nv-mod">▸ ${esc(mod)}</div>` : ''}
       <form id="nv-f"><textarea id="nv-t" rows="4" maxlength="2000" placeholder="${a.g === 'delta' ? 'Qué le dices o le pides a Delta…' : '¿Qué quieres que haga?'}"></textarea><button type="submit">Empezar</button></form><div class="nv-res" id="nv-res"></div>`;
     setTimeout(() => { const t = $('nv-t'); if (t) t.focus(); }, 30);

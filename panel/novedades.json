@@ -1,7 +1,7 @@
 [
  {
   "f": "2026-10-30",
-  "t": "Al empezar una conversación desde Agentes, tras elegir Claude Code o DeltaOS eliges también el modelo: Claude directo (o el de siempre en DeltaOS) o un combo de OmniRoute: Claude Code Auto, Code Pro, Deep Reasoning o Fast Completion. Al pasar el ratón ves qué modelos prueba cada combo; en DeltaOS vale para «Cambiar algo de Delta».",
+  "t": "Al empezar una conversación desde Agentes, tras elegir Claude Code o DeltaOS eliges también el modelo: Claude directo (o el de siempre en DeltaOS) o un combo de OmniRoute: Claude Code Auto, Code Pro, Deep Reasoning o Fast Completion. Al pasar el ratón ves qué modelos prueba cada combo; en DeltaOS vale para «Cambiar algo de Delta». Ojo: con el enrutado por tarea de OmniRoute activado, lo que parece código (casi todo lo de Claude Code) acaba en Code Pro, y el selector lo avisa.",
   "como": "botón de nueva conversación bajo «Agentes» → fila «Modelo»",
   "voz": false
  },

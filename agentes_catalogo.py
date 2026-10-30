@@ -43,22 +43,28 @@ COMBOS = [("claude-code-auto", "Claude Code Auto"), ("combo-code-pro", "Code Pro
 OMNI_BD = HOME / ".omniroute" / "storage.sqlite"
 
 
-def _cadenas():
-    """Modelos de cada combo, en el orden en que OmniRoute los prueba (base de OmniRoute en solo lectura)."""
+def _omniroute():
+    """(modelos de cada combo en el orden en que OmniRoute los prueba, combo al que desvía lo que detecta como código o None).
+    Base de OmniRoute en solo lectura. El desvío es su «enrutado por tarea» (30/10/2026: el usuario lo deja activado): pisa el
+    modelo pedido, y como el prompt de Claude Code siempre parece código, sus sesiones acaban en ese combo."""
     try:
         con = sqlite3.connect(f"file:{OMNI_BD}?mode=ro", uri=True, timeout=2)
         try:
-            return {n: [m.get("model", "") for m in json.loads(d).get("models", [])] for n, d in con.execute("SELECT name, data FROM combos")}
+            cad = {n: [m.get("model", "") for m in json.loads(d).get("models", [])] for n, d in con.execute("SELECT name, data FROM combos")}
+            f = con.execute("SELECT value FROM key_value WHERE namespace='settings' AND key='taskRouting'").fetchone()
         finally:
             con.close()
-    except (sqlite3.Error, ValueError):
-        return {}
+        tr = json.loads(f[0]) if f else {}
+        return cad, (tr.get("taskModelMap", {}).get("coding") or None) if tr.get("enabled") and tr.get("detectionEnabled") else None
+    except (sqlite3.Error, ValueError, TypeError, AttributeError):
+        return {}, None
 
 
 def combos():
-    cad = _cadenas()
+    cad, desvio = _omniroute()
+    ojo = f" · Ojo: OmniRoute manda lo que ve como código a {desvio}, así que Claude Code acaba ahí." if desvio else ""
     return [{"id": i, "n": n, "d": ("Prueba por orden: " + " → ".join(m.split("/")[-1] for m in cad[i][:4]) + (" …" if len(cad[i]) > 4 else "")
-                                    if cad.get(i) else "Combo de OmniRoute.")} for i, n in COMBOS]
+                                    if cad.get(i) else "Combo de OmniRoute.") + (ojo if i != desvio else "")} for i, n in COMBOS], desvio
 
 
 def combo_valido(c):
@@ -159,8 +165,7 @@ def catalogo():
             "modos": [{"id": f"modo:{i}", "n": n, "d": d, "g": "modo"} for i, n, d, _ in MODOS],
         },
         "delta": [{"id": f"delta:{i}", "n": n, "d": d, "g": "delta"} for i, n, d in DELTA],
-        "combos": combos(),
-    }
+    } | dict(zip(("combos", "desvio"), combos()))
 
 
 def arranque(id_):
