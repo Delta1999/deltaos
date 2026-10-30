@@ -126,6 +126,15 @@ def test_ios_screensaver_styles_are_scoped():
     print("✓ iOS: interfaz principal y salvapantallas acotados con fondo claro y fallbacks de accesibilidad")
 
 
+def test_selector_nueva_no_se_cierra_solo():
+    js = (AQUI / "panel" / "agentes.js").read_text(encoding="utf-8")
+    # Al pulsar una opción, nvPinta() rehace el HTML: el botón pulsado sale del DOM y nv.contains(e.target) da falso,
+    # así que el clic de fuera cerraba el selector y no se podía elegir agente ni abrir la conversación.
+    fuera = next(l for l in js.splitlines() if l.startswith("document.addEventListener('click'") and "nvCierra" in l)
+    assert "composedPath()" in fuera and "contains(e.target)" not in fuera, fuera
+    print("✓ panel/agentes.js: elegir una opción de «Nueva conversación» no cierra el selector")
+
+
 def test_render_headless():
     """Ejecuta pintar(d) en Node.js con un DOM mockeado para asegurar que no lanza excepciones."""
     import acciones
@@ -483,5 +492,6 @@ if __name__ == "__main__":
     test_required_dom_ids()
     test_layout_hero_y_cabecera()
     test_ios_screensaver_styles_are_scoped()
+    test_selector_nueva_no_se_cierra_solo()
     test_render_headless()
     print("🎉 TODAS LAS PRUEBAS DE FRONTEND SUPERADAS CORRECTAMENTE.")

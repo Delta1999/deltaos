@@ -564,7 +564,8 @@ function nvAbre() {
   if (!(window.enviarWS && window.enviarWS({catalogo: 1}))) nv.innerHTML = '<div class="nv-d">Sin conexión con el panel.</div>';
 }
 $('ag-nueva').addEventListener('click', e => { e.stopPropagation(); nvAbierto ? nvCierra() : nvAbre(); });
-document.addEventListener('click', e => { if (nvAbierto && !nv.contains(e.target) && !e.target.closest('#ag-nueva')) nvCierra(); });
+// composedPath y no nv.contains: al pulsar una opción nvPinta() rehace el HTML y el botón pulsado ya no está dentro de nv
+document.addEventListener('click', e => { const p = e.composedPath(); if (nvAbierto && !p.includes(nv) && !p.includes($('ag-nueva'))) nvCierra(); });
 nv.addEventListener('mouseover', e => {
   const d = $('nv-d'); if (!d || nvSel) return;
   const b = e.target.closest('[data-d]'); d.textContent = b ? b.dataset.d : NV_AYUDA;
