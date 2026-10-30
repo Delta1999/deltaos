@@ -144,6 +144,13 @@ def test_sala_y_ficha_en_vivo():
     print("✓ panel/agentes.js: vista «Sala» y ficha con pasos en vivo")
 
 
+def test_teclado_se_oculta_al_enviar():
+    js = (AQUI / "panel" / "teclado.js").read_text(encoding="utf-8")
+    envio = js[js.index("form.addEventListener('submit'"):js.index("addEventListener('teclado_res'")]
+    assert "cierra();" in envio, "tras Intro el bocadillo del modo teclado debe quitarse solo"
+    print("✓ panel/teclado.js: el bocadillo se oculta al enviar con Intro")
+
+
 def test_render_headless():
     """Ejecuta pintar(d) en Node.js con un DOM mockeado para asegurar que no lanza excepciones."""
     import acciones
@@ -503,5 +510,6 @@ if __name__ == "__main__":
     test_ios_screensaver_styles_are_scoped()
     test_selector_nueva_no_se_cierra_solo()
     test_sala_y_ficha_en_vivo()
+    test_teclado_se_oculta_al_enviar()
     test_render_headless()
     print("🎉 TODAS LAS PRUEBAS DE FRONTEND SUPERADAS CORRECTAMENTE.")

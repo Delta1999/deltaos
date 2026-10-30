@@ -109,11 +109,13 @@ form.addEventListener('submit', e => {
   if (!(window.enviarWS && window.enviarWS({teclado: {texto: t, modelo}}))) { est('Sin conexión con el panel.'); return; }
   ocupado = true; ultimo = t; ta.value = ''; ta.disabled = true; sel.disabled = true; alto();
   est('Pensando…');
+  cierra();  // enviado: el bocadillo se quita y la respuesta sale en la conversación (doble clic lo vuelve a abrir)
 });
 addEventListener('teclado_res', e => {
   const r = e.detail || {};
   ocupado = false; ta.disabled = false; sel.disabled = false;
   if (r.devolver) ta.value = ultimo;  // no llegó a salir (ocupado o vacío): que no se pierda lo escrito
+  if (!r.ok || r.devolver) abre();  // si algo falla, el bocadillo vuelve con el aviso
   est(r.ok ? '' : (r.msg || 'No ha salido bien.').slice(0, 160));
   alto(); if (!form.hidden) ta.focus();
 });
