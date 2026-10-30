@@ -135,6 +135,8 @@ body.agentes #agentes{display:flex}
 #agentes .nv .nv-i{font-size:12px;border:1px solid var(--border-visible);border-radius:999px;padding:4px 11px;background:transparent;color:var(--text-primary);cursor:pointer}
 #agentes .nv .nv-i:hover{border-color:var(--text-primary)}
 #agentes .nv .nv-i.modo{border-color:var(--accent);color:var(--accent)}
+#agentes .nv .nv-i.on{background:var(--text-primary);border-color:var(--text-primary);color:var(--bg)}
+#agentes .nv .nv-mod{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--text-secondary)}
 #agentes .nv .nv-d{font-size:12px;line-height:1.4;color:var(--text-secondary);border-top:1px solid var(--border);padding-top:9px;min-height:50px}
 #agentes .nv .nv-h{display:flex;align-items:center;gap:8px}
 #agentes .nv .nv-h b{font-size:14px;color:var(--text-display);flex:1}
@@ -649,22 +651,36 @@ cv.addEventListener('click', e => { const h = bajo(e); sel = h && h.q.id !== sel
 // ---------- nueva conversación: el selector permanente bajo el título ----------
 // Claude Code (agentes, frameworks, modos Workflow y Juez) o DeltaOS. El catálogo se lee del disco (agentes_catalogo.py) y
 // al lanzar solo viaja el id elegido y el texto: la sesión ACP nueva sale en la constelación como un nodo más.
-let CAT = null, nvAbierto = false, nvCli = lee('ag_nv_cli', 'claude'), nvSel = null, nvCierre = 0;
+// Tras Claude Code o DeltaOS se elige el modelo: directo/por defecto o un combo de OmniRoute (solo viaja su nombre, se valida en el servidor).
+let CAT = null, nvAbierto = false, nvCli = lee('ag_nv_cli', 'claude'), nvSel = null, nvCierre = 0, nvCombo = lee('ag_nv_combo', '');
 const nv = $('nv'), NV_AYUDA = 'Pasa el ratón por una opción para ver qué hace; púlsala para empezar con ella.';
 const nvItems = (l, cls = '') => l.map(a => `<button class="nv-i ${cls}" data-id="${esc(a.id)}" data-d="${esc(a.d)}">${esc(a.n)}</button>`).join('');
 const nvBloque = (t, l, cls) => l.length ? `<div><div class="nv-s">${t}</div><div class="nv-g">${nvItems(l, cls)}</div></div>` : '';
 function nvTodos() { return CAT ? [...CAT.claude.agentes, ...CAT.claude.frameworks, ...CAT.claude.modos, ...CAT.delta] : []; }
+// el combo solo cuenta donde trabaja Claude Code: todo lo de Claude Code y «Cambiar algo de Delta» (hablar es Gemini Live; Cherry, el suyo)
+const nvConCombo = id => !String(id).startsWith('delta:') || id === 'delta:cambiar';
+function nvComboAct() { return (CAT && (CAT.combos || []).find(c => c.id === nvCombo)) || null; }
+function nvModelos() {
+  const def = nvCli === 'claude' ? ['Claude directo', 'Claude con tu login de Claude Code, sin pasar por OmniRoute.']
+    : ['Por defecto', 'Lo de siempre: ~/.claude/settings.json (OmniRoute, auto/best-coding).'];
+  const act = nvComboAct() ? nvCombo : '';
+  return `<div><div class="nv-s">${nvCli === 'claude' ? 'Modelo' : 'Modelo para «Cambiar algo de Delta»'}</div><div class="nv-g">`
+    + `<button class="nv-i ${act ? '' : 'on'}" data-combo="" data-d="${esc(def[1])}">${esc(def[0])}</button>`
+    + (CAT.combos || []).map(c => `<button class="nv-i ${act === c.id ? 'on' : ''}" data-combo="${esc(c.id)}" data-d="${esc(c.id + ' · ' + c.d)}">${esc(c.n)}</button>`).join('')
+    + '</div></div>';
+}
 function nvPinta() {
   if (!CAT) { nv.innerHTML = '<div class="nv-d" id="nv-d">Cargando el catálogo…</div>'; return; }
   const a = nvSel && nvTodos().find(x => x.id === nvSel);
   if (a) {
-    nv.innerHTML = `<div class="nv-h"><button data-a="atras" title="Volver">←</button><b>${esc(a.n)}</b></div><div class="nv-d">${esc(a.d)}</div>
+    const cb = nvComboAct(), mod = !nvConCombo(a.id) ? '' : cb ? `OmniRoute · ${cb.id}` : a.g === 'delta' ? 'Modelo por defecto' : 'Claude directo';
+    nv.innerHTML = `<div class="nv-h"><button data-a="atras" title="Volver">←</button><b>${esc(a.n)}</b></div><div class="nv-d">${esc(a.d)}</div>${mod ? `<div class="nv-mod">▸ ${esc(mod)}</div>` : ''}
       <form id="nv-f"><textarea id="nv-t" rows="4" maxlength="2000" placeholder="${a.g === 'delta' ? 'Qué le dices o le pides a Delta…' : '¿Qué quieres que haga?'}"></textarea><button type="submit">Empezar</button></form><div class="nv-res" id="nv-res"></div>`;
     setTimeout(() => { const t = $('nv-t'); if (t) t.focus(); }, 30);
     return;
   }
   const c = CAT.claude, esp = c.agentes.filter(x => x.g === 'especialista');
-  nv.innerHTML = `<div class="nv-seg"><button data-c="claude" class="${nvCli === 'claude' ? 'on' : ''}">Claude Code</button><button data-c="delta" class="${nvCli === 'delta' ? 'on' : ''}">DeltaOS</button></div>`
+  nv.innerHTML = `<div class="nv-seg"><button data-c="claude" class="${nvCli === 'claude' ? 'on' : ''}">Claude Code</button><button data-c="delta" class="${nvCli === 'delta' ? 'on' : ''}">DeltaOS</button></div>` + nvModelos()
     + (nvCli === 'claude'
       ? nvBloque('Genéricos', c.agentes.filter(x => x.g === 'genérico')) + nvBloque('Especialistas', esp) + nvBloque('Frameworks de plugins', c.frameworks) + nvBloque('Modos', c.modos, 'modo')
       : nvBloque('Delta', CAT.delta))
@@ -686,13 +702,14 @@ nv.addEventListener('mouseover', e => {
 nv.addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.c) { nvCli = b.dataset.c; guarda('ag_nv_cli', nvCli); nvPinta(); }
+  else if ('combo' in b.dataset) { nvCombo = b.dataset.combo; guarda('ag_nv_combo', nvCombo); nvPinta(); }
   else if (b.dataset.id) { nvSel = b.dataset.id; nvPinta(); }
   else if (b.dataset.a === 'atras') { nvSel = null; nvPinta(); }
 });
 nv.addEventListener('submit', e => {
   e.preventDefault();
   const t = $('nv-t').value.trim(), r = $('nv-res'); if (!t) { r.textContent = 'Escribe qué quieres que haga.'; return; }
-  r.textContent = window.enviarWS && window.enviarWS({nueva: {id: nvSel, texto: t}}) ? 'Enviando…' : 'Sin conexión con el panel.';
+  r.textContent = window.enviarWS && window.enviarWS({nueva: {id: nvSel, texto: t, ...(nvConCombo(nvSel) && nvComboAct() ? {combo: nvCombo} : {})}}) ? 'Enviando…' : 'Sin conexión con el panel.';
 });
 nv.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'nv-t') { e.preventDefault(); $('nv-f').requestSubmit(); } });
 addEventListener('catalogo_res', e => { CAT = e.detail; if (nvAbierto && !nvSel) nvPinta(); });

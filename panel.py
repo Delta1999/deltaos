@@ -714,7 +714,7 @@ async def _ws(request):
                 if isinstance(msg.get("nueva"), dict):  # y su lanzamiento: solo el id elegido y el texto, nunca rutas
                     import agentes
                     r = msg["nueva"]
-                    await ws.send_str(json.dumps({"nueva_res": await agentes.nueva(str(r.get("id")), str(r.get("texto", ""))[:2000])}))
+                    await ws.send_str(json.dumps({"nueva_res": await agentes.nueva(str(r.get("id")), str(r.get("texto", ""))[:2000], r.get("combo"))}))
                 if isinstance(msg.get("notif_abrir"), str):  # clic en una notificación del móvil: su texto, solo a quien pregunta
                     import movil
                     await ws.send_str(json.dumps({"notif": await movil.notificacion(msg["notif_abrir"])}))

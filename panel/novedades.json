@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-30",
+  "t": "Al empezar una conversación desde Agentes, tras elegir Claude Code o DeltaOS eliges también el modelo: Claude directo (o el de siempre en DeltaOS) o un combo de OmniRoute: Claude Code Auto, Code Pro, Deep Reasoning o Fast Completion. Al pasar el ratón ves qué modelos prueba cada combo; en DeltaOS vale para «Cambiar algo de Delta».",
+  "como": "botón de nueva conversación bajo «Agentes» → fila «Modelo»",
+  "voz": false
+ },
+ {
+  "f": "2026-10-30",
   "t": "Sala de control en Agentes: un panel por agente, agrupados por conversación (cada sesión de Claude Code con sus subagentes; Delta y OmniRoute aparte), con su modelo, la herramienta en curso, una tira de colores con sus pasos, los últimos pasos en vivo y lo último que ha escrito; a la derecha, los encargos y resultados que se pasan. Y al pulsar cualquier agente, su ficha ya no dice «solo se puede leer»: enseña en directo qué hace y su último mensaje.",
   "como": "botón «Sala» en la pantalla Agentes",
   "voz": false

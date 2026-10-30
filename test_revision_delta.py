@@ -26,7 +26,8 @@ def test_sesiones_del_selector_y_revision_van_a_claude_real():
     assert env["ANTHROPIC_BASE_URL"] == "https://api.anthropic.com"
     assert all(env[k] == "" for k in ("ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"))
     src = open("claude_acp.py").read()
-    assert src.count("**CLAUDE_REAL") == 2  # selector (conversación nueva) y revisión; mejorar_delta/hablar_con_claude no
+    # selector (conversación nueva, salvo que se elija un combo de OmniRoute) y revisión; mejorar_delta/hablar_con_claude no
+    assert src.count("**CLAUDE_REAL") == 1 and src.count("**(_por_combo(combo) if combo else CLAUDE_REAL)") == 1
     print("✓ selector y revisión: sesión directa a Claude (pisa el env de OmniRoute de settings.json)")
 
 

@@ -6,6 +6,7 @@ anticuado. El navegador solo manda el id elegido; el texto de arranque se constr
 """
 import json
 import re
+import sqlite3
 from pathlib import Path
 
 HOME = Path.home()
@@ -34,6 +35,35 @@ MODOS = [
      "3) el juez responde VERDE (cumple) o ROJA (no cumple) con una lista de defectos concretos; 4) si es ROJA, corrige y vuelve a "
      "juzgar, como máximo dos rondas; 5) informa al usuario del veredicto final y de lo que se hizo."),
 ]
+
+# Combos de OmniRoute que se pueden elegir tras Claude Code o DeltaOS (30/10/2026). «defecto» = sin combo: Claude Code va directo
+# a Claude con el login y «Cambiar algo de Delta» usa ~/.claude/settings.json. El cliente solo manda el nombre: se valida aquí.
+COMBOS = [("claude-code-auto", "Claude Code Auto"), ("combo-code-pro", "Code Pro"),
+          ("combo-deep-reasoning", "Deep Reasoning"), ("combo-fast-completion", "Fast Completion")]
+OMNI_BD = HOME / ".omniroute" / "storage.sqlite"
+
+
+def _cadenas():
+    """Modelos de cada combo, en el orden en que OmniRoute los prueba (base de OmniRoute en solo lectura)."""
+    try:
+        con = sqlite3.connect(f"file:{OMNI_BD}?mode=ro", uri=True, timeout=2)
+        try:
+            return {n: [m.get("model", "") for m in json.loads(d).get("models", [])] for n, d in con.execute("SELECT name, data FROM combos")}
+        finally:
+            con.close()
+    except (sqlite3.Error, ValueError):
+        return {}
+
+
+def combos():
+    cad = _cadenas()
+    return [{"id": i, "n": n, "d": ("Prueba por orden: " + " → ".join(m.split("/")[-1] for m in cad[i][:4]) + (" …" if len(cad[i]) > 4 else "")
+                                    if cad.get(i) else "Combo de OmniRoute.")} for i, n in COMBOS]
+
+
+def combo_valido(c):
+    return c if c in {i for i, _ in COMBOS} else None
+
 
 DELTA = [
     ("hablar", "Hablar con Delta", "Le dice algo a Delta (Gemini Live) como si se lo dijeras por voz; tiene que estar despierto."),
@@ -129,6 +159,7 @@ def catalogo():
             "modos": [{"id": f"modo:{i}", "n": n, "d": d, "g": "modo"} for i, n, d, _ in MODOS],
         },
         "delta": [{"id": f"delta:{i}", "n": n, "d": d, "g": "delta"} for i, n, d in DELTA],
+        "combos": combos(),
     }
 
 

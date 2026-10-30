@@ -365,8 +365,9 @@ async def decir(a, texto="", accion=None):
     return {"ok": not msg.startswith("Claude Code sigue ocupado"), "msg": msg}
 
 
-async def nueva(id_, texto=""):
-    """El selector «Nueva conversación» de la pantalla Agentes: abre una conversación con lo elegido (el cliente solo manda el id)."""
+async def nueva(id_, texto="", combo=None):
+    """El selector «Nueva conversación» de la pantalla Agentes: abre una conversación con lo elegido (el cliente solo manda el id
+    y, si quiere, el nombre de un combo de OmniRoute, que se valida contra la lista fija)."""
     import acciones
     import agentes_catalogo
     import claude_acp
@@ -377,13 +378,14 @@ async def nueva(id_, texto=""):
     if not texto:
         return {"ok": False, "msg": "Escribe qué quieres que haga."}
     cliente, instruccion, _ = a
+    combo = agentes_catalogo.combo_valido(combo)
     if cliente == "claude":
-        msg = await claude_acp.nueva_conversacion(instruccion, texto)
+        msg = await claude_acp.nueva_conversacion(instruccion, texto, combo)
         return {"ok": not msg.startswith("Claude Code sigue ocupado"), "msg": msg}
     if instruccion == "hablar":
         return {"ok": await acciones.decir_a_delta(texto), "msg": "Enviado a Delta." if ST.get("session") else "Delta está en reposo: llámalo primero."}
     if instruccion == "cambiar":
-        return {"ok": True, "msg": await claude_acp.mejorar_delta(texto)}
+        return {"ok": True, "msg": await claude_acp.mejorar_delta(texto, combo=combo)}
     return {"ok": True, "msg": await acciones.mejorar_delta_cherry(texto)}
 
 

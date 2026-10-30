@@ -22,6 +22,35 @@ def test_arranque_solo_acepta_ids_del_catalogo():
     print("✓ arranque: ids válidos sí, rutas e ids inventados no")
 
 
+def test_combos_de_omniroute():
+    import asyncio
+    import agentes
+    import claude_acp
+    assert [x["id"] for x in c.catalogo()["combos"]] == ["claude-code-auto", "combo-code-pro", "combo-deep-reasoning", "combo-fast-completion"]
+    for malo in ("auto/best-coding", "../x", "", None, 3):
+        assert c.combo_valido(malo) is None, malo
+    env = claude_acp._por_combo("combo-code-pro")["claudeCode"]["options"]["settings"]["env"]
+    assert env["ANTHROPIC_MODEL"] == "combo-code-pro" and "AUTH_TOKEN" not in str(env), "la clave no se copia: sale de settings.json"
+    vistos = []
+
+    async def conv(instruccion, texto, combo=None):
+        vistos.append(("claude", combo)); return "Conversación nueva enviada a Claude Code."
+
+    async def mejorar(texto, voz=True, combo=None):
+        vistos.append(("cambiar", combo)); return "ok"
+    viejo = claude_acp.nueva_conversacion, claude_acp.mejorar_delta
+    claude_acp.nueva_conversacion, claude_acp.mejorar_delta = conv, mejorar
+    try:
+        asyncio.run(agentes.nueva("gen:Plan", "hola", "combo-deep-reasoning"))
+        asyncio.run(agentes.nueva("gen:Plan", "hola", "inventado; rm -rf"))
+        asyncio.run(agentes.nueva("delta:cambiar", "hola", "combo-fast-completion"))
+    finally:
+        claude_acp.nueva_conversacion, claude_acp.mejorar_delta = viejo
+    assert vistos == [("claude", "combo-deep-reasoning"), ("claude", None), ("cambiar", "combo-fast-completion")], vistos
+    print("✓ combos: lista fija, nombres inventados fuera y el elegido llega a Claude Code")
+
+
 if __name__ == "__main__":
     test_catalogo_tiene_lo_prometido()
     test_arranque_solo_acepta_ids_del_catalogo()
+    test_combos_de_omniroute()

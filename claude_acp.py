@@ -25,6 +25,14 @@ COMANDO = ("npx", "-y", "@agentclientprotocol/claude-agent-acp")
 # Claude con el login de `claude auth login`: los ajustes programáticos de la sesión pisan ese env.
 CLAUDE_REAL = {"claudeCode": {"options": {"settings": {"env": {
     "ANTHROPIC_BASE_URL": "https://api.anthropic.com", "ANTHROPIC_AUTH_TOKEN": "", "ANTHROPIC_API_KEY": "", "ANTHROPIC_MODEL": ""}}}}}
+OMNIROUTE = os.environ.get("OMNIROUTE_URL", "http://localhost:20128").rstrip("/")
+
+
+def _por_combo(combo):
+    """Ajustes de sesión para un combo de OmniRoute elegido en el selector (ya validado en agentes_catalogo); la clave sale de settings.json."""
+    return {"claudeCode": {"options": {"settings": {"env": {"ANTHROPIC_BASE_URL": OMNIROUTE, "ANTHROPIC_MODEL": combo}}}}}
+
+
 MAX_PASOS = 8
 # Claude Code solo MIRANDO (leer, buscar, ver estado) nunca pregunta al usuario: lo pidió así
 MIRA = acciones.LECTURA | {"cd", "sed", "git", "sleep", "timeout", "tree", "diff", "jq", "realpath", "basename", "dirname",
@@ -80,7 +88,7 @@ def solo_lectura(tool_call):
     cmd = (tool_call.raw_input or {}).get("command") if isinstance(tool_call.raw_input, dict) else None
     return kind == "execute" and solo_mira(cmd or (tool_call.title or "").strip("`"))
 
-_conn = _pila = _sid = _sid_delta = _tarea = None
+_conn = _pila = _sid = _sid_delta = _tarea = _combo_delta = None
 _estado = {"estado": "libre", "tarea": "", "pasos": [], "plan": [], "texto": ""}
 ST["claude"] = _estado
 
@@ -154,24 +162,26 @@ async def cerrar():
             pass
 
 
-async def _turno(mensaje, propio=None, voz=True, nueva=None):
+async def _turno(mensaje, propio=None, voz=True, nueva=None, combo=None):
     """propio = (petición, foto «antes») cuando es un cambio en el propio Delta: otra sesión, con el repo de Delta como cwd.
-    nueva = lo que ve el usuario como tarea cuando es una conversación nueva (selector de la pantalla Agentes): sesión ACP nueva."""
-    global _tarea, _sid, _sid_delta
+    nueva = lo que ve el usuario como tarea cuando es una conversación nueva (selector de la pantalla Agentes): sesión ACP nueva.
+    combo = combo de OmniRoute elegido en el selector (None: lo de siempre)."""
+    global _tarea, _sid, _sid_delta, _combo_delta
     cab = propio[0] if propio else (nueva or mensaje)
     _estado.update(estado="trabajando", tarea=cab[:120], pasos=[], plan=[], texto="", inicio=time.time(),
                    auto=acciones.autorizado())  # encargada por Claude Code: sus permisos se dan solos hasta que acabe
     try:
         if _conn is None:
             await _conectar()
-        if propio and _sid_delta is None:
-            _sid_delta = (await _conn.new_session(cwd=str(AQUI))).session_id
+        if propio and (_sid_delta is None or combo != _combo_delta):  # otro combo: sesión nueva, la anterior se queda con el suyo
+            _sid_delta = (await _conn.new_session(cwd=str(AQUI), **(_por_combo(combo) if combo else {}))).session_id
+            _combo_delta = combo
             try:  # editar sin preguntar cada archivo: el registro guarda el diff para deshacerlo
                 await _conn.set_session_mode(session_id=_sid_delta, mode_id="acceptEdits")
             except Exception as e:
                 print(f"ACP: sin modo acceptEdits ({e})")
         if nueva and not propio:
-            _sid = (await _conn.new_session(cwd=str(WORMHOLE), **CLAUDE_REAL)).session_id
+            _sid = (await _conn.new_session(cwd=str(WORMHOLE), **(_por_combo(combo) if combo else CLAUDE_REAL))).session_id
         await _conn.prompt(session_id=_sid_delta if propio else _sid, prompt=[text_block(mensaje)])
         final = _estado["texto"].strip() or "(sin texto)"
         if LIMITE.search(final):  # límite de tokens o sesión de Claude Code
@@ -305,7 +315,7 @@ def ocupado():
     return bool(_tarea and not _tarea.done())
 
 
-async def mejorar_delta(peticion, voz=True):
+async def mejorar_delta(peticion, voz=True, combo=None):
     """voz=False: arreglos de la llave inglesa, que se lanzan solos con el PC libre y no deben despertar a Delta."""
     global _tarea
     if re.search(r"\bcherry\b", peticion, re.I):
@@ -315,7 +325,7 @@ async def mejorar_delta(peticion, voz=True):
         return (f"Claude Code sigue ocupado con: {_estado['tarea']}. La petición queda anotada en el registro de averías y "
                 "mejoras, para que no se pierda; si corre prisa, pídela otra vez cuando acabe.")
     antes = await _foto()
-    _tarea = acciones.tarea(_turno(PROPIO + peticion, (peticion, antes), voz))
+    _tarea = acciones.tarea(_turno(PROPIO + peticion, (peticion, antes), voz, combo=combo))
     return ("Enviado a Claude Code, que trabaja sobre el propio repositorio de Delta. Los pasos salen en el panel, "
             "queda registrado en CAMBIOS_DELTA.md y te aviso al terminar.")
 
@@ -340,12 +350,12 @@ async def hablar_con_claude(mensaje):
     return "Enviado a Claude Code. Trabaja en segundo plano, los pasos salen en el panel y te aviso al terminar. Es la misma conversación: recuerda lo anterior."
 
 
-async def nueva_conversacion(instruccion, texto):
+async def nueva_conversacion(instruccion, texto, combo=None):
     """Conversación nueva con Claude Code (sesión ACP nueva): `instruccion` es el arranque del modo o agente elegido."""
     global _tarea
     if ocupado():
         return f"Claude Code sigue ocupado con: {_estado['tarea']}. Espera a que termine o cancélalo."
-    _tarea = acciones.tarea(_turno(f"{texto}\n\n[Modo de trabajo pedido por el usuario] {instruccion}", nueva=texto, voz=False))
+    _tarea = acciones.tarea(_turno(f"{texto}\n\n[Modo de trabajo pedido por el usuario] {instruccion}", nueva=texto, voz=False, combo=combo))
     return "Conversación nueva enviada a Claude Code. Los pasos salen en esta pantalla."
 
 
