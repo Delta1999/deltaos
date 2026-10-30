@@ -940,6 +940,67 @@ def _con_pegado():
     return f"\n\nCONTEXTO QUE EL USUARIO PEGÓ EN EL PANEL (úsalo si es relevante):\n{txt[:60000]}\n" if txt else ""
 
 
+def _nivel_ventilador(nivel):
+    nivel = str(nivel or "").strip().lower()
+    if nivel not in {"auto", "full-speed", "disengaged", *(str(i) for i in range(8))}:
+        raise ValueError("El nivel debe ser auto, 0-7, disengaged o full-speed.")
+    return nivel
+
+
+def _temperatura_hwmon(valor):
+    try:
+        return round(int(valor.strip()) / 1000)
+    except (AttributeError, ValueError):
+        return None
+
+
+async def ventiladores(nivel=""):
+    """Consulta sensores ThinkPad y, si se solicita, fija un nivel thinkpad_acpi permitido."""
+    fan = Path("/proc/acpi/ibm/fan")
+    hwmon = Path("/sys/class/hwmon")
+    lectura = fan.read_text(errors="replace") if fan.exists() else ""
+    if nivel:
+        try:
+            nivel = _nivel_ventilador(nivel)
+        except ValueError as e:
+            return f"Error: {e}"
+        if not lectura or "commands:" not in lectura:
+            return "Error: no está disponible la interfaz de control ThinkPad /proc/acpi/ibm/fan."
+        try:
+            fan.write_text(f"level {nivel}\n")
+        except OSError:
+            # Fallback seguro con sudo si el proceso no tiene permisos directos de escritura en /proc
+            cod, err = await _run(["sudo", "sh", "-c", f"echo level {nivel} > /proc/acpi/ibm/fan"], timeout=5)
+            if cod != 0:
+                return f"Error al fijar el ventilador (¿permisos de thinkpad_acpi o sudo?): {err.strip()}"
+        lectura = fan.read_text(errors="replace")
+
+    lineas = [x.strip() for x in lectura.splitlines()]
+    estado = next((x for x in lineas if x.startswith("status:")), "estado no disponible")
+    velocidad = next((x for x in lineas if x.startswith("speed:")), "velocidad no disponible")
+    modo = next((x for x in lineas if x.startswith("level:")), "nivel no disponible")
+    temperaturas = []
+    for ruta in hwmon.glob("hwmon*"):
+        try:
+            nombre = (ruta / "name").read_text().strip()
+        except OSError:
+            continue
+        if nombre not in {"thinkpad", "coretemp", "amdgpu", "nvidia"}:
+            continue
+        for sensor in sorted(ruta.glob("temp*_input")):
+            try:
+                grados = _temperatura_hwmon(sensor.read_text())
+                etiqueta = sensor.with_name(sensor.name.replace("_input", "_label"))
+                nombre_sensor = etiqueta.read_text().strip() if etiqueta.exists() else sensor.stem
+            except OSError:
+                continue
+            if grados is not None:
+                temperaturas.append(f"{nombre} {nombre_sensor}: {grados} °C")
+    if not temperaturas:
+        temperaturas.append("temperaturas CPU/GPU no disponibles vía hwmon")
+    return f"Ventilador: {estado}; {velocidad}; {modo}. Temperaturas: " + "; ".join(temperaturas)
+
+
 _ENERGIA = {"suspender": "suspend", "apagar": "poweroff", "reiniciar": "reboot"}
 _PROGRAMADO = {}  # "t": la tarea pendiente (solo una a la vez)
 
@@ -1067,6 +1128,11 @@ acciones.registrar([
                  "Lee el texto que el usuario pegó en el panel (botón del lápiz). Ya lo tienes como contexto; úsalo solo "
                  "si era largo y necesitas el resto, a partir de un carácter.",
                  {"desde": acciones._s("carácter desde el que leer; 0 = el principio")}),
+    acciones._fn("ventiladores",
+                 "Consulta el ventilador del ThinkPad (estado, rpm y nivel) y las temperaturas disponibles de CPU/GPU. "
+                 "También permite fijar el nivel del ventilador: auto, 0-7 o full-speed. Si el control no está "
+                 "disponible o faltan permisos, informa del error; no uses niveles distintos de los admitidos.",
+                 {"nivel": acciones._s("vacío para consultar; auto | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | full-speed")}),
     acciones._fn("energia",
                  "Suspende, apaga o reinicia el ordenador, ahora o dentro de N minutos, o cancela lo programado. "
                  "Úsalo cuando diga «suspende/apaga/reinicia el ordenador», «apágalo en media hora», «cancela el apagado». "
@@ -1087,4 +1153,4 @@ acciones.registrar([
                  "Cambia el estilo visual de DeltaOS entre Nothing Design System e iOS / Apple Design (Human Interface Guidelines / Liquid Glass). "
                  "Úsalo cuando diga «pon el diseño ios», «activa el tema apple», «pon el diseño nothing», «cambia al estilo apple», «cambia de tema»…",
                  {"tema": acciones._s("nothing | ios (o apple); vacío para alternar")}),
-], (pasar_cos, mostrar_en_tira, mostrar, buscar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, fondo, pantalla_completa, leer_pegado, energia, reiniciar_delta, mover_a_pantalla, quitar_de_tira, cambiar_tema))
+], (pasar_cos, mostrar_en_tira, mostrar, buscar, editar_informe, buscar_skills, instalar_skill, usar_skill, sincronizar_skills, cambiar_vista, fondo, pantalla_completa, leer_pegado, ventiladores, energia, reiniciar_delta, mover_a_pantalla, quitar_de_tira, cambiar_tema))
