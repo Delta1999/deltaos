@@ -25,6 +25,7 @@ OMNI = Path.home() / ".omniroute" / "storage.sqlite"
 VENTANA = 1200       # s de historia que se guardan (el repaso rebobina hasta aquí)
 COLA = 400_000       # al ver un fichero por primera vez solo se lee su final
 MAX_SEGS, MAX_EVT = 80, 300
+MAX_RES = 6000       # caracteres que se guardan de lo último que dijo un agente o de un resultado
 
 _ficheros: dict = {}   # ruta -> {"off", "nodo", "sub"}
 _nodos: dict = {}      # id -> nodo
@@ -69,7 +70,8 @@ def _texto(c):
 
 
 def _evento(t, de, a, tipo, txt="", tid=None):
-    _eventos.append({"t": t, "de": de, "a": a, "tipo": tipo, "txt": " ".join(txt.split())[:140], "tid": tid})
+    # lo que vuelve de un agente se guarda casi entero (y con sus saltos de línea) para poder leerlo en la sala; los encargos, en corto
+    _eventos.append({"t": t, "de": de, "a": a, "tipo": tipo, "txt": txt.strip()[:MAX_RES] if tipo == "resultado" else " ".join(txt.split())[:140], "tid": tid})
     del _eventos[:-MAX_EVT]
 
 
@@ -316,7 +318,7 @@ def _salida(ahora):
                        "modelo": n["modelo"] or "?", "origen": n["origen"], "ruta": n.get("ruta", ""), "t0": n["t0"], "t1": n["t1"], "fin": n["fin"],
                        "tarea": n["tarea"], "estado": est, "ahora_usa": abiertos[-1]["tool"] + (": " + abiertos[-1]["det"] if abiertos[-1]["det"] else "") if abiertos else "",
                        "tok": sum(n["tok"].values()), "parcial": bool(n.get("parcial")), "segs": segs,
-                       "texto": " ".join(str(n.get("texto", "")).split())[:280],  # lo último que ha escrito, para la ficha y la sala
+                       "texto": str(n.get("texto", "")).strip()[:MAX_RES],  # lo último que ha escrito, entero, para la ficha y la sala
                        "hablable": _hablable(n)})
     evs = []
     for e in _eventos:

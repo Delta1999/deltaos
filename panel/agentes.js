@@ -91,6 +91,10 @@ body.agentes #agentes{display:flex}
 #agentes .feed .mal{color:#E5484D}
 #agentes .txt{font-size:12px;line-height:1.4;color:var(--text-secondary);border-left:2px solid var(--border-visible);padding-left:8px;max-height:4.3em;overflow:hidden;word-break:break-word}
 #agentes .txt:empty{display:none}
+#agentes .ag-pm .txt{max-height:15em;overflow:auto;white-space:pre-wrap;user-select:text}
+#agentes .sl-m .tx{max-height:6.5em;overflow:hidden;cursor:pointer;white-space:pre-wrap}
+#agentes .sl-m.abierto .tx{max-height:none}
+#agentes .sl-m .mas{font-family:var(--mono);font-size:10px;color:var(--text-secondary)}
 #agentes .ag-sala{position:absolute;inset:0;z-index:1;background:var(--bg);display:none;grid-template-columns:minmax(0,1fr) 300px}
 #agentes.sala .ag-sala{display:grid}
 #agentes.sala .ag-lista{display:none}
@@ -246,7 +250,7 @@ function menuArma(n) {
     ${n.hablable ? `<form id="pm-f" autocomplete="off"><input id="pm-i" maxlength="2000" placeholder="Decirle algo…"><button type="submit">Enviar</button></form>
       <div class="q">${RAPIDAS.map(([t], i) => `<button data-q="${i}">${esc(t)}</button>`).join('')}</div>` : ''}
     <div class="res" id="pm-res"></div>
-    <div class="ac">${esAcp(n) ? '<button class="pel" data-a="cancelar">Cancelar tarea</button>' : ''}${n.tarea ? '<button data-a="tarea">Copiar tarea</button>' : ''}<button data-a="id">Copiar id</button>${n.id !== 'delta' ? '<button data-a="ocultar">Ocultar</button>' : ''}</div>`;
+    <div class="ac">${esAcp(n) ? '<button class="pel" data-a="cancelar">Cancelar tarea</button>' : ''}${n.tarea ? '<button data-a="tarea">Copiar tarea</button>' : ''}${n.texto ? '<button data-a="resp">Copiar respuesta</button>' : ''}<button data-a="id">Copiar id</button>${n.id !== 'delta' ? '<button data-a="ocultar">Ocultar</button>' : ''}</div>`;
   m.classList.add('on');
   const i = $('pm-i'); if (i) setTimeout(() => i.focus(), 30);
 }
@@ -259,7 +263,7 @@ function menuVivo(t) {
   const usa = s.seg ? `${s.seg.tool}${s.seg.det ? ': ' + s.seg.det : ''}` : '';
   $('pm-vivo').textContent = `${s.e}${usa ? ' ▸ ' + corto(usa, 80) : ''}${n.tok ? ` · ${n.parcial ? '≥' : ''}${n.tok} tok` : ''}`;
   $('pm-feed').innerHTML = pasos(n, t, 6);
-  $('pm-txt').textContent = n.texto ? `«${n.texto}»` : '';
+  const tx = n.texto || '', pt = $('pm-txt'); if (pt.dataset.t !== tx) { pt.dataset.t = tx; pt.textContent = tx; }  // entero y solo si cambia (para no perder el scroll)
 }
 function menuCierra() { menuDe = null; $('ag-pm').classList.remove('on'); $('ag-pm').innerHTML = ''; }
 function menuPos(W, H) {
@@ -285,6 +289,7 @@ $('ag-pm').addEventListener('click', e => {
   if (a === 'cerrar') { sel = null; menuCierra(); }
   else if (a === 'cancelar') manda({accion: 'cancelar'});
   else if (a === 'tarea') copia(n.tarea, 'Tarea copiada.');
+  else if (a === 'resp') copia(n.texto, 'Respuesta copiada.');
   else if (a === 'id') copia(n.id, 'Id copiado.');
   else if (a === 'ocultar') { ocultos.add(n.id); guarda('ag_ocultos', JSON.stringify([...ocultos])); sel = null; menuCierra(); }
   ultLista = 0;
@@ -529,7 +534,7 @@ function pintaCarriles(t, W, H) {
 // Un panel por agente (modelo, estado, tira de herramientas, pasos en vivo y lo último que ha escrito), agrupados por
 // sesión: cada conversación de Claude Code con sus subagentes; Delta y OmniRoute aparte. A la derecha, los mensajes
 // entre agentes. Los nodos del DOM se reutilizan para que las animaciones no se reinicien en cada repaso.
-const salaEls = {}, salaGrs = {}, salaVistos = new Set();
+const salaEls = {}, salaGrs = {}, salaVistos = new Set(), salaAbiertos = new Set();  // salaAbiertos: mensajes desplegados con un clic
 let salaPrimera = true;
 function salaRect(id) {
   const el = salaEls[id]; if (!el || !el.isConnected) return null;
@@ -555,7 +560,7 @@ function salaPanel(n, t, por) {
   q('.sl-tl').innerHTML = n.segs.filter(g => g.t0 <= t).slice(-16).map(g =>
     `<i style="flex:${Math.max(1, Math.log2(2 + (g.t1 - g.t0))).toFixed(2)};background:${colorHerr(g.tool)};opacity:${g.ok ? .9 : .4}"></i>`).join('');
   q('.feed').innerHTML = pasos(n, t, 5);
-  q('.txt').textContent = n.texto ? `«${n.texto}»` : n.tarea && n.tipo !== 'sub' ? n.tarea : '';
+  q('.txt').textContent = n.texto ? `«${corto(n.texto.replace(/\s+/g, ' '), 300)}»` : n.tarea && n.tipo !== 'sub' ? n.tarea : '';
   return el;
 }
 function sala(t) {
@@ -587,10 +592,11 @@ function sala(t) {
   $('sl-m').innerHTML = evs.map(e => {
     const k = `${e.t}|${e.de}|${e.tipo}`, nuevo = !salaPrimera && !salaVistos.has(k); salaVistos.add(k);
     const c = e.tipo === 'resultado' ? VERDE : (ORIGEN[(D.nodos.find(z => z.id === e.a) || {}).origen] || ORIGEN.claude)[1];
-    return `<div class="sl-m${nuevo ? ' nuevo' : ''}" style="border-color:${c}"><div class="de" style="color:${c}">${esc(nom(e.de))} ${e.tipo === 'resultado' ? '✓ →' : '→'} ${esc(nom(e.a))}</div>${e.txt ? `<div>«${esc(e.txt)}»</div>` : ''}<div class="cu">hace ${esc(fmt(Math.max(0, t - e.t)))}</div></div>`;
+    return `<div class="sl-m${nuevo ? ' nuevo' : ''}${salaAbiertos.has(k) ? ' abierto' : ''}" data-k="${esc(k)}" style="border-color:${c}"><div class="de" style="color:${c}">${esc(nom(e.de))} ${e.tipo === 'resultado' ? '✓ →' : '→'} ${esc(nom(e.a))}</div>${e.txt ? `<div class="tx">${esc(e.txt)}</div>` : ''}<div class="cu">hace ${esc(fmt(Math.max(0, t - e.t)))}</div></div>`;
   }).join('') || '<div class="sl-m">Aún no hay encargos entre agentes.</div>';
   salaPrimera = false;
 }
+$('sl-m').addEventListener('click', e => { const m = e.target.closest('.sl-m'); if (!m || !m.dataset.k || window.getSelection().toString()) return; const k = m.dataset.k; salaAbiertos.has(k) ? salaAbiertos.delete(k) : salaAbiertos.add(k); m.classList.toggle('abierto'); });
 $('ag-sala').addEventListener('click', e => { const p = e.target.closest('.sl-p'); if (p) { sel = sel === p.dataset.id ? null : p.dataset.id; ultLista = 0; } });
 
 // ---------- bucle ----------
@@ -640,7 +646,7 @@ cv.addEventListener('mousemove', e => {
   const n = D.nodos.find(z => z.id === h.q.id) || {};
   let html;
   if (h.q.seg) html = `<b>${esc(h.q.seg.tool)}</b> · ${esc(fmt(h.q.seg.t1 - h.q.seg.t0))}${h.q.seg.ok ? '' : ' · falló'}<br>${esc(h.q.seg.det)}`;
-  else if (h.q.evento) html = `<b>${h.q.evento.tipo === 'resultado' ? 'Resultado' : 'Encargo'}</b><br>${esc(h.q.evento.txt)}`;
+  else if (h.q.evento) html = `<b>${h.q.evento.tipo === 'resultado' ? 'Resultado' : 'Encargo'}</b><br>${esc(corto(h.q.evento.txt, 600))}`;
   else html = `<b>${esc(n.nombre)}</b> · ${esc((ORIGEN[n.origen] || [''])[0])}<br>${esc(n.modelo)}${n.ruta ? ' · ' + esc(n.ruta) : ''}<br>${esc(corto(n.tarea, 140))}`;
   tip.innerHTML = html; tip.style.display = 'block';
   tip.style.left = Math.min(h.x + 14, cv.clientWidth - 370) + 'px'; tip.style.top = Math.min(h.y + 14, cv.clientHeight - 80) + 'px';
