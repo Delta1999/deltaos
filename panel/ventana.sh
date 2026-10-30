@@ -158,14 +158,29 @@ for i in $(seq 30); do curl -sf "$URL" >/dev/null && break; sleep 1; done
 preparar_chromium
 V0=$(cat "$VISTA" 2>/dev/null)
 lanzar_orbe  # siempre, aunque se arranque en panel: así el primer «modo invisible» tampoco espera
-# Chromium y no Chrome: Chrome ya no admite --load-extension, y sinmarcos/ deja incrustar webs en el panel
-chromium-browser --user-data-dir="$DIR/.chromium" --load-extension="$DIR/sinmarcos" --app="$URL/" --no-first-run \
-  --hide-crash-restore-bubble --disable-session-crashed-bubble --no-recovery-component --no-default-browser-check \
-  --disable-features=Translate,OptimizationGuideOnDeviceModel --autoplay-policy=no-user-gesture-required 8>&- &
-CH=$!
-# Wayland ignora --window-position: se coloca con KWin una vez aparece la ventana
-for i in $(seq 200); do W=$(kdotool search --class "chrome.*127.0.0.1|127.0.0.1" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep .1; done
-[ -z "$W" ] && { wait $CH; exit; }
+# Chromium y no Chrome: Chrome ya no admite --load-extension, y sinmarcos/ deja incrustar webs en el panel.
+# 2026-10-30: tras un reinicio de Delta la ventana salía a veces EN GRIS (existía, en su sitio, pero sin pintar la página:
+# su título se quedaba en «127.0.0.1_/» en vez de «Delta»). Si a los 15 s no tiene el título de la página, se relanza Chromium (hasta 3 veces).
+lanzar_chromium() {
+  chromium-browser --user-data-dir="$DIR/.chromium" --load-extension="$DIR/sinmarcos" --app="$URL/" --no-first-run \
+    --hide-crash-restore-bubble --disable-session-crashed-bubble --no-recovery-component --no-default-browser-check \
+    --disable-features=Translate,OptimizationGuideOnDeviceModel --autoplay-policy=no-user-gesture-required 8>&- &
+  CH=$!
+}
+for INTENTO in 1 2 3; do
+  lanzar_chromium
+  # Wayland ignora --window-position: se coloca con KWin una vez aparece la ventana
+  W=
+  for i in $(seq 200); do W=$(kdotool search --class "chrome.*127.0.0.1|127.0.0.1" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep .1; done
+  [ -z "$W" ] && { wait $CH; exit; }
+  for i in $(seq 50); do [[ $(kdotool getwindowname "$W" 2>/dev/null) == Delta* ]] && break 2; sleep .3; done
+  [ "$INTENTO" = 3 ] && break  # la última vez se queda con lo que haya
+  echo "$(date +%d/%m\ %H:%M:%S) ⚠️ ventana.sh: el panel no cargó (ventana gris), intento $INTENTO: relanzo Chromium" >> "$DIR/../assistant.log"
+  kill $CH 2>/dev/null; wait $CH 2>/dev/null
+  pkill -f "user-data-dir=$DIR/.chromium" 2>/dev/null
+  for i in $(seq 20); do pgrep -f "user-data-dir=$DIR/.chromium" >/dev/null || break; sleep .25; done
+  preparar_chromium
+done
 if [ "${V0%%-*}" = invisible ] || [ "$V0" = oculto ]; then
   kdotool windowminimize "$W"  # el panel no se ve en estas vistas: fuera ya, sin dejar ver su CSS ni su sitio de nacimiento
 else
