@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-30",
+  "t": "Sala de control en Agentes: un panel por agente, agrupados por conversación (cada sesión de Claude Code con sus subagentes; Delta y OmniRoute aparte), con su modelo, la herramienta en curso, una tira de colores con sus pasos, los últimos pasos en vivo y lo último que ha escrito; a la derecha, los encargos y resultados que se pasan. Y al pulsar cualquier agente, su ficha ya no dice «solo se puede leer»: enseña en directo qué hace y su último mensaje.",
+  "como": "botón «Sala» en la pantalla Agentes",
+  "voz": false
+ },
+ {
+  "f": "2026-10-30",
   "t": "Las conversaciones nuevas del selector de Agentes y la revisión independiente de los cambios en Delta ahora usan Claude de verdad (con tu inicio de sesión de Claude Code) en vez de pasar por OmniRoute.",
   "como": "Pulsa «Nueva conversación» bajo Agentes y elige un agente",
   "voz": false

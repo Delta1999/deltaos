@@ -135,6 +135,15 @@ def test_selector_nueva_no_se_cierra_solo():
     print("✓ panel/agentes.js: elegir una opción de «Nueva conversación» no cierra el selector")
 
 
+def test_sala_y_ficha_en_vivo():
+    js = (AQUI / "panel" / "agentes.js").read_text(encoding="utf-8")
+    py = (AQUI / "agentes.py").read_text(encoding="utf-8")
+    # La ficha de un agente ajeno enseña lo que hace (pasos y último texto), no un aviso de «solo lectura»
+    assert "solo se puede leer" not in js and 'id="pm-feed"' in js and 'data-v="sala"' in js
+    assert '"texto":' in py, "agentes.json debe llevar el último texto de cada agente para la ficha y la sala"
+    print("✓ panel/agentes.js: vista «Sala» y ficha con pasos en vivo")
+
+
 def test_render_headless():
     """Ejecuta pintar(d) en Node.js con un DOM mockeado para asegurar que no lanza excepciones."""
     import acciones
@@ -493,5 +502,6 @@ if __name__ == "__main__":
     test_layout_hero_y_cabecera()
     test_ios_screensaver_styles_are_scoped()
     test_selector_nueva_no_se_cierra_solo()
+    test_sala_y_ficha_en_vivo()
     test_render_headless()
     print("🎉 TODAS LAS PRUEBAS DE FRONTEND SUPERADAS CORRECTAMENTE.")

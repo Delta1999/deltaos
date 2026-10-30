@@ -1,6 +1,6 @@
 // Pantalla completa «Agentes»: se ve trabajar a cada agente (Delta, sesiones de Claude Code, subagentes y OmniRoute),
 // qué herramienta usa, con qué modelo y de dónde viene (Claude / OmniRoute / Gemini), y cómo se pasan el trabajo.
-// Dos vistas (constelación y carriles) y una barra para rebobinar los últimos 20 min. Los datos vienen de
+// Tres vistas (constelación, carriles y sala de control: un panel por agente con sus pasos en vivo, agrupados por sesión) y una barra para rebobinar los últimos 20 min. Los datos vienen de
 // GET /agentes.json (agentes.py), solo se piden con la pantalla abierta. Se abre con el icono de la cabecera o por voz
 // («enséñame los agentes»: pantalla_completa → fondo.js → Agentes.abrir) y se cierra con Esc, × o «quita eso».
 const $ = i => document.getElementById(i);
@@ -61,7 +61,7 @@ body.agentes #agentes{display:flex}
 #agentes .ag-pie .ag-t{font-family:var(--mono);font-size:12px;color:var(--text-secondary);min-width:120px;text-align:right}
 #agentes .ag-pie button{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--border-visible);border-radius:999px;padding:6px 13px;background:transparent;color:var(--text-primary);cursor:pointer}
 #agentes .ag-pie button.on{background:var(--accent);border-color:var(--accent);color:#fff}
-#agentes .ag-pm{position:absolute;left:0;top:0;width:min(310px,calc(100% - 16px));z-index:3;background:var(--surface-raised);border:1px solid var(--border-visible);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);display:none;flex-direction:column;gap:9px;visibility:hidden}
+#agentes .ag-pm{position:absolute;left:0;top:0;width:min(340px,calc(100% - 16px));z-index:3;background:var(--surface-raised);border:1px solid var(--border-visible);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);display:none;flex-direction:column;gap:9px;visibility:hidden}
 #agentes .ag-pm.on{display:flex}
 #agentes .ag-pm .h{display:flex;align-items:center;gap:8px}
 #agentes .ag-pm .h b{font-size:14px;font-weight:600;color:var(--text-display);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -80,9 +80,46 @@ body.agentes #agentes{display:flex}
 #agentes .ag-pm .ac button.on{background:var(--text-primary);color:var(--bg)}
 #agentes .ag-pm .res{font-size:12px;color:var(--text-secondary);min-height:0;word-break:break-word}
 #agentes .ag-pm .res:empty{display:none}
-#agentes .ag-pm .solo{font-size:12px;color:var(--text-secondary)}
-#agentes .ag-pm .her{font-family:var(--mono);font-size:11px;color:var(--text-secondary);display:flex;flex-direction:column;gap:3px;max-height:150px;overflow:auto}
-#agentes .ag-pm .her div{word-break:break-word}
+#agentes .ag-pm .ch span.mod,#agentes .sl-p .mod{font-family:var(--mono);font-size:11px;border-radius:999px;padding:1px 9px;color:#fff;white-space:nowrap}
+#agentes .feed{font-family:var(--mono);font-size:11px;line-height:1.55;color:var(--text-secondary);display:flex;flex-direction:column;min-width:0}
+#agentes .feed div{display:flex;gap:6px;min-width:0}
+#agentes .feed i{font-style:normal;font-weight:700;width:11px;text-align:center;flex:none}
+#agentes .feed .x{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#agentes .feed em{font-style:normal;flex:none;opacity:.75}
+#agentes .feed .now{color:var(--text-primary)}
+#agentes .feed .now .x::after{content:'▍';animation:agp 1s infinite;margin-left:2px}
+#agentes .feed .mal{color:#E5484D}
+#agentes .txt{font-size:12px;line-height:1.4;color:var(--text-secondary);border-left:2px solid var(--border-visible);padding-left:8px;max-height:4.3em;overflow:hidden;word-break:break-word}
+#agentes .txt:empty{display:none}
+#agentes .ag-sala{position:absolute;inset:0;z-index:1;background:var(--bg);display:none;grid-template-columns:minmax(0,1fr) 300px}
+#agentes.sala .ag-sala{display:grid}
+#agentes.sala .ag-lista{display:none}
+#agentes .sl-grupos{overflow:auto;padding:14px 18px;display:flex;flex-direction:column;gap:18px}
+#agentes .sl-gr h3{margin:0 0 8px;font-size:14px;font-weight:600;color:var(--text-display);display:flex;gap:10px;align-items:baseline;min-width:0}
+#agentes .sl-gr h3 small{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--text-secondary);font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#agentes .sl-rej{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+#agentes .sl-p{border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:9px 11px;display:flex;flex-direction:column;gap:6px;cursor:pointer;min-width:0}
+#agentes .sl-p.off{opacity:.55}
+#agentes .sl-p.sel{border-color:var(--text-primary)}
+#agentes .sl-p .l1{display:flex;align-items:center;gap:8px;min-width:0}
+#agentes .sl-p .l1 b{font-size:13.5px;font-weight:600;color:var(--text-display);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#agentes .sl-p .pt{width:8px;height:8px;border-radius:50%;flex:none;background:var(--text-disabled)}
+#agentes .sl-p .pt.on{animation:agp 1s infinite}
+#agentes .sl-p .ch{font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;color:var(--text-secondary);display:flex;gap:8px;flex-wrap:wrap}
+#agentes .sl-bar{height:2px;border-radius:2px;background:var(--border);position:relative;overflow:hidden}
+#agentes .sl-bar i{position:absolute;top:0;bottom:0;width:35%;left:-35%;display:none}
+#agentes .sl-bar.on i{display:block;animation:slb 1.3s linear infinite}
+@keyframes slb{to{left:100%}}
+#agentes .sl-tl{display:flex;gap:2px;height:6px}
+#agentes .sl-tl i{border-radius:2px;min-width:3px}
+#agentes .sl-p .feed{height:7.75em;justify-content:flex-end;overflow:hidden}
+#agentes .sl-msg{border-left:1px solid var(--border);overflow:auto;padding:12px;display:flex;flex-direction:column;gap:7px}
+#agentes .sl-msg .sl-t{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)}
+#agentes .sl-m{font-size:12px;line-height:1.35;padding:7px 9px;border-radius:10px;border:1px solid var(--border);background:var(--surface);word-break:break-word}
+#agentes .sl-m.nuevo{animation:slin .5s}
+@keyframes slin{from{opacity:0;transform:translateY(-8px)}}
+#agentes .sl-m .de{font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;margin-bottom:2px}
+#agentes .sl-m .cu{font-family:var(--mono);font-size:10px;color:var(--text-secondary);margin-top:3px}
 #agentes .ag-vacio{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-family:var(--mono);font-size:13px;pointer-events:none}
 @media(max-width:1400px){#agentes .ag-ley2{display:none}}
 #agentes .ag-tit{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
@@ -106,7 +143,7 @@ body.agentes #agentes{display:flex}
 #agentes .nv form{display:flex;flex-direction:column;gap:7px;align-items:flex-end}
 #agentes .nv form button{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--accent);border-radius:999px;padding:6px 14px;background:var(--accent);color:#fff;cursor:pointer}
 #agentes .nv .nv-res{font-size:12px;color:var(--text-secondary)}
-@media(max-width:900px){#agentes .ag-lista,#agentes .ag-leyenda{display:none}}
+@media(max-width:900px){#agentes .ag-lista,#agentes .ag-leyenda,#agentes .sl-msg{display:none}#agentes .ag-sala{grid-template-columns:1fr}}
 `;
 const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 const raiz = document.createElement('div');
@@ -115,10 +152,10 @@ raiz.innerHTML = `
 <div class="ag-top"><div class="ag-tit"><h2 class="dot">AGENTES</h2><button class="ag-nueva" id="ag-nueva" title="Nueva conversación" aria-label="Nueva conversación"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M12 8v5M9.5 10.5h5"/></svg></button></div><span class="ag-n" id="ag-n"></span><button class="ag-x" id="ag-oc" style="display:none"></button><span class="ag-sp"></span>
   <span class="ag-leyenda"><span><i style="background:${ORIGEN.claude[1]}"></i>Claude</span><span><i style="background:${ORIGEN.omniroute[1]}"></i>OmniRoute</span><span><i style="background:${ORIGEN.gemini[1]}"></i>Gemini</span></span>
   <span class="ag-leyenda ag-ley2"><span><i style="background:#5B9BF6"></i>R leer</span><span><i style="background:#E8A33D"></i>E editar</span><span><i style="background:#5FD38D"></i>$ shell</span><span><i style="background:#A78BFA"></i>⇆ agente</span><span><i style="background:#3CC8C8"></i>⌕ web</span></span>
-  <span class="ag-seg" id="ag-vista"><button data-v="const">Constelación</button><button data-v="carriles">Carriles</button></span>
+  <span class="ag-seg" id="ag-vista"><button data-v="const">Constelación</button><button data-v="carriles">Carriles</button><button data-v="sala">Sala</button></span>
   <span class="ag-seg" id="ag-ventana" title="Ancho de la vista de carriles"><button data-w="120">2 min</button><button data-w="300">5 min</button><button data-w="1200">20 min</button></span>
   <button class="ag-x" id="ag-cerrar" title="Esc">Cerrar ✕</button></div>
-<div class="ag-cuerpo"><div class="ag-lienzo" id="ag-lienzo"><canvas id="ag-cv"></canvas><div class="ag-vacio" id="ag-vacio"></div><div class="ag-tip" id="ag-tip"></div><div class="ag-pm" id="ag-pm"></div></div>
+<div class="ag-cuerpo"><div class="ag-lienzo" id="ag-lienzo"><canvas id="ag-cv"></canvas><div class="ag-sala" id="ag-sala"><div class="sl-grupos" id="sl-g"></div><div class="sl-msg"><div class="sl-t">Mensajes</div><div id="sl-m" style="display:flex;flex-direction:column;gap:7px"></div></div></div><div class="ag-vacio" id="ag-vacio"></div><div class="ag-tip" id="ag-tip"></div><div class="ag-pm" id="ag-pm"></div></div>
   <div class="ag-lista" id="ag-lista"></div></div>
 <div class="ag-pie"><button id="ag-vivo" class="on">● En directo</button><input type="range" id="ag-rango" min="0" max="1" step="0.5" value="1"><span class="ag-t" id="ag-t"></span></div>
 <div class="nv" id="nv"></div>`;
@@ -183,23 +220,31 @@ function lista(t) {
 }
 
 // ---------- menú del agente (junto a su esfera) ----------
-let menuDe = null, herAbierto = false;
+let menuDe = null;
 const RAPIDAS = [['¿Qué haces?', '¿Qué estás haciendo ahora mismo? Respóndeme en una frase.'], ['Resume', 'Resume en pocas frases lo que has hecho hasta ahora.'],
                  ['Sigue', 'Sigue con lo que estabas haciendo.']];
 const copia = async (txt, ok) => { try { await navigator.clipboard.writeText(txt); $('pm-res').textContent = ok; } catch (e) { $('pm-res').textContent = 'No he podido copiar.'; } };
 const esAcp = n => n.hablable && n.id !== 'delta';
+// los últimos pasos de un agente hasta el instante t: ▸ el que está en marcha (con su tiempo corriendo), ✓ hechos, ✗ fallidos
+function pasos(n, t, k) {
+  const l = n.segs.filter(g => g.t0 <= t).slice(-k);
+  if (!l.length) return '<div><span class="x">Sin herramientas todavía.</span></div>';
+  return l.map(g => {
+    const act = t <= (g.abierto && vivo ? Infinity : g.t1) && (g.abierto || t < g.t1);
+    return `<div class="${act ? 'now' : g.ok ? '' : 'mal'}"><i style="color:${colorHerr(g.tool)}">${esc(glifo(g.tool))}</i><span class="x">${act ? '▸' : g.ok ? '✓' : '✗'} ${esc(nomHerr(g.tool))}${g.det ? ': ' + esc(g.det) : ''}</span><em>${esc(fmt(Math.max(0, (act ? t : g.t1) - g.t0)))}</em></div>`;
+  }).join('');
+}
 function menuArma(n) {
-  menuDe = n.id; herAbierto = false;
+  menuDe = n.id;
   const m = $('ag-pm'), o = ORIGEN[n.origen] || ORIGEN.claude;
   m.innerHTML = `<div class="h"><span class="pt" id="pm-pt"></span><b>${esc(corto(titulo(n), 34))}</b><button class="x" data-a="cerrar" title="Cerrar el menú">✕</button></div>
-    <div class="ch"><span style="border-color:${o[1]};color:${o[1]}">${o[0]}</span><span>${esc(nombreModelo(n.modelo))}</span>${n.ruta ? `<span>${esc(corto(n.ruta, 26))}</span>` : ''}</div>
+    <div class="ch"><span class="mod" style="background:${o[1]}">${esc(nombreModelo(n.modelo))}</span><span style="border-color:${o[1]};color:${o[1]}">${o[0]}</span>${n.tipo === 'sub' && n.tarea ? `<span>${esc(corto(n.nombre, 20))}</span>` : ''}${n.ruta ? `<span>${esc(corto(n.ruta, 26))}</span>` : ''}</div>
     <div class="vivo" id="pm-vivo"></div>
+    <div class="feed" id="pm-feed"></div><div class="txt" id="pm-txt"></div>
     ${n.hablable ? `<form id="pm-f" autocomplete="off"><input id="pm-i" maxlength="2000" placeholder="Decirle algo…"><button type="submit">Enviar</button></form>
-      <div class="q">${RAPIDAS.map(([t], i) => `<button data-q="${i}">${esc(t)}</button>`).join('')}</div>`
-      : '<div class="solo">Es otro proceso: desde aquí solo se puede leer.</div>'}
+      <div class="q">${RAPIDAS.map(([t], i) => `<button data-q="${i}">${esc(t)}</button>`).join('')}</div>` : ''}
     <div class="res" id="pm-res"></div>
-    <div class="ac">${esAcp(n) ? '<button class="pel" data-a="cancelar">Cancelar tarea</button>' : ''}<button data-a="her" id="pm-her">Últimas herramientas</button>${n.tarea ? '<button data-a="tarea">Copiar tarea</button>' : ''}<button data-a="id">Copiar id</button>${n.id !== 'delta' ? '<button data-a="ocultar">Ocultar</button>' : ''}</div>
-    <div class="her" id="pm-hl" style="display:none"></div>`;
+    <div class="ac">${esAcp(n) ? '<button class="pel" data-a="cancelar">Cancelar tarea</button>' : ''}${n.tarea ? '<button data-a="tarea">Copiar tarea</button>' : ''}<button data-a="id">Copiar id</button>${n.id !== 'delta' ? '<button data-a="ocultar">Ocultar</button>' : ''}</div>`;
   m.classList.add('on');
   const i = $('pm-i'); if (i) setTimeout(() => i.focus(), 30);
 }
@@ -211,13 +256,13 @@ function menuVivo(t) {
   $('pm-pt').className = 'pt' + (on ? ' on' : ''); $('pm-pt').style.background = on ? o[1] : '';
   const usa = s.seg ? `${s.seg.tool}${s.seg.det ? ': ' + s.seg.det : ''}` : '';
   $('pm-vivo').textContent = `${s.e}${usa ? ' ▸ ' + corto(usa, 80) : ''}${n.tok ? ` · ${n.parcial ? '≥' : ''}${n.tok} tok` : ''}`;
-  if (herAbierto) $('pm-hl').innerHTML = n.segs.slice(-8).reverse().map(g => `<div>${esc(g.tool)}${g.det ? ': ' + esc(corto(g.det, 60)) : ''} · ${esc(fmt(g.t1 - g.t0))}${g.ok ? '' : ' · falló'}</div>`).join('') || '<div>Sin herramientas todavía.</div>';
-  $('pm-her').classList.toggle('on', herAbierto); $('pm-hl').style.display = herAbierto ? '' : 'none';
+  $('pm-feed').innerHTML = pasos(n, t, 6);
+  $('pm-txt').textContent = n.texto ? `«${n.texto}»` : '';
 }
 function menuCierra() { menuDe = null; $('ag-pm').classList.remove('on'); $('ag-pm').innerHTML = ''; }
 function menuPos(W, H) {
   const m = $('ag-pm'); if (!menuDe) return;
-  const q = rects.find(r => r.id === menuDe && !r.seg && !r.evento);
+  const q = vista === 'sala' ? salaRect(menuDe) : rects.find(r => r.id === menuDe && !r.seg && !r.evento);
   if (!q) { m.style.visibility = 'hidden'; return; }
   const w = m.offsetWidth, h = m.offsetHeight;
   let x, y;
@@ -237,7 +282,6 @@ $('ag-pm').addEventListener('click', e => {
   const a = b.dataset.a;
   if (a === 'cerrar') { sel = null; menuCierra(); }
   else if (a === 'cancelar') manda({accion: 'cancelar'});
-  else if (a === 'her') herAbierto = !herAbierto;
   else if (a === 'tarea') copia(n.tarea, 'Tarea copiada.');
   else if (a === 'id') copia(n.id, 'Id copiado.');
   else if (a === 'ocultar') { ocultos.add(n.id); guarda('ag_ocultos', JSON.stringify([...ocultos])); sel = null; menuCierra(); }
@@ -479,6 +523,74 @@ function pintaCarriles(t, W, H) {
   ctx.beginPath(); ctx.moveTo(x(t), TOP - 4); ctx.lineTo(x(t), H); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
 }
 
+// ---------- sala de control ----------
+// Un panel por agente (modelo, estado, tira de herramientas, pasos en vivo y lo último que ha escrito), agrupados por
+// sesión: cada conversación de Claude Code con sus subagentes; Delta y OmniRoute aparte. A la derecha, los mensajes
+// entre agentes. Los nodos del DOM se reutilizan para que las animaciones no se reinicien en cada repaso.
+const salaEls = {}, salaGrs = {}, salaVistos = new Set();
+let salaPrimera = true;
+function salaRect(id) {
+  const el = salaEls[id]; if (!el || !el.isConnected) return null;
+  const a = el.getBoundingClientRect(), b = $('ag-lienzo').getBoundingClientRect();
+  return {x: a.left - b.left, y: a.top - b.top, w: a.width, h: a.height};
+}
+function salaPanel(n, t, por) {
+  let el = salaEls[n.id];
+  if (!el) {
+    el = salaEls[n.id] = document.createElement('div');
+    el.className = 'sl-p'; el.dataset.id = n.id;
+    el.innerHTML = '<div class="l1"><span class="pt"></span><b></b><span class="mod"></span></div><div class="ch"></div><div class="sl-bar"><i></i></div><div class="sl-tl"></div><div class="feed"></div><div class="txt"></div>';
+  }
+  const s = estadoEn(n, t), on = activo(s.e), o = ORIGEN[n.origen] || ORIGEN.claude, q = c => el.querySelector(c);
+  el.classList.toggle('off', !on); el.classList.toggle('sel', n.id === sel);
+  q('.pt').classList.toggle('on', on); q('.pt').style.background = on ? o[1] : '';
+  q('b').textContent = corto(titulo(n), 40);
+  q('.mod').textContent = nombreModelo(n.modelo); q('.mod').style.background = o[1];
+  const pa = n.padre && por.get(n.padre);
+  q('.ch').innerHTML = [`<span style="color:${o[1]}">${o[0]}</span>`, esc(s.e), n.tipo === 'sub' && n.tarea ? esc(corto(n.nombre, 22)) : '',
+    n.ruta ? esc(corto(n.ruta, 26)) : '', n.tok ? `${n.parcial ? '≥' : ''}${n.tok} tok` : '', pa ? `↳ ${esc(corto(titulo(pa), 22))}` : ''].filter(Boolean).map(x => `<span>${x}</span>`).join('');
+  q('.sl-bar').classList.toggle('on', !!s.seg); q('.sl-bar i').style.background = s.seg ? colorHerr(s.seg.tool) : '';
+  q('.sl-tl').innerHTML = n.segs.filter(g => g.t0 <= t).slice(-16).map(g =>
+    `<i style="flex:${Math.max(1, Math.log2(2 + (g.t1 - g.t0))).toFixed(2)};background:${colorHerr(g.tool)};opacity:${g.ok ? .9 : .4}"></i>`).join('');
+  q('.feed').innerHTML = pasos(n, t, 5);
+  q('.txt').textContent = n.texto ? `«${n.texto}»` : n.tarea && n.tipo !== 'sub' ? n.tarea : '';
+  return el;
+}
+function sala(t) {
+  const vis = D.nodos.filter(n => visible(n, t)), por = new Map(vis.map(n => [n.id, n]));
+  const raizDe = n => { let q = n; for (let d = 0; d < 8 && q.padre && por.has(q.padre) && q.padre !== 'delta' && por.get(q.padre).tipo !== 'router'; d++) q = por.get(q.padre); return q; };
+  const grupos = new Map();
+  for (const n of vis) { const r = n.tipo === 'router' ? n : raizDe(n); (grupos.get(r.id) || grupos.set(r.id, []).get(r.id)).push(n); }
+  // orden estable (no por actividad, para que nada salte bajo el ratón): Delta, conversaciones de la más nueva a la más antigua, OmniRoute
+  const ids = [...grupos.keys()].sort((a, b) => (a === 'delta' ? -1 : b === 'delta' ? 1 : 0) || (por.get(a).tipo === 'router') - (por.get(b).tipo === 'router')
+    || por.get(b).t0 - por.get(a).t0);
+  const cont = $('sl-g');
+  ids.forEach((id, i) => {
+    let g = salaGrs[id];
+    if (!g) { g = salaGrs[id] = document.createElement('section'); g.className = 'sl-gr'; g.innerHTML = '<h3><span></span><small></small></h3><div class="sl-rej"></div>'; }
+    const r = por.get(id), mi = grupos.get(id), nAct = mi.filter(n => activo(estadoEn(n, t).e)).length;
+    g.querySelector('h3 span').textContent = corto(titulo(r), 40);
+    g.querySelector('h3 small').textContent = `${nAct}/${mi.length} activos${r.tarea && r.tipo !== 'sub' ? ' · ' + r.tarea : ''}`;
+    const orden = [], anade = n => { orden.push(n); mi.filter(x => x.padre === n.id && x !== n).sort((a, b) => a.t0 - b.t0).forEach(anade); };
+    anade(r); for (const n of mi) if (!orden.includes(n)) orden.push(n);
+    const rej = g.querySelector('.sl-rej');
+    orden.forEach((n, j) => { const el = salaPanel(n, t, por); if (rej.children[j] !== el) rej.insertBefore(el, rej.children[j] || null); });
+    while (rej.children.length > orden.length) rej.lastChild.remove();
+    if (cont.children[i] !== g) cont.insertBefore(g, cont.children[i] || null);
+  });
+  while (cont.children.length > ids.length) cont.lastChild.remove();
+  // mensajes: lo más nuevo arriba; solo entran animados los que no se habían visto
+  const nom = id => { const n = D.nodos.find(z => z.id === id); return n ? corto(titulo(n), 22) : '?'; };
+  const evs = D.eventos.filter(e => e.t <= t && (e.de || e.a)).slice(-40).reverse();
+  $('sl-m').innerHTML = evs.map(e => {
+    const k = `${e.t}|${e.de}|${e.tipo}`, nuevo = !salaPrimera && !salaVistos.has(k); salaVistos.add(k);
+    const c = e.tipo === 'resultado' ? VERDE : (ORIGEN[(D.nodos.find(z => z.id === e.a) || {}).origen] || ORIGEN.claude)[1];
+    return `<div class="sl-m${nuevo ? ' nuevo' : ''}" style="border-color:${c}"><div class="de" style="color:${c}">${esc(nom(e.de))} ${e.tipo === 'resultado' ? '✓ →' : '→'} ${esc(nom(e.a))}</div>${e.txt ? `<div>«${esc(e.txt)}»</div>` : ''}<div class="cu">hace ${esc(fmt(Math.max(0, t - e.t)))}</div></div>`;
+  }).join('') || '<div class="sl-m">Aún no hay encargos entre agentes.</div>';
+  salaPrimera = false;
+}
+$('ag-sala').addEventListener('click', e => { const p = e.target.closest('.sl-p'); if (p) { sel = sel === p.dataset.id ? null : p.dataset.id; ultLista = 0; } });
+
 // ---------- bucle ----------
 let ult = performance.now();
 function bucle(ms) {
@@ -490,9 +602,9 @@ function bucle(ms) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
   if (!D) return;
   const t = Tver();
-  vista === 'const' ? pintaConst(t, W, H, dt) : pintaCarriles(t, W, H);
+  if (vista === 'const') pintaConst(t, W, H, dt); else if (vista === 'carriles') pintaCarriles(t, W, H);
+  if (performance.now() - ultLista > 500) { ultLista = performance.now(); lista(t); if (vista === 'sala') sala(t); }
   menuPos(W, H);
-  if (performance.now() - ultLista > 500) { ultLista = performance.now(); lista(t); }
   $('ag-t').textContent = vivo ? 'en directo' : `hace ${fmt(ahoraLive() - t)}`;
   if (vivo) $('ag-rango').value = t;
 }
@@ -503,6 +615,7 @@ function pon() {
   for (const b of $('ag-vista').children) b.classList.toggle('on', b.dataset.v === vista);
   for (const b of $('ag-ventana').children) b.classList.toggle('on', +b.dataset.w === ventana);
   $('ag-ventana').style.display = vista === 'carriles' ? '' : 'none';
+  raiz.classList.toggle('sala', vista === 'sala'); ultLista = 0;
 }
 $('ag-vista').onclick = e => { const v = e.target.dataset.v; if (v) { vista = v; guarda('ag_vista', v); pon(); } };
 $('ag-ventana').onclick = e => { const w = +e.target.dataset.w; if (w) { ventana = w; guarda('ag_ventana', w); pon(); } };

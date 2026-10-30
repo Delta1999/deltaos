@@ -316,6 +316,7 @@ def _salida(ahora):
                        "modelo": n["modelo"] or "?", "origen": n["origen"], "ruta": n.get("ruta", ""), "t0": n["t0"], "t1": n["t1"], "fin": n["fin"],
                        "tarea": n["tarea"], "estado": est, "ahora_usa": abiertos[-1]["tool"] + (": " + abiertos[-1]["det"] if abiertos[-1]["det"] else "") if abiertos else "",
                        "tok": sum(n["tok"].values()), "parcial": bool(n.get("parcial")), "segs": segs,
+                       "texto": " ".join(str(n.get("texto", "")).split())[:280],  # lo último que ha escrito, para la ficha y la sala
                        "hablable": _hablable(n)})
     evs = []
     for e in _eventos:
