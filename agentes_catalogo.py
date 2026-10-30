@@ -74,7 +74,8 @@ def combo_valido(c):
 DELTA = [
     ("hablar", "Hablar con Delta", "Le dice algo a Delta (Gemini Live) como si se lo dijeras por voz; tiene que estar despierto."),
     ("cambiar", "Cambiar algo de Delta", "Claude Code modifica el propio repositorio de Delta y lo deja registrado en CAMBIOS_DELTA.md."),
-    ("cherry", "Plan B: Cherry", "Pasa la tarea a Cherry cuando Claude Code se queda sin tokens."),
+    ("antigravity", "Plan B: Antigravity", "Pasa la tarea o mejora a Antigravity cuando Claude Code se queda sin tokens o se le pide."),
+    ("cherry", "Plan C: Cherry", "Pasa la tarea a Cherry cuando Claude Code no tenga tokens o como alternativa."),
 ]
 
 

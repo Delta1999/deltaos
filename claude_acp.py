@@ -208,13 +208,13 @@ async def _turno(mensaje, propio=None, voz=True, nueva=None, combo=None):
         if propio:  # que no se pierda: al buzón que Claude revisa al ponerse con Delta
             await acciones.anotar_mejora(propio[0])
             if es_limite:
-                await acciones.mejorar_delta_cherry(f"[Fallback falta de tokens en Claude] {propio[0]}")
-                guardada = (" Claude Code no tiene tokens. La petición ha quedado anotada en cherry_pendientes.txt "
-                            "para que Cherry se encargue de ella.")
+                await acciones.mejorar_delta_antigravity(f"[Fallback falta de tokens en Claude] {propio[0]}")
+                guardada = (" Claude Code no tiene tokens. He pasado la petición automáticamente a Antigravity (Plan B) "
+                            "para que se encargue de ella.")
             else:
                 guardada = " La petición ha quedado anotada en el registro de averías y mejoras, así que no se pierde."
         elif es_limite:
-            guardada = " Claude Code no tiene tokens. Puedes pedirme que se lo pase a Cherry diciendo «dile a Cherry que...»."
+            guardada = " Claude Code no tiene tokens. Puedes pedirme que se lo pase a Antigravity diciendo «dile a Antigravity que...» (Plan B) o a Cherry (Plan C)."
         if voz:
             await avisar(f"Falló la conversación con Claude Code: {e}.{guardada}")
     finally:
@@ -318,6 +318,8 @@ def ocupado():
 async def mejorar_delta(peticion, voz=True, combo=None):
     """voz=False: arreglos de la llave inglesa, que se lanzan solos con el PC libre y no deben despertar a Delta."""
     global _tarea
+    if re.search(r"\bantigravity\b|\bagy\b", peticion, re.I):
+        return await acciones.mejorar_delta_antigravity(peticion)
     if re.search(r"\bcherry\b", peticion, re.I):
         return await acciones.mejorar_delta_cherry(peticion)
     if ocupado():
@@ -340,6 +342,8 @@ DE_DELTA = re.compile(r"\bdelta(os)?\b|barra de estado|\bescudo\b|tu (panel|inte
 
 async def hablar_con_claude(mensaje):
     global _tarea
+    if re.search(r"\bantigravity\b|\bagy\b", mensaje, re.I):
+        return await acciones.mejorar_delta_antigravity(mensaje)
     if re.search(r"\bcherry\b", mensaje, re.I):
         return await acciones.mejorar_delta_cherry(mensaje)
     if DE_DELTA.search(mensaje):

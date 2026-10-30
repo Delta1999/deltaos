@@ -6,7 +6,13 @@ from pathlib import Path
 import acciones
 import claude_acp
 
-acciones.MEJORAS_LOG = Path(tempfile.mkdtemp()) / "mejoras_pendientes.log"  # no tocar el registro de verdad
+import antigravity_puente
+
+_tmp_dir = Path(tempfile.mkdtemp())
+acciones.MEJORAS_LOG = _tmp_dir / "mejoras_pendientes.log"  # no tocar el registro de verdad
+acciones.CHERRY_PENDIENTES = _tmp_dir / "cherry_pendientes.txt"
+antigravity_puente.MD_PENDIENTES = _tmp_dir / "antigravity_pendientes.md"
+antigravity_puente.TXT_PENDIENTES = _tmp_dir / "antigravity_pendientes.txt"
 corre = asyncio.run
 guardadas = []
 acciones._mem.guardar = lambda nota: guardadas.append(nota) or "Guardado."
@@ -35,6 +41,14 @@ assert "no a WORMHOLE" in corre(claude_acp.hablar_con_claude("Avería: tu panel 
 assert mandadas == ["Avería: tu panel no se mueve de pantalla"]
 claude_acp.mejorar_delta = real
 assert acciones._real("claude", {"accion": "mejorar_delta", "mensaje": "x"}) == ("mejorar_delta", {"peticion": "x"})
+assert acciones._real("claude", {"accion": "antigravity", "mensaje": "x"}) == ("mejorar_delta_antigravity", {"peticion": "x"})
+assert acciones._real("claude", {"accion": "cherry", "mensaje": "x"}) == ("mejorar_delta_cherry", {"peticion": "x"})
+
+# Rutas hacia Antigravity (Plan B) y Cherry (Plan C)
+assert "Antigravity" in corre(claude_acp.mejorar_delta("Dile a Antigravity que ajuste el brillo"))
+assert "Antigravity" in corre(claude_acp.hablar_con_claude("Avería: agy arregla esto"))
+assert "Cherry" in corre(claude_acp.mejorar_delta("Pasa esto a Cherry"))
+assert "Cherry" in corre(claude_acp.hablar_con_claude("Dile a Cherry que revise esto"))
 
 # Con el límite de sesión, o si Claude está ocupado, la petición no se pierde.
 assert claude_acp.LIMITE.search("You've hit your session limit · resets 1:10am")

@@ -663,7 +663,7 @@ const nv = $('nv'), NV_AYUDA = 'Pasa el ratón por una opción para ver qué hac
 const nvItems = (l, cls = '') => l.map(a => `<button class="nv-i ${cls}" data-id="${esc(a.id)}" data-d="${esc(a.d)}">${esc(a.n)}</button>`).join('');
 const nvBloque = (t, l, cls) => l.length ? `<div><div class="nv-s">${t}</div><div class="nv-g">${nvItems(l, cls)}</div></div>` : '';
 function nvTodos() { return CAT ? [...CAT.claude.agentes, ...CAT.claude.frameworks, ...CAT.claude.modos, ...CAT.delta] : []; }
-// el combo solo cuenta donde trabaja Claude Code: todo lo de Claude Code y «Cambiar algo de Delta» (hablar es Gemini Live; Cherry, el suyo)
+// el combo solo cuenta donde trabaja Claude Code: todo lo de Claude Code y «Cambiar algo de Delta» (hablar es Gemini Live; Antigravity y Cherry, los suyos)
 const nvConCombo = id => !String(id).startsWith('delta:') || id === 'delta:cambiar';
 function nvComboAct() { return (CAT && (CAT.combos || []).find(c => c.id === nvCombo)) || null; }
 function nvModelos() {

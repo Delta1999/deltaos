@@ -388,6 +388,8 @@ async def nueva(id_, texto="", combo=None):
         return {"ok": await acciones.decir_a_delta(texto), "msg": "Enviado a Delta." if ST.get("session") else "Delta está en reposo: llámalo primero."}
     if instruccion == "cambiar":
         return {"ok": True, "msg": await claude_acp.mejorar_delta(texto, combo=combo)}
+    if instruccion == "antigravity":
+        return {"ok": True, "msg": await acciones.mejorar_delta_antigravity(texto)}
     return {"ok": True, "msg": await acciones.mejorar_delta_cherry(texto)}
 
 

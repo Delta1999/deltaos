@@ -1,8 +1,44 @@
 [
  {
   "f": "2026-10-30",
+  "t": "Plan B con Antigravity para mejoras de Delta cuando Claude Code no tenga tokens; Cherry pasa a Plan C.",
+  "como": "«mejora esto con Antigravity», «dile a Antigravity que cambie esto»"
+ },
+ {
+  "f": "2026-10-30",
+  "t": "Establezca una configuración segura y persistente para que DeltaOS pueda modificar controles de hardware autorizados, empezando por la velocidad del ventilador ThinkPad. El intento de ponerlo a tope f",
+  "como": "vía Delta → Claude"
+ },
+ {
+  "f": "2026-10-30",
+  "t": "chequea los modelos disponibles en omniroute y mete estos dos en la lista de disponibles en deltaOs y en el combo donde encajen bien  añade agnes/agnes-3.0-flash y groq/openai/gpt-oss-120b",
+  "como": "vía Delta → Claude"
+ },
+ {
+  "f": "2026-10-30",
+  "t": "Corrige las entradas duplicadas e incorrectas introducidas en panel/novedades.json durante la última sesión, dejando únicamente la entrada correcta sobre el controlador de ventiladores ThinkPad. Reali",
+  "como": "vía Delta → Claude"
+ },
+ {
+  "f": "2026-10-30",
+  "t": "Delta puede consultar la velocidad y el nivel del ventilador ThinkPad, fijarlo en auto, niveles 0-7 o full-speed, y leer las temperaturas de CPU/GPU disponibles. El control requiere permisos del sistema y soporte de thinkpad_acpi.",
+  "como": "¿A cuánto va el ventilador?; pon el ventilador en auto; enséñame las temperaturas del portátil"
+ },
+ {
+  "f": "2026-10-30",
   "t": "Al empezar una conversación desde Agentes, tras elegir Claude Code o DeltaOS eliges también el modelo: Claude directo (o el de siempre en DeltaOS) o un combo de OmniRoute: Claude Code Auto, Code Pro, Deep Reasoning o Fast Completion. Al pasar el ratón ves qué modelos prueba cada combo; en DeltaOS vale para «Cambiar algo de Delta». Ojo: con el enrutado por tarea de OmniRoute activado, lo que parece código (casi todo lo de Claude Code) acaba en Code Pro, y el selector lo avisa.",
   "como": "botón de nueva conversación bajo «Agentes» → fila «Modelo»",
+  "voz": false
+ },
+ {
+  "f": "2026-10-30",
+  "t": "Añade los modelos Claude Fable cinco punto uno y DeepSeek V cuatro a la lista de proveedores de Omniroute.",
+  "como": "vía Delta → Claude"
+ },
+ {
+  "f": "2026-10-30",
+  "t": "Nuevos modelos en OmniRoute para el modo teclado: Claude Fable 5.1 para razonamiento y código exigente y DeepSeek V4 Pro para razonamiento y código.",
+  "como": "doble clic en la conversación y elige Claude Fable 5.1 o DeepSeek V4 Pro",
   "voz": false
  },
  {
@@ -33,6 +69,22 @@
   "t": "Nueva conversación en la pantalla «Agentes»: el icono bajo el título abre un selector con Claude Code (agentes genéricos y especialistas, frameworks de plugins, modo Workflow y modo Juez) o DeltaOS (hablarle, cambiar algo de él, plan B Cherry). Al dejar el ratón sobre cada opción explica lo que hace; al elegirla escribes la tarea y se abre una sesión de Claude Code nueva que sale en la constelación.",
   "como": "pulsa el icono de nueva conversación bajo «Agentes»",
   "voz": false
+ },
+ {
+  "f": "2026-10-29",
+  "t": "Silencio total con el ratón: mantén el botón ZOOM 2 segundos y Delta se queda mudo y sin avisos (ni voz, ni notificaciones, ni alarmas) hasta que lo vuelvas a mantener 2 s. Suena un click al activarlo y dos al quitarlo. Una pulsación corta de ZOOM sigue siendo la privacidad (ahora actúa al soltar).",
+  "como": "mantén el botón ZOOM del ratón 2 segundos",
+  "voz": false
+ },
+ {
+  "f": "2026-10-29",
+  "t": "El servicio delta-movil.service está fallando porque no encuentra el ejecutable en /home/jloslop/gemini-live-assistant/delta_movil.sh. Por favor, revisa la configuración del servicio.",
+  "como": "vía Delta → Claude"
+ },
+ {
+  "f": "2026-10-29",
+  "t": "Pásale el problema e informe de la sesión de Claude Code a Claude.",
+  "como": "vía Delta → Claude"
  },
  {
   "f": "2026-10-29",

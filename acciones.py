@@ -820,22 +820,31 @@ async def anotar_mejora(descripcion):
             "No anotes variantes de lo mismo: solo cosas claramente distintas.")
 
 
+ANTIGRAVITY_PENDIENTES = AQUI / "antigravity_pendientes.md"
+
+
+async def mejorar_delta_antigravity(peticion):
+    """Plan B: Registra o envía una petición de mejora de DeltaOS a Antigravity (antigravity_pendientes.md)."""
+    import antigravity_puente
+    return await antigravity_puente.registrar_mejora(peticion)
+
+
 CHERRY_PENDIENTES = AQUI / "cherry_pendientes.txt"
 
 
 async def mejorar_delta_cherry(peticion):
-    """Plan B: Registra una petición de mejora de DeltaOS o tarea en cherry_pendientes.txt para Cherry Studio."""
+    """Plan C: Registra una petición de mejora de DeltaOS o tarea en cherry_pendientes.txt para Cherry Studio."""
     p = peticion.strip()
     linea = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Cherry] {p}\n"
     with open(CHERRY_PENDIENTES, "a", encoding="utf-8") as f:
         f.write(linea)
-    print(f"\n🍒 [PETICIÓN PARA CHERRY]: {p}\n")
+    print(f"\n🍒 [PETICIÓN PARA CHERRY (PLAN C)]: {p}\n")
     try:
         import panel
-        panel.notificar("info", f"Petición para Cherry registrada: {p[:50]}")
+        panel.notificar("info", f"Petición para Cherry (Plan C) registrada: {p[:50]}")
     except Exception:
         pass
-    return ("Petición registrada para Cherry en cherry_pendientes.txt. "
+    return ("Petición registrada para Cherry en Plan C (cherry_pendientes.txt). "
             "Dile al usuario que ya se lo has apuntado a Cherry y que lo procesará desde Cherry Studio.")
 
 
@@ -1012,7 +1021,9 @@ DECLARATIONS = [
     _fn("poner_tele", "Pone un canal de televisión en directo en una ventana. Sustituye a lo que sonara.",
         {"canal": _s("cuatro | telecinco | fdf | energy | divinity | be mad")}),
     _fn("dormir", "Vuelve al modo espera cuando el usuario se despide o dice que ya está."),
-    _fn("cherry", "Plan B cuando Claude Code no tenga tokens o el usuario pida usar Cherry («mejora esto con Cherry», «dile a Cherry que cambie esto»). Anota la tarea en cherry_pendientes.txt para que Cherry la resuelva.",
+    _fn("antigravity", "Plan B cuando Claude Code no tenga tokens o el usuario pida usar Antigravity («mejora esto con Antigravity», «dile a Antigravity que cambie esto», «mándaselo a Antigravity»). Pasa la tarea a Antigravity.",
+        {"peticion": _s("lo que el usuario pide que haga Antigravity, completo y detallado")}, req=["peticion"]),
+    _fn("cherry", "Plan C cuando el usuario pida usar Cherry («mejora esto con Cherry», «dile a Cherry que cambie esto»). Anota la tarea en cherry_pendientes.txt para que Cherry la resuelva.",
         {"peticion": _s("lo que el usuario pide que haga Cherry, completo y detallado")}, req=["peticion"]),
 ]
 
@@ -1033,7 +1044,9 @@ HANDLERS = {f.__name__: f for f in (
     abrir, ejecutar_herramienta_wormhole, verificar_diseno, ejecutar_shell, preguntar_a_claude,
     ver_trabajos, estado_impresora, historial_impresora, programar_aviso_impresora, estado_proyectos, recordar, olvidar, buscar_memoria, anotar_mejora,
     nota_guardar, nota_listar, nota_buscar, nota_borrar,
-    volumen, brillo, modo_oscuro, notificar, poner_musica, controlar_musica, poner_tele, portapapeles, ventanas, dormir, mejorar_delta_cherry)}
+    volumen, brillo, modo_oscuro, notificar, poner_musica, controlar_musica, poner_tele, portapapeles, ventanas, dormir,
+    mejorar_delta_antigravity, mejorar_delta_cherry)}
+HANDLERS["antigravity"] = mejorar_delta_antigravity
 HANDLERS["cherry"] = mejorar_delta_cherry
 
 
@@ -1047,6 +1060,7 @@ ETIQUETAS = {"estado_impresora": "Miro la impresora", "historial_impresora": "Le
              "nota_borrar": "Borro una nota",
              "cambiar_tema": "Cambio de diseño visual",
              "consultar_clima": "Consulto el tiempo", "abrir": "Abro", "dormir": "A dormir",
+             "mejorar_delta_antigravity": "Anoto para Antigravity", "antigravity": "Anoto para Antigravity",
              "mejorar_delta_cherry": "Anoto para Cherry", "cherry": "Anoto para Cherry"}
 MAX_PASOS = 7
 
@@ -1079,12 +1093,14 @@ FUSIONES = {
                 "cancelar": _r("cancelar_aviso", {"cual": "texto"}), "parar_alarma": _r("parar_alarma"),
                 "no_molestar": _r("no_molestar", {"minutos": "en_minutos"}),
                 "silencio_total": _r("silencio_total", {"minutos": "en_minutos"})}),
-    "claude": ("Claude Code y Cherry (Plan B). mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, fondos, voz, herramientas…) ya, con Claude Code; si no corre prisa, memoria accion=anotar_mejora. "
-               "cherry: Plan B cuando Claude no tenga tokens o pida expresamente Cherry («mejora esto con Cherry», «dile a Cherry que…»). "
+    "claude": ("Claude Code, Antigravity (Plan B) y Cherry (Plan C). mejorar_delta: arregla o cambia el PROPIO Delta (panel, barra, fondos, voz, herramientas…) ya, con Claude Code; si no corre prisa, memoria accion=anotar_mejora. "
+               "antigravity: Plan B cuando Claude no tenga tokens o pida expresamente Antigravity («mejora esto con Antigravity», «dile a Antigravity que…», «mándaselo a Antigravity»). "
+               "cherry: Plan C cuando pida Cherry («mejora esto con Cherry», «dile a Cherry que…»). "
                "hablar: el repo WORMHOLE (CAD, piezas, impresión), UNA conversación persistente que recuerda lo anterior («ahora hazlo más grueso»), en segundo plano y avisa; para toda petición de código, CAD o archivos del repo. "
                "tarea_suelta: un disparo sin memoria (pide confirmación). estado: qué hace ahora. cancelar: interrumpe su tarea.",
-               {"mensaje": "hablar/tarea_suelta/mejorar_delta/cherry: lo que quieres que haga, completo y con las palabras del usuario"},
+               {"mensaje": "hablar/tarea_suelta/mejorar_delta/antigravity/cherry: lo que quieres que haga, completo y con las palabras del usuario"},
                {"mejorar_delta": _r("mejorar_delta", {"peticion": "mensaje"}),
+                "antigravity": _r("mejorar_delta_antigravity", {"peticion": "mensaje"}),
                 "cherry": _r("mejorar_delta_cherry", {"peticion": "mensaje"}),
                 "hablar": _r("hablar_con_claude"), "tarea_suelta": _r("preguntar_a_claude", {"tarea": "mensaje"}),
                 "estado": _r("estado_claude"), "cancelar": _r("cancelar_claude")}),
