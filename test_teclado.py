@@ -137,3 +137,11 @@ assert "sk-entorno" not in json.dumps(i), "la clave no sale nunca hacia el panel
 teclado.BD = tmp / "no-existe.sqlite"
 assert teclado.info()["error"]
 print("ok")
+# --- «nuevo» en el panel solo durante una semana desde el alta
+_ahora = time.time()
+_hoy = datetime.fromtimestamp(_ahora, timezone.utc).strftime("%Y-%m-%d")
+teclado.MODELOS.append({"id": "pruebanueva/x", "nombre": "x", "corto": "x", "bueno": "x", "cupo": None, "alta": _hoy})
+teclado.MODELOS.append({"id": "pruebavieja/x", "nombre": "x", "corto": "x", "bueno": "x", "cupo": None, "alta": "2020-01-01"})
+_m = {m["id"]: m for m in teclado.info()["modelos"]}
+assert _m["pruebanueva/x"]["nuevo"] is True and _m["pruebavieja/x"]["nuevo"] is False and _m[teclado.DEFECTO]["nuevo"] is False
+print("ok nuevo")

@@ -132,7 +132,7 @@ function pintaOmni() {
   const d = INFO, c = $('om-c');
   if (!d) { c.innerHTML = '<section><div class="om-nota">Cargando…</div></section>'; return; }
   const modelos = d.modelos.map(m => `<button class="om-m${m.id === modelo ? ' en' : ''}" data-id="${esc(m.id)}">
-    <b>${esc(m.nombre)}</b>${m.id === d.defecto ? '<span class="om-tag">por defecto</span>' : ''}${m.id === modelo ? '<span class="om-tag">en uso</span>' : ''}
+    <b>${esc(m.nombre)}</b>${m.id === d.defecto ? '<span class="om-tag">por defecto</span>' : ''}${m.id === modelo ? '<span class="om-tag">en uso</span>' : ''}${m.nuevo ? '<span class="om-tag">nuevo</span>' : ''}
     <div class="om-t">${esc(m.bueno)}</div>
     <div class="om-q">${m.cupo ? `${barra(m.libre)}<span>${esc(m.cupo)}: ${m.libre == null ? '—' : m.libre + ' % libre'}${m.reset ? ` · se restablece en <span data-r="${m.reset}">${falta(m.reset)}</span>` : ''}</span>`
       : '<span>Sin cupo medido (gratis o de pago por token)</span>'}</div></button>`).join('');

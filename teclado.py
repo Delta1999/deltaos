@@ -33,6 +33,7 @@ MAX_HIST = 12     # mensajes de conversación que se reenvían (solo texto; lo q
 OLVIDA = 1800     # s sin escribir: conversación nueva
 TIMEOUT = 150
 
+# alta = fecha en que entró en el selector: el panel lo marca «nuevo» durante una semana
 # cupo = (proveedor, recurso) de la cuota que gasta, tal como la guarda OmniRoute; None = sin cuota medida (de pago o gratis sin contador)
 MODELOS = [
     {"id": DEFECTO, "corto": "interfaz, informes, órdenes básicas", "nombre": "Gemini 3.8 Flash · antigravity (con respaldo)",
@@ -60,18 +61,18 @@ MODELOS = [
      "cupo": ("antigravity", "claude_gpt_weekly")},
     {"id": "openrouter/anthropic/claude-fable-5.1", "corto": "agente y código exigente", "nombre": "Claude Fable 5.1 · OpenRouter",
      "bueno": "El modelo más capaz de Anthropic para razonamiento, código y tareas largas; se paga por token.", "cupo": None},
-    {"id": "openference/GLM-5.2", "corto": "razonar con 1M de contexto", "nombre": "GLM-5.2 · Openference",
+    {"id": "openference/GLM-5.2", "alta": "2026-10-30", "corto": "razonar con 1M de contexto", "nombre": "GLM-5.2 · Openference",
      "bueno": "Lo mejor de Openference: razonamiento y herramientas con 1M de contexto. Añadido el 30/10/2026; ese día respondía 402 (sin créditos en la cuenta), así que puede fallar hasta que se recargue.",
      "cupo": None},
-    {"id": "openrouter/moonshotai/kimi-k3.1-pro", "corto": "agente y textos largos, 1M", "nombre": "Kimi K3.1 Pro · OpenRouter",
+    {"id": "openrouter/moonshotai/kimi-k3.1-pro", "alta": "2026-10-30", "corto": "agente y textos largos, 1M", "nombre": "Kimi K3.1 Pro · OpenRouter",
      "bueno": "Kimi K3 mejorado, con 1M de contexto (el K3 de OrcaRouter se queda en 128K): agente con muchas herramientas y textos largos; se paga por token.", "cupo": None},
-    {"id": "openrouter/openai/gpt-6.1-terra", "corto": "razonamiento y código, 1M", "nombre": "GPT-6.1 Terra · OpenRouter",
+    {"id": "openrouter/openai/gpt-6.1-terra", "alta": "2026-10-30", "corto": "razonamiento y código, 1M", "nombre": "GPT-6.1 Terra · OpenRouter",
      "bueno": "GPT de la serie 6.1 con 1M de contexto, para razonamiento y código cuando lo básico se queda corto; se paga por token.", "cupo": None},
-    {"id": "openrouter/anthropic/claude-sonnet-5.5", "corto": "equilibrio de Claude", "nombre": "Claude Sonnet 5.5 · OpenRouter",
+    {"id": "openrouter/anthropic/claude-sonnet-5.5", "alta": "2026-10-30", "corto": "equilibrio de Claude", "nombre": "Claude Sonnet 5.5 · OpenRouter",
      "bueno": "El punto medio de Claude: casi la calidad de Opus con respuestas más rápidas; 1M de contexto; se paga por token.", "cupo": None},
-    {"id": "openrouter/minimax/minimax-m3.1-flash", "corto": "muy barato y con herramientas", "nombre": "MiniMax M3.1 Flash · OpenRouter",
+    {"id": "openrouter/minimax/minimax-m3.1-flash", "alta": "2026-10-30", "corto": "muy barato y con herramientas", "nombre": "MiniMax M3.1 Flash · OpenRouter",
      "bueno": "El más barato de los de pago que manejan herramientas bien (unas 5 veces menos que Sonnet); 1M de contexto.", "cupo": None},
-    {"id": "cohere/command-a-plus-05-2026", "corto": "textos largos y resúmenes", "nombre": "Command A Plus · Cohere",
+    {"id": "cohere/command-a-plus-05-2026", "alta": "2026-10-30", "corto": "textos largos y resúmenes", "nombre": "Command A Plus · Cohere",
      "bueno": "Resúmenes y respuestas con documentos largos (436K de contexto) y herramientas; clave propia de Cohere.", "cupo": None},
     {"id": "agnes/agnes-3.0-flash", "corto": "respuestas rápidas", "nombre": "Agnes 3.0 Flash",
      "bueno": "Modelo Flash de Agnes para respuestas rápidas; se paga por token.", "cupo": None},
@@ -342,6 +343,7 @@ def info():
     for m in MODELOS:
         q = cupos.get(m["cupo"]) if m["cupo"] else None
         modelos.append({"id": m["id"], "nombre": m["nombre"], "corto": m["corto"], "bueno": m["bueno"],
+                        "nuevo": time.time() - _epoch(m["alta"] + "T00:00:00+00:00") < 7 * 86400 if m.get("alta") else False,
                         "libre": q["libre"] if q else None, "reset": q["reset"] if q else None, "cupo": q["recurso"] if q else None})
     datos["modelos"] = modelos
     return datos
