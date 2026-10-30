@@ -1,8 +1,9 @@
 """Modo teclado de DeltaOS: escribirle a Delta en vez de hablarle, con un modelo de OmniRoute (ahorra tokens de voz de Gemini Live).
 
 Usa las mismas herramientas que Delta (acciones.DECLARATIONS/HANDLERS), así que puede hacer lo mismo que por voz. Lo que escribe el
-usuario llega por el WebSocket del panel (Origin comprobado, nunca desde la tele): no es «de viva voz», así que lo que pide permiso
-lo sigue pidiendo (acciones.hablando_contigo no cuenta el teclado). La búsqueda en Google sigue siendo la de Delta (API de Gemini):
+usuario llega por el WebSocket del panel (Origin comprobado, nunca desde la tele) y cuenta como «de viva voz» (pedido el 30/10/2026):
+al enviarlo se marca ST["t_tu"], así que mientras dura la orden no sale ventana de permiso (acciones.hablando_contigo). La confirmación
+de SMS y respuestas la pide el modelo por escrito («¿lo mando?») y el usuario contesta en el bocadillo. La búsqueda en Google sigue siendo la de Delta (API de Gemini):
 no se ha comprobado que el grounding pase por OmniRoute.
 
 Solo LEE de la base de OmniRoute (SQLite en modo solo lectura) para el panel de consumo; la clave nunca se imprime ni se difunde.
@@ -42,6 +43,8 @@ MODELOS = [
      "cupo": ("antigravity", "gemini_weekly")},
     {"id": "orcarouter/deepseek/deepseek-v4.1-flash-free", "corto": "tareas ligeras gratis", "nombre": "DeepSeek V4.1 Flash · gratis (OrcaRouter)",
      "bueno": "Tareas ligeras sin gastar cupo. Solo 128K de contexto; sus límites reales no están comprobados.", "cupo": None},
+    {"id": "openrouter/deepseek/deepseek-v4-pro", "corto": "razonamiento y código", "nombre": "DeepSeek V4 Pro · OpenRouter",
+     "bueno": "Razonamiento y código con el modelo abierto de DeepSeek; se paga por token.", "cupo": None},
     {"id": "orcarouter/z-ai/glm-5.3-flash-free", "corto": "preguntas y resúmenes gratis", "nombre": "GLM-5.3 Flash · gratis (OrcaRouter)",
      "bueno": "Preguntas y resúmenes sencillos gratis. 128K de contexto; límites sin comprobar.", "cupo": None},
     {"id": "cheaperinference/glm-5.3", "corto": "razonar y usar herramientas", "nombre": "GLM-5.3 (CheaperInference)",
@@ -55,6 +58,8 @@ MODELOS = [
     {"id": "antigravity/claude-opus-5-5-high", "corto": "lo más potente, cupo escaso", "nombre": "Claude Opus 5.5 · antigravity",
      "bueno": "Lo más potente para razonar o redactar con cuidado; el cupo de Claude y GPT en antigravity es semanal y escaso.",
      "cupo": ("antigravity", "claude_gpt_weekly")},
+    {"id": "openrouter/anthropic/claude-fable-5.1", "corto": "agente y código exigente", "nombre": "Claude Fable 5.1 · OpenRouter",
+     "bueno": "El modelo más capaz de Anthropic para razonamiento, código y tareas largas; se paga por token.", "cupo": None},
 ]
 IDS = {m["id"] for m in MODELOS}
 
@@ -113,8 +118,9 @@ def sistema():
     except OSError:
         persona = "Eres Delta, el asistente del usuario."
     return (persona + "\n\nMODO TECLADO: el usuario te escribe en el panel de DeltaOS (no te habla). Contesta por escrito, breve y en español de "
-            "España, sin markdown pesado. Tienes las mismas herramientas que por voz: úsalas en vez de decir que no puedes. Lo que escribe aquí NO es de "
-            "viva voz: si una herramienta necesita permiso, saldrá la ventana de permiso en el panel; no la esquives ni digas que ya está confirmado. "
+            "España, sin markdown pesado. Tienes las mismas herramientas que por voz: úsalas en vez de decir que no puedes. Lo que escribe aquí vale "
+            "como si lo dijera de viva voz: no salen ventanas de permiso. Por eso, antes de enviar un SMS o responder un mensaje, pregúntale por escrito "
+            "(«¿lo mando?») y espera su sí en el siguiente mensaje; nunca lo des por confirmado. "
             "No tienes reloj: la hora y la fecha, con avisos accion=ver. Nunca inventes el resultado de una herramienta.\n\n"
             "Memoria reciente del usuario:\n" + (acciones.leer_memoria() or "(ninguna todavía)"))
 
@@ -204,6 +210,7 @@ async def enviar(texto, modelo=None):
     async with _lock:
         if time.monotonic() - _ultimo > OLVIDA:
             _hist.clear()
+        acciones.ST["t_tu"] = time.monotonic()  # lo escrito vale como de viva voz: sin ventana de permiso (ver hablando_contigo)
         panel.texto("tú", texto)
         panel.fin_turno()
         agentes.teclado_inicio(texto, modelo)

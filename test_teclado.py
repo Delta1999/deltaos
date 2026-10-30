@@ -76,6 +76,12 @@ assert [e["tipo"] for e in agentes._eventos[-2:]] == ["encargo", "resultado"]
 uso = json.loads(teclado.USO.read_text().splitlines()[-1])
 assert uso["tin"] == 30 and uso["tout"] == 8, uso
 
+# --- lo escrito en el bocadillo vale como de viva voz: no sale ventana de permiso
+acciones.ST["t_tu"] = 0
+corre(teclado.enviar("saluda a Ana"))
+assert acciones.hablando_contigo(), "escribir en el panel autoriza la orden como si la dijera de viva voz"
+acciones.ST["t_tu"] = 0
+
 # --- el modelo elegido falla → contesta el de por defecto y lo dice
 teclado.IDS.add("roto")
 vistos.clear()
@@ -119,6 +125,8 @@ assert por_id[teclado.DEFECTO]["libre"] == 95 and por_id[teclado.DEFECTO]["reset
 assert por_id["antigravity/claude-opus-5-5-high"]["libre"] == 0, "agotado se nota"
 assert por_id["codex/gpt-6-luna"]["libre"] == 83
 assert por_id["orcarouter/kimi/kimi-k3"]["libre"] is None
+assert por_id["openrouter/anthropic/claude-fable-5.1"]["libre"] is None
+assert por_id["openrouter/deepseek/deepseek-v4-pro"]["libre"] is None
 assert i["propio"]["hoy"] >= 1 and i["clave"] is True
 assert "sk-entorno" not in json.dumps(i), "la clave no sale nunca hacia el panel"
 
