@@ -20,6 +20,17 @@ def test_prompt_lleva_peticion_diff_y_recorta():
     print("✓ prompt: petición, diff y ficheros nuevos; el diff grande se recorta")
 
 
+def test_sesiones_del_selector_y_revision_van_a_claude_real():
+    import claude_acp
+    env = claude_acp.CLAUDE_REAL["claudeCode"]["options"]["settings"]["env"]
+    assert env["ANTHROPIC_BASE_URL"] == "https://api.anthropic.com"
+    assert all(env[k] == "" for k in ("ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"))
+    src = open("claude_acp.py").read()
+    assert src.count("**CLAUDE_REAL") == 2  # selector (conversación nueva) y revisión; mejorar_delta/hablar_con_claude no
+    print("✓ selector y revisión: sesión directa a Claude (pisa el env de OmniRoute de settings.json)")
+
+
 if __name__ == "__main__":
     test_veredicto_nunca_se_inventa_verde()
     test_prompt_lleva_peticion_diff_y_recorta()
+    test_sesiones_del_selector_y_revision_van_a_claude_real()

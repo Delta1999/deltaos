@@ -21,6 +21,10 @@ import revision_delta
 from acciones import ST, WORMHOLE, AQUI, avisar, _confirmar, _run
 
 COMANDO = ("npx", "-y", "@agentclientprotocol/claude-agent-acp")
+# ~/.claude/settings.json manda Claude Code a OmniRoute; las sesiones del selector y la revisión (30/10/2026) van directas a
+# Claude con el login de `claude auth login`: los ajustes programáticos de la sesión pisan ese env.
+CLAUDE_REAL = {"claudeCode": {"options": {"settings": {"env": {
+    "ANTHROPIC_BASE_URL": "https://api.anthropic.com", "ANTHROPIC_AUTH_TOKEN": "", "ANTHROPIC_API_KEY": "", "ANTHROPIC_MODEL": ""}}}}}
 MAX_PASOS = 8
 # Claude Code solo MIRANDO (leer, buscar, ver estado) nunca pregunta al usuario: lo pidió así
 MIRA = acciones.LECTURA | {"cd", "sed", "git", "sleep", "timeout", "tree", "diff", "jq", "realpath", "basename", "dirname",
@@ -167,7 +171,7 @@ async def _turno(mensaje, propio=None, voz=True, nueva=None):
             except Exception as e:
                 print(f"ACP: sin modo acceptEdits ({e})")
         if nueva and not propio:
-            _sid = (await _conn.new_session(cwd=str(WORMHOLE))).session_id
+            _sid = (await _conn.new_session(cwd=str(WORMHOLE), **CLAUDE_REAL)).session_id
         await _conn.prompt(session_id=_sid_delta if propio else _sid, prompt=[text_block(mensaje)])
         final = _estado["texto"].strip() or "(sin texto)"
         if LIMITE.search(final):  # límite de tokens o sesión de Claude Code
@@ -271,7 +275,7 @@ async def _revisar(peticion, antes, despues):
             except OSError:
                 pass
         _estado.update(tarea=f"Revisión independiente: {peticion[:90]}", pasos=[], plan=[], texto="")
-        sid = (await _conn.new_session(cwd=str(AQUI))).session_id
+        sid = (await _conn.new_session(cwd=str(AQUI), **CLAUDE_REAL)).session_id
         try:  # que el revisor no pueda editar
             await _conn.set_session_mode(session_id=sid, mode_id="plan")
         except Exception as e:

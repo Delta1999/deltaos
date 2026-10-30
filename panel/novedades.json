@@ -1,6 +1,12 @@
 [
  {
   "f": "2026-10-30",
+  "t": "Las conversaciones nuevas del selector de Agentes y la revisión independiente de los cambios en Delta ahora usan Claude de verdad (con tu inicio de sesión de Claude Code) en vez de pasar por OmniRoute.",
+  "como": "Pulsa «Nueva conversación» bajo Agentes y elige un agente",
+  "voz": false
+ },
+ {
+  "f": "2026-10-30",
   "t": "Modo teclado: doble clic en el cuadro de la conversación abre un bocadillo para escribirle a Delta (Intro envía, Mayús+Intro salta de línea, Esc cierra) y contesta un modelo de OmniRoute en vez de la voz de Gemini Live, para gastar menos. Por defecto Gemini 3.8 Flash (combo con respaldo); el desplegable del bocadillo ofrece también GLM-5.3, Kimi K3, DeepSeek V4.1 Flash gratis y otros, cada uno con para qué sirve. El botón «OmniRoute» de la cabecera enseña los modelos, los cupos con la cuenta atrás para que se restablezcan y el gasto de hoy, la semana y el mes. Cada conversación por teclado sale en «Agentes» como un nodo «Teclado» con sus herramientas. Ojo: un bucle con herramientas gasta varias peticiones del cupo de Antigravity (unas 140 al día) y la búsqueda de Google sigue yendo por la clave de Gemini.",
   "como": "doble clic en la conversación y escribe; el botón OmniRoute enseña cupos y gasto",
   "voz": false
