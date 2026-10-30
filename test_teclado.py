@@ -20,6 +20,9 @@ teclado.USO = tmp / "uso.jsonl"
 
 # --- herramientas: sin tipos en MAYÚSCULAS y con parámetros de objeto
 ts = teclado.herramientas()
+# --- catálogo de modelos: sin ids repetidos y con lo que pinta el panel
+assert len(teclado.IDS) == len(teclado.MODELOS) and teclado.DEFECTO in teclado.IDS
+assert all(m["id"] and m["nombre"] and m["corto"] and m["bueno"] and "cupo" in m for m in teclado.MODELOS)
 assert ts and all(t["type"] == "function" and t["function"]["parameters"]["type"] == "object" for t in ts)
 assert "STRING" not in json.dumps(ts) and "OBJECT" not in json.dumps(ts)
 ab = next(t for t in ts if t["function"]["name"] == "abrir")["function"]["parameters"]
