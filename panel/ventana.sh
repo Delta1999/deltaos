@@ -163,6 +163,7 @@ lanzar_orbe  # siempre, aunque se arranque en panel: así el primer «modo invis
 # su título se quedaba en «127.0.0.1_/» en vez de «Delta»). Si a los 15 s no tiene el título de la página, se relanza Chromium (hasta 3 veces).
 lanzar_chromium() {
   chromium-browser --user-data-dir="$DIR/.chromium" --load-extension="$DIR/sinmarcos" --app="$URL/" --no-first-run \
+    --remote-debugging-port=9222 --remote-debugging-address=127.0.0.1 \
     --hide-crash-restore-bubble --disable-session-crashed-bubble --no-recovery-component --no-default-browser-check \
     --disable-features=Translate,OptimizationGuideOnDeviceModel --autoplay-policy=no-user-gesture-required 8>&- &
   CH=$!
