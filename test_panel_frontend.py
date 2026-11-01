@@ -151,6 +151,16 @@ def test_teclado_se_oculta_al_enviar():
     print("✓ panel/teclado.js: el bocadillo se oculta al enviar con Intro")
 
 
+def test_teclado_se_oculta_si_no_se_usa():
+    js = (AQUI / "panel" / "teclado.js").read_text(encoding="utf-8")
+    assert "const OCIOSO = 10000;" in js, "el bocadillo sin usar debe esconderse a los 10 s"
+    abre = js[js.index("function abre()"):js.index("function cierra()")]
+    assert "armaOculta()" in abre, "al abrirse arranca la cuenta atrás"
+    assert "!ta.value.trim()" in js[js.index("function armaOculta()"):js.index("function abre()")], "con texto escrito no se esconde"
+    assert "'input', 'keydown', 'focusin', 'pointerdown', 'change'" in js, "cualquier uso reinicia la cuenta atrás"
+    print("✓ panel/teclado.js: el bocadillo se esconde a los 10 s sin uso")
+
+
 def test_render_headless():
     """Ejecuta pintar(d) en Node.js con un DOM mockeado para asegurar que no lanza excepciones."""
     import acciones

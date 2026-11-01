@@ -1,5 +1,16 @@
 [
  {
+  "f": "2026-11-01",
+  "t": "Plan B real: Antigravity ejecuta el cambio en Delta en segundo plano (con foto git y registro en CAMBIOS_DELTA.md)",
+  "como": "Dile a Antigravity que cambie algo de ti"
+ },
+ {
+  "f": "2026-11-01",
+  "t": "El bocadillo del modo teclado se esconde solo a los 10 s si no lo usas (si hay texto escrito, se queda)",
+  "como": "doble clic en la conversación para abrirlo",
+  "voz": false
+ },
+ {
   "f": "2026-10-30",
   "t": "Plan B con Antigravity para mejoras de Delta cuando Claude Code no tenga tokens; Cherry pasa a Plan C.",
   "como": "«mejora esto con Antigravity», «dile a Antigravity que cambie esto»"

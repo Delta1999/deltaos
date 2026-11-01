@@ -81,14 +81,24 @@ function coloca() {
   form.style.bottom = Math.max(8, innerHeight - r.bottom + 14) + 'px';
   f.style.paddingBottom = (form.offsetHeight + 24) + 'px';  // la conversación se sigue viendo por encima del bocadillo
 }
+// bocadillo abierto y sin usar (nada escrito ni tocado) durante 10 s: se esconde solo; si hay texto escrito, no
+const OCIOSO = 10000;
+let tkOculta = 0;
+function armaOculta() {
+  clearTimeout(tkOculta);
+  if (form.hidden) return;
+  tkOculta = setTimeout(() => { if (!ocupado && !ta.value.trim()) cierra(); else armaOculta(); }, OCIOSO);
+}
 function abre() {
-  form.hidden = false; opciones(); coloca(); ta.focus();
+  form.hidden = false; opciones(); coloca(); ta.focus(); armaOculta();
   if (!INFO) window.enviarWS && window.enviarWS({omni: 1});
 }
 function cierra() {
+  clearTimeout(tkOculta);
   form.hidden = true;
   const f = $('frases'); if (f) f.style.paddingBottom = '';
 }
+['input', 'keydown', 'focusin', 'pointerdown', 'change'].forEach(ev => form.addEventListener(ev, armaOculta));
 function alto() { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 140) + 'px'; coloca(); }
 
 $('frases').addEventListener('dblclick', e => {
