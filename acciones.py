@@ -824,9 +824,9 @@ ANTIGRAVITY_PENDIENTES = AQUI / "antigravity_pendientes.md"
 
 
 async def mejorar_delta_antigravity(peticion):
-    """Plan B: Registra o envía una petición de mejora de DeltaOS a Antigravity (antigravity_pendientes.md)."""
+    """Plan B: registra la petición (antigravity_pendientes.md) y la ejecuta con agy en segundo plano."""
     import antigravity_puente
-    return await antigravity_puente.registrar_mejora(peticion)
+    return await antigravity_puente.lanzar(peticion)
 
 
 CHERRY_PENDIENTES = AQUI / "cherry_pendientes.txt"
