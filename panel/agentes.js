@@ -24,44 +24,52 @@ const nombreModelo = m => String(m || '?').replace(/^claude-/, '').replace(/^ant
 
 let D = null, recvT = 0, vivo = true, Tfijo = 0, vista = lee('ag_vista', 'const'), ventana = +lee('ag_ventana', 300);
 let ocultos = new Set(JSON.parse(lee('ag_ocultos', '[]'))), abierto = false, timer = 0, raf = 0, sel = null, estilo = {}, rects = [], pos = {}, vistos = {}, ultLista = 0;
+let cam = {x: 0, y: 0, z: 1}, drag = null, fijados = {}, giroDelta = 0;
+const hexRgb = h => {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h || '');
+  return m ? `${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)}` : '217,119,87';
+};
 
 // ---------- DOM ----------
 const css = `
-#agentes{position:fixed;inset:0;z-index:20;background:var(--bg);color:var(--text-primary);display:none;flex-direction:column;font-family:var(--sans)}
+#agentes{position:fixed;inset:0;z-index:20;background:radial-gradient(circle at 50% 44%,rgba(255,255,255,.028) 0%,transparent 68%),var(--bg);color:var(--text-primary);display:none;flex-direction:column;font-family:var(--sans)}
 body.agentes #agentes{display:flex}
-#agentes .ag-top{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+#agentes .ag-top{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--surface) 78%,transparent);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);flex-wrap:wrap;z-index:4}
 #agentes h2{font-size:28px;margin:0;color:var(--text-display);font-weight:600}
 #agentes .ag-n{color:var(--text-secondary);font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
 #agentes .ag-sp{flex:1}
 #agentes .ag-leyenda{display:flex;gap:12px;font-family:var(--mono);font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em}
-#agentes .ag-leyenda i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-#agentes .ag-seg{display:flex;border:1px solid var(--border-visible);border-radius:999px;overflow:hidden}
-#agentes .ag-seg button,#agentes .ag-x{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);background:transparent;border:0;padding:6px 13px;cursor:pointer}
-#agentes .ag-seg button.on{background:var(--text-primary);color:var(--bg)}
+#agentes .ag-leyenda i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px;box-shadow:0 0 8px currentColor}
+#agentes .ag-seg{display:flex;border:1px solid var(--border-visible);border-radius:999px;overflow:hidden;background:color-mix(in srgb,var(--bg) 50%,transparent)}
+#agentes .ag-seg button,#agentes .ag-x{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);background:transparent;border:0;padding:6px 13px;cursor:pointer;transition:background .16s ease,color .16s ease,border-color .16s ease}
+#agentes .ag-seg button:hover,#agentes .ag-x:hover{color:var(--text-display)}
+#agentes .ag-seg button.on{background:var(--text-primary);color:var(--bg);font-weight:600}
 #agentes .ag-x{border:1px solid var(--border-visible);border-radius:999px;color:var(--text-primary)}
 #agentes .ag-cuerpo{flex:1;display:flex;min-height:0}
-#agentes .ag-lienzo{flex:1;position:relative;min-width:0}
-#agentes canvas{position:absolute;inset:0;width:100%;height:100%}
-#agentes .ag-tip{position:absolute;pointer-events:none;background:var(--surface-raised);border:1px solid var(--border-visible);border-radius:8px;padding:7px 10px;font-size:12px;max-width:360px;display:none;z-index:2;line-height:1.35}
-#agentes .ag-lista{width:330px;border-left:1px solid var(--border);overflow:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
-#agentes .ag-c{border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:9px 11px;cursor:pointer}
-#agentes .ag-c.sel{border-color:var(--text-primary)}
-#agentes .ag-c.off{opacity:.55}
+#agentes .ag-lienzo{flex:1;position:relative;min-width:0;overflow:hidden}
+#agentes canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
+#agentes canvas.arrastrando{cursor:grabbing}
+#agentes .ag-tip{position:absolute;pointer-events:none;background:color-mix(in srgb,var(--surface-raised) 86%,transparent);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--border-visible);border-radius:12px;padding:8px 12px;font-size:12px;max-width:360px;display:none;z-index:5;line-height:1.4;box-shadow:0 12px 32px rgba(0,0,0,.38)}
+#agentes .ag-lista{width:340px;border-left:1px solid var(--border);background:color-mix(in srgb,var(--surface) 64%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+#agentes .ag-c{border:1px solid var(--border);background:color-mix(in srgb,var(--surface-raised) 74%,transparent);border-radius:14px;padding:10px 12px;cursor:pointer;transition:transform .16s ease,border-color .18s ease,box-shadow .18s ease}
+#agentes .ag-c:hover{border-color:var(--border-visible);transform:translateY(-1px)}
+#agentes .ag-c.sel{border-color:var(--text-primary);box-shadow:0 6px 22px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.1)}
+#agentes .ag-c.off{opacity:.56}
 #agentes .ag-c b{font-size:14px;font-weight:600;color:var(--text-display)}
 #agentes .ag-c .l1{display:flex;align-items:center;gap:8px}
 #agentes .ag-c .pt{width:8px;height:8px;border-radius:50%;flex:none;background:var(--text-disabled)}
-#agentes .ag-c .pt.on{animation:agp 1s infinite}
+#agentes .ag-c .pt.on{animation:agp 1s infinite;box-shadow:0 0 8px currentColor}
 @keyframes agp{50%{opacity:.25}}
-#agentes .ag-c .ch{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--text-secondary);margin-top:5px;display:flex;gap:6px;flex-wrap:wrap}
-#agentes .ag-c .ch span{border:1px solid var(--border-visible);border-radius:999px;padding:1px 8px}
+#agentes .ag-c .ch{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--text-secondary);margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+#agentes .ag-c .ch span{border:1px solid var(--border-visible);border-radius:999px;padding:1px 8px;background:color-mix(in srgb,var(--bg) 42%,transparent)}
 #agentes .ag-c .us{font-family:var(--mono);font-size:11.5px;color:var(--text-primary);margin-top:6px;word-break:break-word}
-#agentes .ag-c .ta{font-size:12px;color:var(--text-secondary);margin-top:4px;line-height:1.3}
-#agentes .ag-pie{display:flex;align-items:center;gap:14px;padding:11px 22px;border-top:1px solid var(--border)}
+#agentes .ag-c .ta{font-size:12px;color:var(--text-secondary);margin-top:4px;line-height:1.35}
+#agentes .ag-pie{display:flex;align-items:center;gap:14px;padding:11px 22px;border-top:1px solid var(--border);background:color-mix(in srgb,var(--surface) 78%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);z-index:4}
 #agentes .ag-pie input{flex:1;accent-color:var(--text-primary)}
 #agentes .ag-pie .ag-t{font-family:var(--mono);font-size:12px;color:var(--text-secondary);min-width:120px;text-align:right}
-#agentes .ag-pie button{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--border-visible);border-radius:999px;padding:6px 13px;background:transparent;color:var(--text-primary);cursor:pointer}
-#agentes .ag-pie button.on{background:var(--accent);border-color:var(--accent);color:#fff}
-#agentes .ag-pm{position:absolute;left:0;top:0;width:min(340px,calc(100% - 16px));z-index:3;background:var(--surface-raised);border:1px solid var(--border-visible);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);display:none;flex-direction:column;gap:9px;visibility:hidden}
+#agentes .ag-pie button{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--border-visible);border-radius:999px;padding:6px 13px;background:transparent;color:var(--text-primary);cursor:pointer;transition:all .16s ease}
+#agentes .ag-pie button.on{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 14px color-mix(in srgb,var(--accent) 55%,transparent)}
+#agentes .ag-pm{position:absolute;left:0;top:0;width:min(356px,calc(100% - 16px));z-index:4;background:color-mix(in srgb,var(--surface-raised) 86%,transparent);backdrop-filter:blur(26px) saturate(190%);-webkit-backdrop-filter:blur(26px) saturate(190%);border:1px solid var(--border-visible);border-radius:18px;padding:14px;box-shadow:0 16px 42px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.12);display:none;flex-direction:column;gap:10px;visibility:hidden}
 #agentes .ag-pm.on{display:flex}
 #agentes .ag-pm .h{display:flex;align-items:center;gap:8px}
 #agentes .ag-pm .h b{font-size:14px;font-weight:600;color:var(--text-display);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -344,79 +352,275 @@ function objetivos(vis, W, H) {
   return obj;
 }
 
+function pintaOrbeDelta3D(cx, cy, R, t, on, voz, colHex, dt) {
+  giroDelta += dt * (0.28 + (on ? 0.55 : 0) + voz * 0.65);
+  const rgbFg = document.documentElement.dataset.tema === 'ios' ? '28,28,30' : '242,242,242';
+  const rgbAc = hexRgb(colHex || '#A78BFA');
+  const PAR = 9, SEG = 36, MER = 8, MSEG = 28, TILT = 0.38, DIST = 3.6, NIV = 4;
+  const pathsP = Array.from({length: NIV}, () => new Path2D());
+  const pathsM = Array.from({length: NIV}, () => new Path2D());
+  const proy = (lat, lon) => {
+    const def = 1 + Math.sin(lat * 3 + t * 3.2) * Math.cos(lon * 2 - t * 1.9) * (on ? 0.11 + voz * 0.12 : 0.025)
+      + Math.sin(lat * 2 - t * 1.1) * 0.025;
+    const cl = Math.cos(lat) * def, sl = Math.sin(lat) * def, a = lon + giroDelta;
+    const px = cl * Math.cos(a), y = sl, z = cl * Math.sin(a);
+    const y2 = y * Math.cos(TILT) - z * Math.sin(TILT), z2 = y * Math.sin(TILT) + z * Math.cos(TILT);
+    const f = DIST / (DIST - z2);
+    return [cx + px * R * f, cy - y2 * R * f, z2];
+  };
+  const tramo = (arr, p, q) => {
+    const z = (p[2] + q[2]) / 2;
+    const idx = Math.min(NIV - 1, Math.max(0, Math.round((z + 1) / 2 * (NIV - 1))));
+    arr[idx].moveTo(p[0], p[1]); arr[idx].lineTo(q[0], q[1]);
+  };
+  // Halo de fondo volumétrico
+  const gBg = ctx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R * 1.55);
+  gBg.addColorStop(0, `rgba(${rgbAc},${on ? .28 : .12})`);
+  gBg.addColorStop(0.65, `rgba(${rgbAc},${on ? .08 : .02})`);
+  gBg.addColorStop(1, `rgba(${rgbAc},0)`);
+  ctx.fillStyle = gBg;
+  ctx.beginPath(); ctx.arc(cx, cy, R * 1.55, 0, Math.PI * 2); ctx.fill();
+
+  for (let i = 0; i < PAR; i++) {
+    const lat = (i - (PAR - 1) / 2) / ((PAR - 1) / 2) * 1.35;
+    let p = proy(lat, 0);
+    for (let j = 1; j <= SEG; j++) {
+      const q = proy(lat, j / SEG * Math.PI * 2);
+      tramo(pathsP, p, q); p = q;
+    }
+  }
+  for (let i = 0; i < MER; i++) {
+    const lon = i / MER * Math.PI * 2;
+    let p = proy(-1.45, lon);
+    for (let j = 1; j <= MSEG; j++) {
+      const q = proy(-1.45 + j / MSEG * 2.9, lon);
+      tramo(pathsM, p, q); p = q;
+    }
+  }
+  for (let i = 0; i < NIV; i++) {
+    const k = i / (NIV - 1);
+    ctx.strokeStyle = `rgba(${rgbFg},${0.08 + 0.32 * k * k})`;
+    ctx.lineWidth = 0.6 + 0.45 * k;
+    ctx.stroke(pathsM[i]);
+    ctx.strokeStyle = `rgba(${rgbFg},${0.16 + 0.72 * k * k})`;
+    ctx.lineWidth = 0.8 + 0.65 * k;
+    ctx.stroke(pathsP[i]);
+  }
+  // Anillo ecuatorial reactivo (rojo Nothing / acento vivo)
+  const latAnillo = Math.sin(t * 0.65) * 0.95;
+  const ani = Array.from({length: NIV}, () => new Path2D());
+  let pA = proy(latAnillo, 0);
+  for (let j = 1; j <= SEG; j++) {
+    const qA = proy(latAnillo, j / SEG * Math.PI * 2);
+    tramo(ani, pA, qA); pA = qA;
+  }
+  const rgbAnillo = on ? '215,25,33' : rgbAc;
+  for (let i = 0; i < NIV; i++) {
+    const k = i / (NIV - 1);
+    ctx.strokeStyle = `rgba(${rgbAnillo},${0.25 + 0.72 * k})`;
+    ctx.lineWidth = (on ? 1.5 : 1.1) * (0.65 + 0.55 * k);
+    ctx.stroke(ani[i]);
+  }
+}
+
+function pintaEsferaAgente3D(cx, cy, r, colHex, estado, on, esSel, tipo) {
+  const rgb = hexRgb(colHex);
+  const ms = performance.now();
+  // Halo exterior cuando está trabajando o seleccionado
+  if (on || esSel) {
+    const gHalo = ctx.createRadialGradient(cx, cy, r * 0.4, cx, cy, r * (on ? 1.85 : 1.45));
+    gHalo.addColorStop(0, `rgba(${rgb},${on ? .34 : .22})`);
+    gHalo.addColorStop(0.6, `rgba(${rgb},${on ? .10 : .04})`);
+    gHalo.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = gHalo;
+    ctx.beginPath(); ctx.arc(cx, cy, r * (on ? 1.85 : 1.45), 0, Math.PI * 2); ctx.fill();
+  }
+  // Esfera 3D con iluminación especular desplazada y rim-light
+  const gEsf = ctx.createRadialGradient(cx - r * 0.34, cy - r * 0.36, r * 0.08, cx, cy, r);
+  gEsf.addColorStop(0, `rgba(255,255,255,${on ? .92 : .55})`);
+  gEsf.addColorStop(0.24, `rgba(${rgb},${on ? .92 : .52})`);
+  gEsf.addColorStop(0.72, `rgba(${rgb},${on ? .36 : .20})`);
+  gEsf.addColorStop(1, `rgba(10,10,14,${on ? .92 : .85})`);
+  ctx.fillStyle = gEsf;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+
+  // Borde de cristal (Fresnel rim)
+  ctx.strokeStyle = `rgba(${rgb},${on ? .95 : esSel ? .85 : .48})`;
+  ctx.lineWidth = esSel ? 2.4 : on ? 1.9 : 1.2;
+  ctx.stroke();
+
+  // Meridiano sutil interno para dar volumen a las sesiones y al router
+  if (tipo !== 'sub') {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(ms / (on ? 1800 : 4200));
+    ctx.strokeStyle = `rgba(255,255,255,${on ? .22 : .09})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 0.88, r * 0.34, 0.35, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Anillos orbitales inclinados en 3D cuando está pensando/usando/orquestando
+  if (on) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    const vel = estado === 'pensando' ? 0.0018 : estado === 'orquestando' ? 0.0034 : 0.0026;
+    ctx.rotate(ms * vel);
+    ctx.strokeStyle = `rgba(${rgb},.78)`;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 1.34, r * 0.44, 0.42, 0, Math.PI * 1.45);
+    ctx.stroke();
+    if (estado === 'orquestando' || tipo === 'sesion') {
+      ctx.rotate(-ms * vel * 1.7);
+      ctx.strokeStyle = `rgba(255,255,255,.45)`;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 1.22, r * 0.38, -0.55, 0, Math.PI * 1.15);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function bezierPt(ax, ay, cx, cy, bx, by, u) {
+  const m = 1 - u;
+  return [m * m * ax + 2 * m * u * cx + u * u * bx, m * m * ay + 2 * m * u * cy + u * u * by];
+}
+
 function pintaConst(t, W, H, dt) {
   const vis = D.nodos.filter(n => visible(n, t)), por = new Map(vis.map(n => [n.id, n]));
   const obj = objetivos(vis, W, H);
   for (const n of vis) {
-    const o = obj[n.id] || [W / 2, H / 2], p = pos[n.id];
+    const o = fijados[n.id] || obj[n.id] || [W / 2, H / 2], p = pos[n.id];
     if (!p) { const pa = pos[n.padre]; pos[n.id] = {x: pa ? pa.x : o[0], y: pa ? pa.y : o[1]}; }
-    const q = pos[n.id], k = 1 - Math.pow(0.0015, dt);
+    const q = pos[n.id], k = drag && drag.id === n.id ? 1 : 1 - Math.pow(0.0015, dt);
     q.x += (o[0] - q.x) * k; q.y += (o[1] - q.y) * k;
   }
   rects = [];
   const est = new Map(vis.map(n => [n.id, estadoEn(n, t)]));
-  // aristas: de quien encarga a quien trabaja, con flecha y el tipo de subagente
+  const w2s = (wx, wy) => [(wx - W / 2) * cam.z + W / 2 + cam.x, (wy - H / 2) * cam.z + H / 2 + cam.y];
+
+  ctx.save();
+  ctx.translate(W / 2 + cam.x, H / 2 + cam.y);
+  ctx.scale(cam.z, cam.z);
+  ctx.translate(-W / 2, -H / 2);
+
+  // Sinapsis curvas entre quien encarga y quien trabaja + tren de impulsos luminosos cuando está activo
+  const curvas = new Map();
   for (const n of vis) {
-    const a = pos[n.padre && por.has(n.padre) ? n.padre : null], b = pos[n.id];
+    const pid = n.padre && por.has(n.padre) ? n.padre : null;
+    const a = pos[pid], b = pos[n.id];
     if (!a || !b) continue;
-    const on = activo(est.get(n.id).e), c = (ORIGEN[n.origen] || ORIGEN.claude)[1];
-    ctx.strokeStyle = c; ctx.fillStyle = c; ctx.globalAlpha = on ? .8 : .38; ctx.lineWidth = on ? 2.2 : 1.4; ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    const d = Math.hypot(b.x - a.x, b.y - a.y) || 1, ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, rr = (RADIO[n.tipo] || 20) + 5;
+    const stH = est.get(n.id), on = activo(stH.e), c = (ORIGEN[n.origen] || ORIGEN.claude)[1], rgb = hexRgb(c);
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
+    const nx = -dy / d, ny = dx / d;
+    const curvatura = Math.min(44, d * 0.16) * ((n.id.charCodeAt(0) % 2) ? 1 : -1);
+    const mx = (a.x + b.x) / 2 + nx * curvatura, my = (a.y + b.y) / 2 + ny * curvatura;
+    curvas.set(`${pid}->${n.id}`, [a.x, a.y, mx, my, b.x, b.y]);
+    curvas.set(`${n.id}->${pid}`, [b.x, b.y, mx, my, a.x, a.y]);
+
+    const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    grad.addColorStop(0, `rgba(${rgb},${on ? .35 : .16})`);
+    grad.addColorStop(0.5, `rgba(${rgb},${on ? .88 : .32})`);
+    grad.addColorStop(1, `rgba(${rgb},${on ? .95 : .42})`);
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = on ? 2.4 : 1.3;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(mx, my, b.x, b.y); ctx.stroke();
+
+    // Tren de impulsos sinápticos continuos mientras el hijo trabaja o usa una herramienta
+    if (on) {
+      const colPulso = stH.seg ? colorHerr(stH.seg.tool) : c;
+      for (let k = 0; k < 2; k++) {
+        const u = ((performance.now() / 1100) + k * 0.5) % 1;
+        const [px, py] = bezierPt(a.x, a.y, mx, my, b.x, b.y, u);
+        ctx.fillStyle = colPulso;
+        ctx.shadowColor = colPulso; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.arc(px, py, 3.2, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    const rr = (RADIO[n.tipo] || 20) + 6;
     if (d > rr + 30) {
-      const tx = b.x - ux * rr, ty = b.y - uy * rr;
-      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx - ux * 9 - uy * 5, ty - uy * 9 + ux * 5); ctx.lineTo(tx - ux * 9 + uy * 5, ty - uy * 9 - ux * 5); ctx.fill();
+      const [tx, ty] = bezierPt(a.x, a.y, mx, my, b.x, b.y, Math.max(0, 1 - rr / d));
+      const [px0, py0] = bezierPt(a.x, a.y, mx, my, b.x, b.y, Math.max(0, 1 - (rr + 10) / d));
+      const ad = Math.hypot(tx - px0, ty - py0) || 1, ux = (tx - px0) / ad, uy = (ty - py0) / ad;
+      ctx.fillStyle = `rgba(${rgb},${on ? .92 : .45})`;
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx - ux * 8 - uy * 4.5, ty - uy * 8 + ux * 4.5); ctx.lineTo(tx - ux * 8 + uy * 4.5, ty - uy * 8 - ux * 4.5); ctx.fill();
     }
     const rot = n.tipo === 'sub' ? n.nombre : n.padre === 'delta' ? 'ACP' : '';
-    if (rot && d > 90) {
-      ctx.globalAlpha = on ? .95 : .6; ctx.font = `9.5px ${estilo.mono}`; ctx.textAlign = 'center'; ctx.fillStyle = estilo.dim;
-      ctx.fillText(corto(rot, 20), (a.x + b.x) / 2, (a.y + b.y) / 2 - 6);
+    if (rot && d > 95) {
+      const [lx, ly] = bezierPt(a.x, a.y, mx, my, b.x, b.y, 0.5);
+      ctx.globalAlpha = on ? .92 : .55; ctx.font = `9.5px ${estilo.mono}`; ctx.textAlign = 'center'; ctx.fillStyle = estilo.dim;
+      ctx.fillText(corto(rot, 20), lx, ly - 7);
     }
   }
   const rt = por.get('omniroute');  // el enrutador: línea discontinua hacia lo que sirve
   if (rt) for (const n of vis) if (n.origen === 'omniroute' && n.tipo !== 'router' && pos[n.id] && pos.omniroute) {
-    ctx.strokeStyle = ORIGEN.omniroute[1]; ctx.globalAlpha = activo(est.get(n.id).e) ? .5 : .12; ctx.lineWidth = 1; ctx.setLineDash([4, 6]);
+    const on = activo(est.get(n.id).e);
+    ctx.strokeStyle = ORIGEN.omniroute[1]; ctx.globalAlpha = on ? .52 : .14; ctx.lineWidth = on ? 1.4 : 1; ctx.setLineDash([4, 6]);
     ctx.beginPath(); ctx.moveTo(pos[n.id].x, pos[n.id].y); ctx.lineTo(pos.omniroute.x, pos.omniroute.y); ctx.stroke();
   }
   ctx.setLineDash([]); ctx.globalAlpha = 1;
-  // mensajes: un punto de luz que viaja de quien encarga a quien trabaja (y vuelta con el resultado)
+
+  // Mensajes y resultados: cometas de luz que viajan por la sinapsis curva con estela
   for (const e of D.eventos) {
     const d = t - e.t;
-    if (d < 0 || d > 2.4 || !pos[e.de] || !pos[e.a] || !por.has(e.de) || !por.has(e.a)) continue;
-    const u = Math.min(1, d / 1.4), a = pos[e.de], b = pos[e.a], x = a.x + (b.x - a.x) * u, y = a.y + (b.y - a.y) * u;
-    const c = e.tipo === 'resultado' ? VERDE : (ORIGEN[por.get(e.a).origen] || ORIGEN.claude)[1];
-    ctx.fillStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 16;
-    ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
-    ctx.globalAlpha = Math.max(0, 1 - Math.max(0, d - 1.4) / 1);
-    ctx.font = `11px ${estilo.mono}`; ctx.fillStyle = estilo.fg; ctx.textAlign = 'center';
-    ctx.fillText((e.tipo === 'resultado' ? '✓ ' : '→ ') + corto(e.txt, 38), x, y - 12);
+    if (d < 0 || d > 2.6 || !pos[e.de] || !pos[e.a] || !por.has(e.de) || !por.has(e.a)) continue;
+    const u = Math.min(1, d / 1.45), a = pos[e.de], b = pos[e.a];
+    const crv = curvas.get(`${e.de}->${e.a}`) || [a.x, a.y, (a.x + b.x) / 2, (a.y + b.y) / 2 - 24, b.x, b.y];
+    const [x, y] = bezierPt(crv[0], crv[1], crv[2], crv[3], crv[4], crv[5], u);
+    const c = e.tipo === 'resultado' ? VERDE : (ORIGEN[por.get(e.a).origen] || ORIGEN.claude)[1], rgb = hexRgb(c);
+    // Estela del cometa
+    for (let s = 1; s <= 5; s++) {
+      const us = Math.max(0, u - s * 0.035);
+      const [sx, sy] = bezierPt(crv[0], crv[1], crv[2], crv[3], crv[4], crv[5], us);
+      ctx.fillStyle = `rgba(${rgb},${(1 - s / 6) * 0.45})`;
+      ctx.beginPath(); ctx.arc(sx, sy, 5 * (1 - s * 0.14), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#fff'; ctx.shadowColor = c; ctx.shadowBlur = 18;
+    ctx.beginPath(); ctx.arc(x, y, 5.2, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.globalAlpha = Math.max(0, 1 - Math.max(0, d - 1.45) / 1.15);
+    ctx.font = `600 11px ${estilo.mono}`; ctx.fillStyle = estilo.fg; ctx.textAlign = 'center';
+    ctx.fillText((e.tipo === 'resultado' ? '✓ ' : '→ ') + corto(e.txt, 38), x, y - 13);
     ctx.globalAlpha = 1;
   }
-  // nodos
+
+  // Nodos: Orbe 3D de alambre vivo para Delta y Esferas 3D con anillos orbitales para los agentes
   for (const n of vis) {
     const p = pos[n.id], s = est.get(n.id), on = activo(s.e), o = ORIGEN[n.origen] || ORIGEN.claude;
     const edad = Math.min(1, (performance.now() - (vistos[n.id] || 0)) / 500);
     const r = (RADIO[n.tipo] || 20) * (0.4 + 0.6 * edad);
-    const pul = on ? 1 + 0.07 * Math.sin(performance.now() / 160) : 1;
-    ctx.globalAlpha = (n.id === sel || !sel ? 1 : .45) * (s.e === 'hecho' ? .6 : 1);
-    if (on) { ctx.shadowColor = o[1]; ctx.shadowBlur = 24; }
-    ctx.fillStyle = estilo.sup; ctx.strokeStyle = o[1]; ctx.lineWidth = on ? 3 : 1.5;
-    ctx.beginPath(); ctx.arc(p.x, p.y, r * pul, 0, 7); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
-    if (on) {  // arco que gira: está haciendo algo
-      ctx.strokeStyle = o[1]; ctx.lineWidth = 2; ctx.beginPath();
-      const g = performance.now() / 500 * (s.e === 'pensando' ? .6 : 1.6);
-      ctx.arc(p.x, p.y, r * pul + 7, g, g + 1.6); ctx.stroke();
+    const pul = on ? 1 + 0.055 * Math.sin(performance.now() / 170) : 1;
+    const esSel = n.id === sel;
+    ctx.globalAlpha = (esSel || !sel ? 1 : .45) * (s.e === 'hecho' ? .65 : 1);
+
+    if (n.tipo === 'delta') {
+      const voz = (window.S && (window.S.nivel || (window.S.mic && window.S.mic.nivel))) || (on ? 0.35 : 0);
+      pintaOrbeDelta3D(p.x, p.y, r * 1.18 * pul, performance.now() / 1000, on, voz, o[1], dt);
+    } else {
+      pintaEsferaAgente3D(p.x, p.y, r * pul, o[1], s.e, on, esSel, n.tipo);
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = `700 ${r > 24 ? 13 : 11}px ${estilo.sans}`;
+      ctx.fillText(n.tipo === 'router' ? '⇄' : s.e === 'hecho' ? '✓' : n.tipo === 'sub' ? '◦' : '●', p.x, p.y + 4.5);
     }
-    ctx.fillStyle = estilo.fg; ctx.textAlign = 'center'; ctx.font = `600 ${r > 30 ? 15 : 12}px ${estilo.sans}`;
-    ctx.fillText(n.tipo === 'delta' ? 'Δ' : n.tipo === 'router' ? '⇄' : s.e === 'hecho' ? '✓' : n.tipo === 'sub' ? '◦' : '●', p.x, p.y + 5);
-    ctx.font = `600 12px ${estilo.sans}`; ctx.fillStyle = estilo.fg;
-    ctx.fillText(corto(titulo(n), 24), p.x, p.y + r + 17);
+
+    // Etiquetas bajo el orbe
+    const yTxt = p.y + (n.tipo === 'delta' ? r * 1.24 : r) + 17;
+    ctx.font = `600 12px ${estilo.sans}`; ctx.fillStyle = estilo.fg; ctx.textAlign = 'center';
+    ctx.fillText(corto(titulo(n), 24), p.x, yTxt);
     ctx.font = `10.5px ${estilo.mono}`; ctx.fillStyle = estilo.dim;
-    ctx.fillText(corto(nombreModelo(n.modelo), 26), p.x, p.y + r + 30);
+    ctx.fillText(corto(nombreModelo(n.modelo), 26), p.x, yTxt + 13);
     ctx.globalAlpha = 1;
-    rects.push({id: n.id, x: p.x - r, y: p.y - r, w: 2 * r, h: 2 * r, circ: true, cx: p.x, cy: p.y, r});
+
+    const [sx, sy] = w2s(p.x, p.y), sr = r * cam.z;
+    rects.push({id: n.id, x: sx - sr, y: sy - sr, w: 2 * sr, h: 2 * sr, circ: true, cx: sx, cy: sy, r: sr});
   }
-  // herramientas: cada llamada orbita a su agente, unida a él por un hilo (la última, en el centro del arco)
+
+  // Herramientas: satélites 3D que orbitan a su agente unidos por un rayo de energía
   const dir = new Map(vis.map(n => [n.id, [0, 0]]));
   for (const n of vis) {
     const pa = n.padre && por.has(n.padre) && n.tipo !== 'router' ? n.padre : null;
@@ -426,10 +630,10 @@ function pintaConst(t, W, H, dt) {
   }
   const vivas = new Set(), k2 = 1 - Math.pow(0.002, dt);
   for (const n of vis) {
-    const p = pos[n.id], v = dir.get(n.id), r = (RADIO[n.tipo] || 20), aN = (n.id === sel || !sel ? 1 : .45);
+    const p = pos[n.id], v = dir.get(n.id), r = (RADIO[n.tipo] || 20) * (n.tipo === 'delta' ? 1.15 : 1), aN = (n.id === sel || !sel ? 1 : .45);
     let c = -v[0], sn = -v[1]; const m = Math.hypot(c, sn);
     if (m < .3) { c = 0; sn = -1; } else { c /= m; sn /= m; }
-    let ang0 = Math.atan2(sn, c);  // el arco de herramientas se queda por arriba y a los lados: abajo va el nombre
+    let ang0 = Math.atan2(sn, c);
     if (ang0 > .45) ang0 -= 2 * Math.PI;
     if (ang0 < -Math.PI - .45) ang0 = c >= 0 ? .45 : -Math.PI - .45;
     ang0 = Math.max(-Math.PI - .45 + 1, Math.min(.45 - 1, ang0));
@@ -438,15 +642,15 @@ function pintaConst(t, W, H, dt) {
     for (let i = reciente.length - 1, j = 0; i >= 0; i--, j++) {
       const g = reciente[i], act = g.t0 <= t && t <= (g.abierto && vivo ? Infinity : g.t1), edad = act ? 0 : t - g.t1;
       const key = `${n.id}|${g.t0}`; vivas.add(key);
-      const meta = ang0 + (j % 2 ? 1 : -1) * Math.ceil(j / 2) * .5, rad = r + 46;
+      const meta = ang0 + (j % 2 ? 1 : -1) * Math.ceil(j / 2) * .52, rad = r + 48;
       const e = sats[key] || (sats[key] = {a: ang0, rad: r});
       e.a += (meta - e.a) * k2; e.rad += (rad - e.rad) * k2;
       const x = p.x + Math.cos(e.a) * e.rad, y = p.y + Math.sin(e.a) * e.rad;
-      const col = n.tipo === 'router' ? ORIGEN.omniroute[1] : colorHerr(g.tool), rd = act ? 9 + 1.2 * Math.sin(performance.now() / 140) : 6.5;
+      const col = n.tipo === 'router' ? ORIGEN.omniroute[1] : colorHerr(g.tool), rd = act ? 9.5 + 1.2 * Math.sin(performance.now() / 140) : 6.8;
       ctx.globalAlpha = aN * (act ? 1 : Math.max(.28, 1 - edad / 45 * .72));
-      ctx.strokeStyle = col; ctx.lineWidth = act ? 2 : 1; ctx.beginPath(); ctx.moveTo(p.x + Math.cos(e.a) * r, p.y + Math.sin(e.a) * r); ctx.lineTo(x, y); ctx.stroke();
+      ctx.strokeStyle = col; ctx.lineWidth = act ? 2 : 1.1; ctx.beginPath(); ctx.moveTo(p.x + Math.cos(e.a) * r, p.y + Math.sin(e.a) * r); ctx.lineTo(x, y); ctx.stroke();
       if (act) { ctx.shadowColor = col; ctx.shadowBlur = 14; }
-      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, rd, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, rd, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
       if (!g.ok) { ctx.strokeStyle = '#E5484D'; ctx.lineWidth = 2; ctx.stroke(); }
       ctx.fillStyle = '#000'; ctx.font = `700 ${act ? 10 : 9}px ${estilo.mono}`; ctx.textAlign = 'center'; ctx.fillText(glifo(g.tool), x, y + 3.5);
       if (act && !pilla) {
@@ -454,18 +658,20 @@ function pintaConst(t, W, H, dt) {
         let dcha = Math.cos(e.a) >= 0;
         const txt = corto(`${nomHerr(g.tool)}${g.det ? ': ' + g.det : ''}`, 30);
         ctx.font = `600 10.5px ${estilo.mono}`;
-        const w = ctx.measureText(txt).width + 10;
-        if (dcha && x + rd + 3 + w > W - 6) dcha = false; else if (!dcha && x - rd - 3 - w < 6) dcha = true;
+        const w = ctx.measureText(txt).width + 12;
+        if (dcha && x + rd + 4 + w > W - 6) dcha = false; else if (!dcha && x - rd - 4 - w < 6) dcha = true;
         ctx.textAlign = dcha ? 'left' : 'right';
-        const bx = dcha ? x + rd + 3 : x - rd - 3 - w;
-        ctx.fillStyle = estilo.sup; ctx.globalAlpha *= .92; ctx.beginPath(); ctx.roundRect(bx, y - 9, w, 18, 9); ctx.fill();
-        ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = aN;
-        ctx.fillStyle = estilo.fg; ctx.fillText(txt, bx + (dcha ? 5 : w - 5), y + 3.5);
+        const bx = dcha ? x + rd + 4 : x - rd - 4 - w;
+        ctx.fillStyle = estilo.sup; ctx.globalAlpha *= .94; ctx.beginPath(); ctx.roundRect(bx, y - 9.5, w, 19, 9.5); ctx.fill();
+        ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.stroke(); ctx.globalAlpha = aN;
+        ctx.fillStyle = estilo.fg; ctx.fillText(txt, bx + (dcha ? 6 : w - 6), y + 3.5);
       }
       ctx.globalAlpha = 1;
-      rects.push({id: n.id, x: x - 9, y: y - 9, w: 18, h: 18, circ: true, cx: x, cy: y, r: 9, seg: g});
+      const [sx, sy] = w2s(x, y), sr = 9.5 * cam.z;
+      rects.push({id: n.id, x: sx - sr, y: sy - sr, w: 2 * sr, h: 2 * sr, circ: true, cx: sx, cy: sy, r: sr, seg: g});
     }
   }
+  ctx.restore();
   for (const k in sats) if (!vivas.has(k)) delete sats[k];
 }
 
@@ -640,7 +846,49 @@ function bajo(e) {
   }
   return null;
 }
+cv.addEventListener('mousedown', e => {
+  if (vista !== 'const' || e.button !== 0) return;
+  const h = bajo(e);
+  if (h && !h.q.seg && !h.q.evento && pos[h.q.id]) {
+    drag = {tipo: 'nodo', id: h.q.id, x0: e.clientX, y0: e.clientY, mov: false, wx: pos[h.q.id].x, wy: pos[h.q.id].y};
+  } else {
+    drag = {tipo: 'pan', x0: e.clientX, y0: e.clientY, mov: false, cx: cam.x, cy: cam.y};
+  }
+  cv.classList.add('arrastrando');
+});
+addEventListener('mousemove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+  if (Math.hypot(dx, dy) > 4) drag.mov = true;
+  if (!drag.mov) return;
+  if (drag.tipo === 'nodo' && pos[drag.id]) {
+    const nx = drag.wx + dx / cam.z, ny = drag.wy + dy / cam.z;
+    pos[drag.id].x = nx; pos[drag.id].y = ny;
+    fijados[drag.id] = [nx, ny];
+  } else if (drag.tipo === 'pan') {
+    cam.x = drag.cx + dx; cam.y = drag.cy + dy;
+  }
+});
+addEventListener('mouseup', () => {
+  if (drag) {
+    setTimeout(() => { drag = null; }, 0);
+    cv.classList.remove('arrastrando');
+  }
+});
+cv.addEventListener('wheel', e => {
+  if (vista !== 'const') return;
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.12 : 0.89;
+  cam.z = Math.max(0.45, Math.min(2.6, cam.z * factor));
+}, {passive: false});
+cv.addEventListener('dblclick', e => {
+  if (vista !== 'const') return;
+  const h = bajo(e);
+  if (h && h.q.id) delete fijados[h.q.id];
+  else { cam = {x: 0, y: 0, z: 1}; fijados = {}; }
+});
 cv.addEventListener('mousemove', e => {
+  if (drag && drag.mov) { $('ag-tip').style.display = 'none'; return; }
   const h = bajo(e), tip = $('ag-tip');
   if (!h) { tip.style.display = 'none'; return; }
   const n = D.nodos.find(z => z.id === h.q.id) || {};
@@ -652,7 +900,7 @@ cv.addEventListener('mousemove', e => {
   tip.style.left = Math.min(h.x + 14, cv.clientWidth - 370) + 'px'; tip.style.top = Math.min(h.y + 14, cv.clientHeight - 80) + 'px';
 });
 cv.addEventListener('mouseleave', () => { $('ag-tip').style.display = 'none'; });
-cv.addEventListener('click', e => { const h = bajo(e); sel = h && h.q.id !== sel ? h.q.id : null; ultLista = 0; });
+cv.addEventListener('click', e => { if (drag && drag.mov) return; const h = bajo(e); sel = h && h.q.id !== sel ? h.q.id : null; ultLista = 0; });
 
 // ---------- nueva conversación: el selector permanente bajo el título ----------
 // Claude Code (agentes, frameworks, modos Workflow y Juez) o DeltaOS. El catálogo se lee del disco (agentes_catalogo.py) y
