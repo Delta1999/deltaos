@@ -1,68 +1,73 @@
 # DeltaOS
 
-Asistente de voz personal para el escritorio, con un panel web propio. Se llama **Delta**, se activa con la palabra «Delta» y habla con la sesión en tiempo real de **Gemini Live** (`gemini-3.8-live`). Delegar es su fuerte: cuando la tarea es de código, de búsqueda o de documentos, la pasa al agente adecuado y cuenta el resultado.
+**English** · [Español](README.es.md)
 
-> Proyecto personal en uso diario sobre Fedora (KDE/Wayland). Está pensado para mi máquina; el código es público para enseñar cómo está montado, no como producto listo para instalar.
+![DeltaOS panel](docs/panel.png)
+_DeltaOS panel (screenshot with sample data)._
 
-## Qué hace
+A personal desktop voice assistant with its own web dashboard. It is called **Delta**, wakes on the word "Delta" and talks over a real-time **Gemini Live** session (`gemini-3.8-live`). Its strength is delegation: when a task is about code, search or documents, it hands it to the right agent and reports back.
 
-- **Voz de baja latencia:** micrófono, palabra de activación (`livekit-wakeword`), conversación bidireccional con Gemini Live y herramientas que el modelo invoca por función.
-- **Panel DeltaOS** (`panel/`, aiohttp + WebSocket en `127.0.0.1:7876`): estado en vivo, mascota 3D, fondos con shaders, notas, avisos y un modo teclado.
-- **Multi-agente:** delega en Claude Code (por ACP), en servidores MCP y en un puente con Antigravity; hay un catálogo de agentes (`agentes_catalogo.py`).
-- **Memoria** en SQLite con FTS5 (`memoria.py`), hábitos, avisos proactivos y notificaciones push web al móvil (`pywebpush`).
-- **Visión** (`vision.py`, mediapipe + OpenCV): saber si el usuario está delante, gestos y pantallas.
-- **Entorno de casa:** Telegram, control de una Fire TV por ADB (`firetv.py`) y una pasarela ligera (`pasarela/`) que corre en una placa Armbian y se alcanza por Tailscale.
-- **Documentos:** crear, convertir y estudiar PDF (`secretario.py`, `estudio*.py`).
+> A personal project in daily use on Fedora (KDE/Wayland). It is built around my own machine; the code is public to show how it is put together, not as a ready-to-install product.
 
-## Seguridad por diseño
+## Features
 
-- Las órdenes del panel entran solo por WebSocket, que comprueba `Origin`; no hay endpoints HTTP que hagan hablar a Delta.
-- Enviar mensajes, apagar el equipo, instalar skills o lanzar comandos que cambian algo exige confirmación del usuario, de viva voz.
-- La impresora 3D que monitoriza es de **solo lectura** (únicamente GET).
-- Secretos en `.env`, claves y bases de datos fuera del control de versiones (`.gitignore`).
+- **Low-latency voice:** microphone, wake word (`livekit-wakeword`), bidirectional conversation with Gemini Live, and tools the model calls as functions.
+- **DeltaOS dashboard** (`panel/`, aiohttp + WebSocket on `127.0.0.1:7876`): live status, 3D mascot, shader backgrounds, notes, alerts and a keyboard mode.
+- **Multi-agent:** delegates to Claude Code (over ACP), to MCP servers and to an Antigravity bridge, with an agent catalogue (`agentes_catalogo.py`).
+- **Memory** in SQLite with FTS5 (`memoria.py`), habits, proactive alerts and web push notifications to the phone (`pywebpush`).
+- **Vision** (`vision.py`, mediapipe + OpenCV): presence, gestures and screens.
+- **Home integration:** Telegram, Fire TV control over ADB (`firetv.py`) and a light gateway (`pasarela/`) running on an Armbian board, reachable over Tailscale.
+- **Documents:** create, convert and study PDFs (`secretario.py`, `estudio*.py`).
 
-## Estructura
+## Safety by design
 
-| Ruta | Para qué sirve |
+- Dashboard commands only come in through a WebSocket that checks `Origin`; there are no HTTP endpoints that make Delta speak.
+- Sending messages, powering off the machine, installing skills or running state-changing commands requires the user's spoken confirmation.
+- The 3D printer it monitors is **read-only** (GET requests only).
+- Secrets live in `.env`; keys and databases are kept out of version control (`.gitignore`).
+
+## Layout
+
+| Path | Purpose |
 |---|---|
-| `assistant.py` | Bucle principal: micro, palabra de activación, sesión Gemini Live |
-| `acciones.py` | Herramientas que Gemini puede llamar y estado compartido |
-| `deltaos.py` | Visor del panel, búsqueda, informes y skills |
-| `claude_acp.py` | Claude Code por ACP (`hablar_con_claude`, `mejorar_delta`) |
-| `panel.py`, `panel/` | Servidor y frontend del panel |
-| `memoria.py` | Memoria persistente SQLite + FTS5 |
-| `vision*.py` | Visión por cámara |
-| `firetv.py`, `firetv/` | Fire TV por ADB y app Android del micro del mando |
-| `pasarela/` | Página «PC apagado» y acceso móvil, en la placa Armbian |
-| `skills/` | Skills de agente que usa el desarrollo del proyecto |
-| `PLAN_V3.md`, `CAMBIOS_DELTA.md` | Plan de diseño y registro de cambios |
-| `test_*.py` | Pruebas, un fichero por módulo |
+| `assistant.py` | Main loop: mic, wake word, Gemini Live session |
+| `acciones.py` | Tools Gemini can call, and shared state |
+| `deltaos.py` | Dashboard viewer, search, reports and skills |
+| `claude_acp.py` | Claude Code over ACP (`hablar_con_claude`, `mejorar_delta`) |
+| `panel.py`, `panel/` | Dashboard server and frontend |
+| `memoria.py` | Persistent memory, SQLite + FTS5 |
+| `vision*.py` | Camera vision |
+| `firetv.py`, `firetv/` | Fire TV over ADB and the Android remote-mic app |
+| `pasarela/` | "PC is off" page and mobile access, on the Armbian board |
+| `skills/` | Agent skills used while developing the project |
+| `PLAN_V3.md`, `CAMBIOS_DELTA.md` | Design plan and change log (in Spanish) |
+| `test_*.py` | Tests, one file per module |
 
-## Requisitos
+## Requirements
 
-- Linux con PipeWire, `wl-clipboard`, `kdotool`, `ffmpeg`, `adb` y `python3-gobject`.
-- Python 3.14 (el del entorno de desarrollo) y una clave de la API de Gemini.
-- Opcional: Claude Code (`claude`) para la delegación de código, un bot de Telegram, una Fire TV.
+- Linux with PipeWire, `wl-clipboard`, `kdotool`, `ffmpeg`, `adb` and `python3-gobject`.
+- Python 3.14 (the development environment) and a Gemini API key.
+- Optional: Claude Code (`claude`) for code delegation, a Telegram bot, a Fire TV.
 
-## Puesta en marcha
+## Getting started
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-echo "GEMINI_API_KEY=tu_clave" > .env
+echo "GEMINI_API_KEY=your_key" > .env
 ./run.sh
 ```
 
-Después, el panel está en <http://127.0.0.1:7876>.
+The dashboard is then at <http://127.0.0.1:7876>.
 
-## Pruebas
+## Tests
 
-Cada módulo trae su prueba, que se ejecuta suelta:
+Each module ships its own test, run standalone:
 
 ```bash
 .venv/bin/python test_memoria.py
 ```
 
-## Licencia
+## License
 
 [MIT](LICENSE).
