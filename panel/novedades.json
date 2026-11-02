@@ -140,7 +140,7 @@
  {
   "f": "2026-10-27",
   "t": "Con el portátil apagado, el móvil ya no se queda en blanco: la caja de la impresora (siempre encendida) sirve una página «PC apagado» que se vigila sola y salta a Delta en cuanto el portátil arranca. Se instala como app con el mismo orbe",
-  "como": "en el móvil, abre https://delta.tail630f35.ts.net e instálala (menú ⋮ → Instalar aplicación)",
+  "como": "en el móvil, abre https://delta.<tu-tailnet>.ts.net e instálala (menú ⋮ → Instalar aplicación)",
   "voz": false
  },
  {
@@ -187,7 +187,7 @@
  },
  {
   "f": "2026-10-26",
-  "t": "Habla con Delta desde el móvil, estés donde estés: abre https://fedora.tail630f35.ts.net/movil (con Tailscale encendido en el móvil) y toca el orbe. Es una DeltaOS en pequeño, con su orbe, su hora, su tema (Nothing o iOS, el mismo que el panel) y lo que habláis. Es la misma Delta con todas sus herramientas; mientras hablas por el móvil, el PC no oye ni suena, y al dormirse todo vuelve al PC.",
+  "t": "Habla con Delta desde el móvil, estés donde estés: abre https://<pc>.<tu-tailnet>.ts.net/movil (con Tailscale encendido en el móvil) y toca el orbe. Es una DeltaOS en pequeño, con su orbe, su hora, su tema (Nothing o iOS, el mismo que el panel) y lo que habláis. Es la misma Delta con todas sus herramientas; mientras hablas por el móvil, el PC no oye ni suena, y al dormirse todo vuelve al PC.",
   "como": "Toca el orbe en la web del móvil",
   "voz": false
  },
